@@ -51,7 +51,7 @@ public class InputRouter : MonoBehaviour
 
     private void OnDisable()
     {
-        gameLayerStack.CurrentLayerChanged += OnCurrentLayerChanged;
+        gameLayerStack.CurrentLayerChanged -= OnCurrentLayerChanged;
 
         inputReader.MoveChanged -= OnMoveChanged;
         inputReader.JumpPressed -= OnJumpPressed;
