@@ -114,7 +114,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""name"": ""Attack"",
                     ""type"": ""Button"",
                     ""id"": ""6c2ab1b8-8984-453a-af3d-a3c78ae1679a"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -123,9 +123,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""name"": ""Interact"",
                     ""type"": ""Button"",
                     ""id"": ""852140f2-7766-474d-8707-702459ba45f3"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
-                    ""interactions"": ""Hold"",
+                    ""interactions"": """",
                     ""initialStateCheck"": false
                 },
                 {
@@ -169,6 +169,24 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""type"": ""Button"",
                     ""id"": ""641cd816-40e6-41b4-8c3d-04687c349290"",
                     ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Dash"",
+                    ""type"": ""Button"",
+                    ""id"": ""494bc73e-cac0-4d60-aab1-f01d5208f54f"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""UseItem"",
+                    ""type"": ""Button"",
+                    ""id"": ""4089ed9e-e870-46e1-a0a3-8dd20e1d3a9e"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -519,7 +537,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""1c04ea5f-b012-41d1-a6f7-02e963b52893"",
-                    ""path"": ""<Keyboard>/e"",
+                    ""path"": ""<Keyboard>/f"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
@@ -559,6 +577,28 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""action"": ""Crouch"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""e2e3c54d-0cbe-4d00-9e93-c4746103a44a"",
+                    ""path"": ""<Keyboard>/leftShift"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""Dash"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a348d759-abfa-4965-98ea-024a4e5a2678"",
+                    ""path"": ""<Keyboard>/q"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""UseItem"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         },
@@ -587,71 +627,8 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                 {
                     ""name"": ""Cancel"",
                     ""type"": ""Button"",
-                    ""id"": ""15cef263-9014-4fd5-94d9-4e4a6234a6ef"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""Point"",
-                    ""type"": ""PassThrough"",
-                    ""id"": ""32b35790-4ed0-4e9a-aa41-69ac6d629449"",
-                    ""expectedControlType"": ""Vector2"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": true
-                },
-                {
-                    ""name"": ""Click"",
-                    ""type"": ""PassThrough"",
-                    ""id"": ""3c7022bf-7922-4f7c-a998-c437916075ad"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": true
-                },
-                {
-                    ""name"": ""RightClick"",
-                    ""type"": ""PassThrough"",
-                    ""id"": ""44b200b1-1557-4083-816c-b22cbdf77ddf"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""MiddleClick"",
-                    ""type"": ""PassThrough"",
-                    ""id"": ""dad70c86-b58c-4b17-88ad-f5e53adf419e"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""ScrollWheel"",
-                    ""type"": ""PassThrough"",
-                    ""id"": ""0489e84a-4833-4c40-bfae-cea84b696689"",
-                    ""expectedControlType"": ""Vector2"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""TrackedDevicePosition"",
-                    ""type"": ""PassThrough"",
-                    ""id"": ""24908448-c609-4bc3-a128-ea258674378a"",
-                    ""expectedControlType"": ""Vector3"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""TrackedDeviceOrientation"",
-                    ""type"": ""PassThrough"",
-                    ""id"": ""9caa3d8a-6b2f-4e8e-8bad-6ede561bd9be"",
-                    ""expectedControlType"": ""Quaternion"",
+                    ""id"": ""7bbe8687-9cd3-490d-918e-e8ec6037fcbd"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -925,7 +902,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""9e92bb26-7e3b-4ec4-b06b-3c8f8e498ddc"",
-                    ""path"": ""*/{Submit}"",
+                    ""path"": ""<Keyboard>/enter"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse;Gamepad;Touch;Joystick;XR"",
@@ -935,144 +912,80 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": """",
-                    ""id"": ""82627dcc-3b13-4ba9-841d-e4b746d6553e"",
-                    ""path"": ""*/{Cancel}"",
+                    ""id"": ""978959fd-12b2-49a0-bba8-efaaaa9868f8"",
+                    ""path"": ""<Keyboard>/escape"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse;Gamepad;Touch;Joystick;XR"",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Cancel"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
-                },
+                }
+            ]
+        },
+        {
+            ""name"": ""Game"",
+            ""id"": ""62290f68-3c92-4c84-9f54-04d2909ee9ba"",
+            ""actions"": [
                 {
-                    ""name"": """",
-                    ""id"": ""c52c8e0b-8179-41d3-b8a1-d149033bbe86"",
-                    ""path"": ""<Mouse>/position"",
-                    ""interactions"": """",
+                    ""name"": ""Pause"",
+                    ""type"": ""Button"",
+                    ""id"": ""9e518aa8-e421-4ea4-8dfa-a37cb1a4d2a1"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Point"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""e1394cbc-336e-44ce-9ea8-6007ed6193f7"",
-                    ""path"": ""<Pen>/position"",
                     ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Point"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
+                    ""initialStateCheck"": false
                 },
                 {
-                    ""name"": """",
-                    ""id"": ""5693e57a-238a-46ed-b5ae-e64e6e574302"",
-                    ""path"": ""<Touchscreen>/touch*/position"",
+                    ""name"": ""OpenInventory"",
+                    ""type"": ""Button"",
+                    ""id"": ""52e984ab-0adc-4bf1-80dd-7fd575248cd1"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
                     ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Touch"",
-                    ""action"": ""Point"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
+                    ""initialStateCheck"": false
                 },
                 {
-                    ""name"": """",
-                    ""id"": ""4faf7dc9-b979-4210-aa8c-e808e1ef89f5"",
-                    ""path"": ""<Mouse>/leftButton"",
+                    ""name"": ""OpenMap"",
+                    ""type"": ""Button"",
+                    ""id"": ""65bb0d65-111f-4e10-bea7-242e2df6ccf3"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
                     ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": "";Keyboard&Mouse"",
-                    ""action"": ""Click"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
+                    ""initialStateCheck"": false
+                }
+            ],
+            ""bindings"": [
                 {
                     ""name"": """",
-                    ""id"": ""8d66d5ba-88d7-48e6-b1cd-198bbfef7ace"",
-                    ""path"": ""<Pen>/tip"",
+                    ""id"": ""e50a3c83-c0a8-452d-8228-8251af1812f8"",
+                    ""path"": ""<Keyboard>/escape"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",
-                    ""action"": ""Click"",
+                    ""action"": ""Pause"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
                 {
                     ""name"": """",
-                    ""id"": ""47c2a644-3ebc-4dae-a106-589b7ca75b59"",
-                    ""path"": ""<Touchscreen>/touch*/press"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Touch"",
-                    ""action"": ""Click"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""bb9e6b34-44bf-4381-ac63-5aa15d19f677"",
-                    ""path"": ""<XRController>/trigger"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""XR"",
-                    ""action"": ""Click"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""38c99815-14ea-4617-8627-164d27641299"",
-                    ""path"": ""<Mouse>/scroll"",
+                    ""id"": ""50d20f06-1979-4587-97fc-9f1967927981"",
+                    ""path"": ""<Keyboard>/i"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",
-                    ""action"": ""ScrollWheel"",
+                    ""action"": ""OpenInventory"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
                 {
                     ""name"": """",
-                    ""id"": ""4c191405-5738-4d4b-a523-c6a301dbf754"",
-                    ""path"": ""<Mouse>/rightButton"",
+                    ""id"": ""e30d9edd-9307-4021-afb1-138b46ccffd0"",
+                    ""path"": ""<Keyboard>/m"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""RightClick"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""24066f69-da47-44f3-a07e-0015fb02eb2e"",
-                    ""path"": ""<Mouse>/middleButton"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""MiddleClick"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""7236c0d9-6ca3-47cf-a6ee-a97f5b59ea77"",
-                    ""path"": ""<XRController>/devicePosition"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""XR"",
-                    ""action"": ""TrackedDevicePosition"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""23e01e3a-f935-4948-8d8b-9bcac77714fb"",
-                    ""path"": ""<XRController>/deviceRotation"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""XR"",
-                    ""action"": ""TrackedDeviceOrientation"",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""OpenMap"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1153,24 +1066,25 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Player_Previous = m_Player.FindAction("Previous", throwIfNotFound: true);
         m_Player_Next = m_Player.FindAction("Next", throwIfNotFound: true);
         m_Player_Sprint = m_Player.FindAction("Sprint", throwIfNotFound: true);
+        m_Player_Dash = m_Player.FindAction("Dash", throwIfNotFound: true);
+        m_Player_UseItem = m_Player.FindAction("UseItem", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
         m_UI_Submit = m_UI.FindAction("Submit", throwIfNotFound: true);
         m_UI_Cancel = m_UI.FindAction("Cancel", throwIfNotFound: true);
-        m_UI_Point = m_UI.FindAction("Point", throwIfNotFound: true);
-        m_UI_Click = m_UI.FindAction("Click", throwIfNotFound: true);
-        m_UI_RightClick = m_UI.FindAction("RightClick", throwIfNotFound: true);
-        m_UI_MiddleClick = m_UI.FindAction("MiddleClick", throwIfNotFound: true);
-        m_UI_ScrollWheel = m_UI.FindAction("ScrollWheel", throwIfNotFound: true);
-        m_UI_TrackedDevicePosition = m_UI.FindAction("TrackedDevicePosition", throwIfNotFound: true);
-        m_UI_TrackedDeviceOrientation = m_UI.FindAction("TrackedDeviceOrientation", throwIfNotFound: true);
+        // Game
+        m_Game = asset.FindActionMap("Game", throwIfNotFound: true);
+        m_Game_Pause = m_Game.FindAction("Pause", throwIfNotFound: true);
+        m_Game_OpenInventory = m_Game.FindAction("OpenInventory", throwIfNotFound: true);
+        m_Game_OpenMap = m_Game.FindAction("OpenMap", throwIfNotFound: true);
     }
 
     ~@InputSystem_Actions()
     {
         UnityEngine.Debug.Assert(!m_Player.enabled, "This will cause a leak and performance issues, InputSystem_Actions.Player.Disable() has not been called.");
         UnityEngine.Debug.Assert(!m_UI.enabled, "This will cause a leak and performance issues, InputSystem_Actions.UI.Disable() has not been called.");
+        UnityEngine.Debug.Assert(!m_Game.enabled, "This will cause a leak and performance issues, InputSystem_Actions.Game.Disable() has not been called.");
     }
 
     /// <summary>
@@ -1255,6 +1169,8 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Previous;
     private readonly InputAction m_Player_Next;
     private readonly InputAction m_Player_Sprint;
+    private readonly InputAction m_Player_Dash;
+    private readonly InputAction m_Player_UseItem;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -1302,6 +1218,14 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/Sprint".
         /// </summary>
         public InputAction @Sprint => m_Wrapper.m_Player_Sprint;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/Dash".
+        /// </summary>
+        public InputAction @Dash => m_Wrapper.m_Player_Dash;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/UseItem".
+        /// </summary>
+        public InputAction @UseItem => m_Wrapper.m_Player_UseItem;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1355,6 +1279,12 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Sprint.started += instance.OnSprint;
             @Sprint.performed += instance.OnSprint;
             @Sprint.canceled += instance.OnSprint;
+            @Dash.started += instance.OnDash;
+            @Dash.performed += instance.OnDash;
+            @Dash.canceled += instance.OnDash;
+            @UseItem.started += instance.OnUseItem;
+            @UseItem.performed += instance.OnUseItem;
+            @UseItem.canceled += instance.OnUseItem;
         }
 
         /// <summary>
@@ -1393,6 +1323,12 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Sprint.started -= instance.OnSprint;
             @Sprint.performed -= instance.OnSprint;
             @Sprint.canceled -= instance.OnSprint;
+            @Dash.started -= instance.OnDash;
+            @Dash.performed -= instance.OnDash;
+            @Dash.canceled -= instance.OnDash;
+            @UseItem.started -= instance.OnUseItem;
+            @UseItem.performed -= instance.OnUseItem;
+            @UseItem.canceled -= instance.OnUseItem;
         }
 
         /// <summary>
@@ -1433,13 +1369,6 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_UI_Navigate;
     private readonly InputAction m_UI_Submit;
     private readonly InputAction m_UI_Cancel;
-    private readonly InputAction m_UI_Point;
-    private readonly InputAction m_UI_Click;
-    private readonly InputAction m_UI_RightClick;
-    private readonly InputAction m_UI_MiddleClick;
-    private readonly InputAction m_UI_ScrollWheel;
-    private readonly InputAction m_UI_TrackedDevicePosition;
-    private readonly InputAction m_UI_TrackedDeviceOrientation;
     /// <summary>
     /// Provides access to input actions defined in input action map "UI".
     /// </summary>
@@ -1463,34 +1392,6 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "UI/Cancel".
         /// </summary>
         public InputAction @Cancel => m_Wrapper.m_UI_Cancel;
-        /// <summary>
-        /// Provides access to the underlying input action "UI/Point".
-        /// </summary>
-        public InputAction @Point => m_Wrapper.m_UI_Point;
-        /// <summary>
-        /// Provides access to the underlying input action "UI/Click".
-        /// </summary>
-        public InputAction @Click => m_Wrapper.m_UI_Click;
-        /// <summary>
-        /// Provides access to the underlying input action "UI/RightClick".
-        /// </summary>
-        public InputAction @RightClick => m_Wrapper.m_UI_RightClick;
-        /// <summary>
-        /// Provides access to the underlying input action "UI/MiddleClick".
-        /// </summary>
-        public InputAction @MiddleClick => m_Wrapper.m_UI_MiddleClick;
-        /// <summary>
-        /// Provides access to the underlying input action "UI/ScrollWheel".
-        /// </summary>
-        public InputAction @ScrollWheel => m_Wrapper.m_UI_ScrollWheel;
-        /// <summary>
-        /// Provides access to the underlying input action "UI/TrackedDevicePosition".
-        /// </summary>
-        public InputAction @TrackedDevicePosition => m_Wrapper.m_UI_TrackedDevicePosition;
-        /// <summary>
-        /// Provides access to the underlying input action "UI/TrackedDeviceOrientation".
-        /// </summary>
-        public InputAction @TrackedDeviceOrientation => m_Wrapper.m_UI_TrackedDeviceOrientation;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1526,27 +1427,6 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Cancel.started += instance.OnCancel;
             @Cancel.performed += instance.OnCancel;
             @Cancel.canceled += instance.OnCancel;
-            @Point.started += instance.OnPoint;
-            @Point.performed += instance.OnPoint;
-            @Point.canceled += instance.OnPoint;
-            @Click.started += instance.OnClick;
-            @Click.performed += instance.OnClick;
-            @Click.canceled += instance.OnClick;
-            @RightClick.started += instance.OnRightClick;
-            @RightClick.performed += instance.OnRightClick;
-            @RightClick.canceled += instance.OnRightClick;
-            @MiddleClick.started += instance.OnMiddleClick;
-            @MiddleClick.performed += instance.OnMiddleClick;
-            @MiddleClick.canceled += instance.OnMiddleClick;
-            @ScrollWheel.started += instance.OnScrollWheel;
-            @ScrollWheel.performed += instance.OnScrollWheel;
-            @ScrollWheel.canceled += instance.OnScrollWheel;
-            @TrackedDevicePosition.started += instance.OnTrackedDevicePosition;
-            @TrackedDevicePosition.performed += instance.OnTrackedDevicePosition;
-            @TrackedDevicePosition.canceled += instance.OnTrackedDevicePosition;
-            @TrackedDeviceOrientation.started += instance.OnTrackedDeviceOrientation;
-            @TrackedDeviceOrientation.performed += instance.OnTrackedDeviceOrientation;
-            @TrackedDeviceOrientation.canceled += instance.OnTrackedDeviceOrientation;
         }
 
         /// <summary>
@@ -1567,27 +1447,6 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Cancel.started -= instance.OnCancel;
             @Cancel.performed -= instance.OnCancel;
             @Cancel.canceled -= instance.OnCancel;
-            @Point.started -= instance.OnPoint;
-            @Point.performed -= instance.OnPoint;
-            @Point.canceled -= instance.OnPoint;
-            @Click.started -= instance.OnClick;
-            @Click.performed -= instance.OnClick;
-            @Click.canceled -= instance.OnClick;
-            @RightClick.started -= instance.OnRightClick;
-            @RightClick.performed -= instance.OnRightClick;
-            @RightClick.canceled -= instance.OnRightClick;
-            @MiddleClick.started -= instance.OnMiddleClick;
-            @MiddleClick.performed -= instance.OnMiddleClick;
-            @MiddleClick.canceled -= instance.OnMiddleClick;
-            @ScrollWheel.started -= instance.OnScrollWheel;
-            @ScrollWheel.performed -= instance.OnScrollWheel;
-            @ScrollWheel.canceled -= instance.OnScrollWheel;
-            @TrackedDevicePosition.started -= instance.OnTrackedDevicePosition;
-            @TrackedDevicePosition.performed -= instance.OnTrackedDevicePosition;
-            @TrackedDevicePosition.canceled -= instance.OnTrackedDevicePosition;
-            @TrackedDeviceOrientation.started -= instance.OnTrackedDeviceOrientation;
-            @TrackedDeviceOrientation.performed -= instance.OnTrackedDeviceOrientation;
-            @TrackedDeviceOrientation.canceled -= instance.OnTrackedDeviceOrientation;
         }
 
         /// <summary>
@@ -1621,6 +1480,124 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     /// Provides a new <see cref="UIActions" /> instance referencing this action map.
     /// </summary>
     public UIActions @UI => new UIActions(this);
+
+    // Game
+    private readonly InputActionMap m_Game;
+    private List<IGameActions> m_GameActionsCallbackInterfaces = new List<IGameActions>();
+    private readonly InputAction m_Game_Pause;
+    private readonly InputAction m_Game_OpenInventory;
+    private readonly InputAction m_Game_OpenMap;
+    /// <summary>
+    /// Provides access to input actions defined in input action map "Game".
+    /// </summary>
+    public struct GameActions
+    {
+        private @InputSystem_Actions m_Wrapper;
+
+        /// <summary>
+        /// Construct a new instance of the input action map wrapper class.
+        /// </summary>
+        public GameActions(@InputSystem_Actions wrapper) { m_Wrapper = wrapper; }
+        /// <summary>
+        /// Provides access to the underlying input action "Game/Pause".
+        /// </summary>
+        public InputAction @Pause => m_Wrapper.m_Game_Pause;
+        /// <summary>
+        /// Provides access to the underlying input action "Game/OpenInventory".
+        /// </summary>
+        public InputAction @OpenInventory => m_Wrapper.m_Game_OpenInventory;
+        /// <summary>
+        /// Provides access to the underlying input action "Game/OpenMap".
+        /// </summary>
+        public InputAction @OpenMap => m_Wrapper.m_Game_OpenMap;
+        /// <summary>
+        /// Provides access to the underlying input action map instance.
+        /// </summary>
+        public InputActionMap Get() { return m_Wrapper.m_Game; }
+        /// <inheritdoc cref="UnityEngine.InputSystem.InputActionMap.Enable()" />
+        public void Enable() { Get().Enable(); }
+        /// <inheritdoc cref="UnityEngine.InputSystem.InputActionMap.Disable()" />
+        public void Disable() { Get().Disable(); }
+        /// <inheritdoc cref="UnityEngine.InputSystem.InputActionMap.enabled" />
+        public bool enabled => Get().enabled;
+        /// <summary>
+        /// Implicitly converts an <see ref="GameActions" /> to an <see ref="InputActionMap" /> instance.
+        /// </summary>
+        public static implicit operator InputActionMap(GameActions set) { return set.Get(); }
+        /// <summary>
+        /// Adds <see cref="InputAction.started"/>, <see cref="InputAction.performed"/> and <see cref="InputAction.canceled"/> callbacks provided via <param cref="instance" /> on all input actions contained in this map.
+        /// </summary>
+        /// <param name="instance">Callback instance.</param>
+        /// <remarks>
+        /// If <paramref name="instance" /> is <c>null</c> or <paramref name="instance"/> have already been added this method does nothing.
+        /// </remarks>
+        /// <seealso cref="GameActions" />
+        public void AddCallbacks(IGameActions instance)
+        {
+            if (instance == null || m_Wrapper.m_GameActionsCallbackInterfaces.Contains(instance)) return;
+            m_Wrapper.m_GameActionsCallbackInterfaces.Add(instance);
+            @Pause.started += instance.OnPause;
+            @Pause.performed += instance.OnPause;
+            @Pause.canceled += instance.OnPause;
+            @OpenInventory.started += instance.OnOpenInventory;
+            @OpenInventory.performed += instance.OnOpenInventory;
+            @OpenInventory.canceled += instance.OnOpenInventory;
+            @OpenMap.started += instance.OnOpenMap;
+            @OpenMap.performed += instance.OnOpenMap;
+            @OpenMap.canceled += instance.OnOpenMap;
+        }
+
+        /// <summary>
+        /// Removes <see cref="InputAction.started"/>, <see cref="InputAction.performed"/> and <see cref="InputAction.canceled"/> callbacks provided via <param cref="instance" /> on all input actions contained in this map.
+        /// </summary>
+        /// <remarks>
+        /// Calling this method when <paramref name="instance" /> have not previously been registered has no side-effects.
+        /// </remarks>
+        /// <seealso cref="GameActions" />
+        private void UnregisterCallbacks(IGameActions instance)
+        {
+            @Pause.started -= instance.OnPause;
+            @Pause.performed -= instance.OnPause;
+            @Pause.canceled -= instance.OnPause;
+            @OpenInventory.started -= instance.OnOpenInventory;
+            @OpenInventory.performed -= instance.OnOpenInventory;
+            @OpenInventory.canceled -= instance.OnOpenInventory;
+            @OpenMap.started -= instance.OnOpenMap;
+            @OpenMap.performed -= instance.OnOpenMap;
+            @OpenMap.canceled -= instance.OnOpenMap;
+        }
+
+        /// <summary>
+        /// Unregisters <param cref="instance" /> and unregisters all input action callbacks via <see cref="GameActions.UnregisterCallbacks(IGameActions)" />.
+        /// </summary>
+        /// <seealso cref="GameActions.UnregisterCallbacks(IGameActions)" />
+        public void RemoveCallbacks(IGameActions instance)
+        {
+            if (m_Wrapper.m_GameActionsCallbackInterfaces.Remove(instance))
+                UnregisterCallbacks(instance);
+        }
+
+        /// <summary>
+        /// Replaces all existing callback instances and previously registered input action callbacks associated with them with callbacks provided via <param cref="instance" />.
+        /// </summary>
+        /// <remarks>
+        /// If <paramref name="instance" /> is <c>null</c>, calling this method will only unregister all existing callbacks but not register any new callbacks.
+        /// </remarks>
+        /// <seealso cref="GameActions.AddCallbacks(IGameActions)" />
+        /// <seealso cref="GameActions.RemoveCallbacks(IGameActions)" />
+        /// <seealso cref="GameActions.UnregisterCallbacks(IGameActions)" />
+        public void SetCallbacks(IGameActions instance)
+        {
+            foreach (var item in m_Wrapper.m_GameActionsCallbackInterfaces)
+                UnregisterCallbacks(item);
+            m_Wrapper.m_GameActionsCallbackInterfaces.Clear();
+            AddCallbacks(instance);
+        }
+    }
+    /// <summary>
+    /// Provides a new <see cref="GameActions" /> instance referencing this action map.
+    /// </summary>
+    public GameActions @Game => new GameActions(this);
     private int m_KeyboardMouseSchemeIndex = -1;
     /// <summary>
     /// Provides access to the input control scheme.
@@ -1756,6 +1733,20 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnSprint(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Dash" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnDash(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "UseItem" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnUseItem(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.
@@ -1785,54 +1776,34 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnCancel(InputAction.CallbackContext context);
+    }
+    /// <summary>
+    /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "Game" which allows adding and removing callbacks.
+    /// </summary>
+    /// <seealso cref="GameActions.AddCallbacks(IGameActions)" />
+    /// <seealso cref="GameActions.RemoveCallbacks(IGameActions)" />
+    public interface IGameActions
+    {
         /// <summary>
-        /// Method invoked when associated input action "Point" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "Pause" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnPoint(InputAction.CallbackContext context);
+        void OnPause(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "Click" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "OpenInventory" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnClick(InputAction.CallbackContext context);
+        void OnOpenInventory(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "RightClick" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "OpenMap" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnRightClick(InputAction.CallbackContext context);
-        /// <summary>
-        /// Method invoked when associated input action "MiddleClick" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-        /// </summary>
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnMiddleClick(InputAction.CallbackContext context);
-        /// <summary>
-        /// Method invoked when associated input action "ScrollWheel" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-        /// </summary>
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnScrollWheel(InputAction.CallbackContext context);
-        /// <summary>
-        /// Method invoked when associated input action "TrackedDevicePosition" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-        /// </summary>
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnTrackedDevicePosition(InputAction.CallbackContext context);
-        /// <summary>
-        /// Method invoked when associated input action "TrackedDeviceOrientation" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-        /// </summary>
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnTrackedDeviceOrientation(InputAction.CallbackContext context);
+        void OnOpenMap(InputAction.CallbackContext context);
     }
 }

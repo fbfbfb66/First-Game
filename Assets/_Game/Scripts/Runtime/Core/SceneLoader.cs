@@ -4,16 +4,21 @@ public class SceneLoader : MonoBehaviour
 {
     public void LoadScene(string sceneName)
     {
+        if (string.IsNullOrWhiteSpace(sceneName))
+        {
+            Debug.Log("SceneName 没有命名");
+            return;
+        }
         SceneManager.LoadScene(sceneName);
     }
 
-    public void LoadMainMenue()
+    public void LoadMainMenu()
     {
-        LoadScene("MainMenuScene");
+        LoadScene(SceneNames.MainMenuScene);
     }
     public void LoadGameScene()
     {
-        LoadScene("GameScene");
+        LoadScene(SceneNames.GameScene);
     }
 
     public void QuitGame()

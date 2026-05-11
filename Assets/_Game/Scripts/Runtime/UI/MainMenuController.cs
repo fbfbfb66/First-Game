@@ -8,10 +8,12 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private Button quitGameButton;
 
     private SceneLoader sceneLoader;
+    private GameLayerStack layerStack;
 
     private void Awake()
     {
         sceneLoader = FindAnyObjectByType<SceneLoader>();
+        layerStack = FindAnyObjectByType<GameLayerStack>();
     }
 
     private void OnEnable()
@@ -31,6 +33,7 @@ public class MainMenuController : MonoBehaviour
     private void OnNewGameClicked()
     {
         sceneLoader.LoadGameScene();
+        layerStack.ResetTo(GameLayerType.Gameplay);
     }
     private void OnContinueGameClicked()
     {
