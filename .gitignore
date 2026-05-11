@@ -1,0 +1,47 @@
+# Unity generated folders
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+
+# Memory captures and recordings
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Unity crash reports
+sysinfo.txt
+
+# Visual Studio / Rider / IDE files
+.vs/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.csproj.lscache
+
+
+# Rider
+*.DotSettings.user
+/[Aa]ssets/Plugins/Editor/JetBrains*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
