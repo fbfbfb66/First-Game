@@ -6,7 +6,7 @@ public class SceneLoader : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(sceneName))
         {
-            Debug.Log("SceneName 没有命名");
+            Debug.Log("SceneName has not named");
             return;
         }
         SceneManager.LoadScene(sceneName);
@@ -23,7 +23,7 @@ public class SceneLoader : MonoBehaviour
 
     public void QuitGame()
     {
-        Debug.Log("退出游戏");
+        Debug.Log("Quit Game");
         Application.Quit();
     }
 }

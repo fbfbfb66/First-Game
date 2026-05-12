@@ -4,11 +4,14 @@ public class PlayerInputReceiver : MonoBehaviour
 {
     public Vector2 MoveInput { get; private set; }
 
+    private bool jumpPressed;
+    private bool attackPressed;
+    private bool dashPressed;
+    private bool worldInteractPressed;
+
     public void SetMoveInput(Vector2 moveInput)
     {
         MoveInput = moveInput;
-
-        Debug.Log($"Player received move input: {MoveInput}");
     }
 
     public void RequestJump()
@@ -36,5 +39,45 @@ public class PlayerInputReceiver : MonoBehaviour
         MoveInput = Vector2.zero;
 
         Debug.Log("Player move input cleared.");
+    }
+
+    public bool ConsumeJump()
+    {
+        if(jumpPressed)
+        {
+            jumpPressed = false;
+            return true;
+        }
+        return false;
+    }
+
+    public bool ConsumeAttack()
+    {
+        if (attackPressed)
+        {
+            attackPressed = false;
+            return true;
+        }
+        return false;
+    }
+
+    public bool ConsumeDash()
+    {
+        if (dashPressed)
+        {
+            dashPressed = false;
+            return true;
+        }
+        return false;
+    }
+
+    public bool ConsumeWorldInteract()
+    {
+        if (worldInteractPressed)
+        {
+            worldInteractPressed = false;
+            return true;
+        }
+        return false;
     }
 }

@@ -31,7 +31,13 @@ public class InputRouter : MonoBehaviour
 
     private void OnEnable()
     {
-        gameLayerStack.CurrentLayerChanged += OnCurrentLayerChanged;
+        if(inputReader == null)
+        {
+            Debug.LogWarning("Not Got inputReader");
+            return;
+        }
+        if(gameLayerStack != null)
+            gameLayerStack.CurrentLayerChanged += OnCurrentLayerChanged;
 
         inputReader.MoveChanged += OnMoveChanged;
         inputReader.JumpPressed += OnJumpPressed;
@@ -51,7 +57,13 @@ public class InputRouter : MonoBehaviour
 
     private void OnDisable()
     {
-        gameLayerStack.CurrentLayerChanged -= OnCurrentLayerChanged;
+        if(inputReader == null)
+        {
+            Debug.LogWarning("Not Got inputReader");
+            return;
+        }
+        if(gameLayerStack != null)
+            gameLayerStack.CurrentLayerChanged -= OnCurrentLayerChanged;
 
         inputReader.MoveChanged -= OnMoveChanged;
         inputReader.JumpPressed -= OnJumpPressed;
