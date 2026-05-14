@@ -1,6 +1,6 @@
 public class StateMachine 
 {
-    private EntityState currentState;
+    public EntityState currentState{ get; private set; }
 
     public void InitializeState(EntityState currentState)
     {

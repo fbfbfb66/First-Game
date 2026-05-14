@@ -347,6 +347,7 @@ GameObject:
   - component: {fileID: 764046013}
   - component: {fileID: 764046014}
   - component: {fileID: 764046015}
+  - component: {fileID: 764046016}
   m_Layer: 0
   m_Name: Animator
   m_TagString: Untagged
@@ -450,6 +451,18 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &764046016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 764046012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 426a663afd0947a4fb15bbf11b165426, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimationTrigger
 --- !u!1 &930578728
 GameObject:
   m_ObjectHideFlags: 0
@@ -679,6 +692,7 @@ GameObject:
   - component: {fileID: 2075136165}
   - component: {fileID: 2075136167}
   - component: {fileID: 2075136170}
+  - component: {fileID: 2075136173}
   - component: {fileID: 2075136168}
   - component: {fileID: 2075136172}
   m_Layer: 6
@@ -709,7 +723,7 @@ Transform:
   m_GameObject: {fileID: 2075136164}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5.31, y: -0.99, z: 0}
+  m_LocalPosition: {x: 5.31, y: -2.74, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -788,7 +802,9 @@ MonoBehaviour:
   playerBaseConfig: {fileID: 11400000, guid: b6bffea6f11b4484182ab1a1a8f98649, type: 2}
   playerMovement: {fileID: 0}
   playerInputReceiver: {fileID: 0}
+  playerAnimationTrigger: {fileID: 0}
   playerRb: {fileID: 0}
+  timeTool: {fileID: 0}
 --- !u!70 &2075136172
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -826,6 +842,18 @@ CapsuleCollider2D:
   m_Offset: {x: 0.14626217, y: -0.017551541}
   m_Size: {x: 0.95633507, y: 2.5094168}
   m_Direction: 0
+--- !u!114 &2075136173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2075136164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4357ef242484e84fb64b1db85acba4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TimeTool
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

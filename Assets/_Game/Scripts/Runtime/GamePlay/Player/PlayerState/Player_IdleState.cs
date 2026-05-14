@@ -6,5 +6,9 @@ public class Player_IdleState : PlayerGround
     {
     }
 
-
+    public override void Enter()
+    {
+        base.Enter();
+        movement.SetRigibodyVelocity(Vector2.zero);
+    }
 }

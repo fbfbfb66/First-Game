@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
@@ -26,17 +27,32 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    public Vector2 GetCurrentVelocity()
+    {
+        return playerRb.linearVelocity;
+    }
+
+    public float GetMoveVelocity()
+    {
+        return playerMoveType == PlayerMoveType.Run ? runVelocity : walkVelocity;
+    }
+
     public void HandleJump()
     {
         playerRb.linearVelocity += jumpForce;
     }
-
-    public void HandleMove(Vector2 inputMove)
+    public void HandleMoveAndFlip(Vector2 inputMove)
     {
-        float moveVelocity = playerMoveType == PlayerMoveType.Run ? runVelocity : walkVelocity;
+        float moveVelocity = GetMoveVelocity();
         Vector2 finalVelocity = new Vector2(moveVelocity * inputMove.x,playerRb.linearVelocity.y);
         SetRigibodyVelocity(finalVelocity);
         HandleFlip(inputMove);
+    }
+    public void HandleMove(Vector2 inputMove)
+    {
+        float moveVelocity = GetMoveVelocity();
+        Vector2 finalVelocity = new Vector2(moveVelocity * inputMove.x,playerRb.linearVelocity.y);
+        SetRigibodyVelocity(finalVelocity);
     }
 
     public void HandleFlip(Vector2 inputMove)
@@ -44,7 +60,13 @@ public class PlayerMovement : MonoBehaviour
         if(inputMove.x < 0 && facingRight) Flip();
         if(inputMove.x > 0 && !facingRight) Flip();
     }
-
+    private void Flip()
+    {
+        facingRight = !facingRight;
+        Vector3 scale = visualLayer.localScale;
+        scale.x = -scale.x;
+        visualLayer.localScale = scale;
+    }
     public void SetRigibodyVelocity(Vector2 velocity)
     {
         playerRb.linearVelocity = velocity;
@@ -53,13 +75,6 @@ public class PlayerMovement : MonoBehaviour
     public void SetPlayerMoveMode(PlayerMoveType playerMoveType)
     {
         this.playerMoveType =playerMoveType;
-    }
-    private void Flip()
-    {
-        facingRight = !facingRight;
-        Vector3 scale = visualLayer.localScale;
-        scale.x = -scale.x;
-        visualLayer.localScale = scale;
     }
     private void InitializePlayerMovement(PlayerBaseConfig config)
     {
