@@ -60,7 +60,7 @@ public class GameLayerStack : MonoBehaviour
         }
         if(!IsCurrentLayer(layer))
         {
-            Debug.LogWarning($"Layer {layer} is already the CurrentLayer");
+            Debug.LogWarning($"Layer {CurrentLayer} is already the CurrentLayer");
             return;
         }
         GameLayerType previousLayer = CurrentLayer;

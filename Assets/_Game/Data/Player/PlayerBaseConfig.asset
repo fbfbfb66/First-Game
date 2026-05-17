@@ -15,7 +15,7 @@ MonoBehaviour:
   runVelocity: 13
   walkVelocity: 0
   jumpForce: {x: 0, y: 0}
-  canEndRunEarlyDuration: 1
-  runTurnBufferDuration: 0.2
+  canEndRunEarlyDuration: 1.5
+  runBufferDuration: 0.1
   gravityScale: 3
   coastingDuration: 0.8

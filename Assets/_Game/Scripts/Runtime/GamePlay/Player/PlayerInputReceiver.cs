@@ -31,7 +31,7 @@ public class PlayerInputReceiver : MonoBehaviour
 
     public void RequestWorldInteract()
     {
-        Debug.Log("Player received world interact request.");
+        worldInteractPressed = true;
     }
 
     public void ClearMoveInput()

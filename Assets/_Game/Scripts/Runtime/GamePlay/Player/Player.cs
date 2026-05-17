@@ -8,6 +8,7 @@ public class Player : Entity
     public PlayerMovement playerMovement;
     public PlayerInputReceiver playerInputReceiver;
     public PlayerAnimationTrigger playerAnimationTrigger;
+    public InteractionDetector interaction;
     public Rigidbody2D playerRb;
     public TimeTool timeTool;
 
@@ -31,6 +32,8 @@ public class Player : Entity
             playerInputReceiver = GetComponent<PlayerInputReceiver>();
         if(playerAnimationTrigger == null)
             playerAnimationTrigger = GetComponentInChildren<PlayerAnimationTrigger>();
+        if(interaction == null)
+            interaction = GetComponentInChildren<InteractionDetector>();
         if(timeTool == null)
             timeTool = GetComponent<TimeTool>();
 

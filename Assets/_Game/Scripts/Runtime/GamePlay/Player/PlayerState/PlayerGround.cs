@@ -9,6 +9,10 @@ public class PlayerGround : PlayerState
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+        if (input.ConsumeWorldInteract())
+        {
+            player.interaction.TryInteract();
+        }
         if(input.MoveInput.x == 0)
         {
             stateMachine.ChangeState(player.idleState);

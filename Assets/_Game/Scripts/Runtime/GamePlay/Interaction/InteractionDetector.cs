@@ -4,7 +4,7 @@ using UnityEngine;
 public class InteractionDetector : MonoBehaviour
 {
     [SerializeField] private GameObject interactor;
-    private readonly List<IIteractable> interactions = new();
+    private readonly List<IInteractable> interactions = new();
 
     private void Awake()
     {
@@ -13,7 +13,7 @@ public class InteractionDetector : MonoBehaviour
 
     public void TryInteract()
     {
-        IIteractable interaction = FindClosetInteraction();
+        IInteractable interaction = FindClosetInteraction();
         if(interaction == null)
         {
             Debug.Log("Did not find valide interaction");
@@ -24,7 +24,7 @@ public class InteractionDetector : MonoBehaviour
     }
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        IIteractable interaction = collision.GetComponent<IIteractable>();
+        IInteractable interaction = collision.GetComponent<IInteractable>();
         if(interaction == null) return;
         if(interactions.Contains(interaction)) return;
         InteractionContext context = new InteractionContext(interactor);
@@ -33,15 +33,15 @@ public class InteractionDetector : MonoBehaviour
     }
     private void OnTriggerExit2D(Collider2D collision)
     {
-        IIteractable interaction = collision.GetComponent<IIteractable>();
+        IInteractable interaction = collision.GetComponent<IInteractable>();
         if (interactions.Contains(interaction))
         {
             interactions.Remove(interaction);
         }
     }
-    private IIteractable FindClosetInteraction()
+    private IInteractable FindClosetInteraction()
     {
-        IIteractable closestInteraction = null;
+        IInteractable closestInteraction = null;
         float minDist = Mathf.Infinity;
         foreach(var interaction in interactions)
         {

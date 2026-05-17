@@ -1,7 +1,7 @@
 
 using UnityEngine;
 
-public interface IIteractable 
+public interface IInteractable 
 {
     public Transform InteractionTransform {get;}
     public bool CanInteract(InteractionContext context);

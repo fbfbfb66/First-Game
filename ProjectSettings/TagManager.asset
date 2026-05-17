@@ -13,7 +13,7 @@ TagManager:
   - UI
   - Player
   - Ground
-  - 
+  - NPC
   - 
   - 
   - 
@@ -40,6 +40,9 @@ TagManager:
   m_SortingLayers:
   - name: Ground
     uniqueID: 2320468637
+    locked: 0
+  - name: NPC
+    uniqueID: 3378035687
     locked: 0
   - name: Player
     uniqueID: 2007594529

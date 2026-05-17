@@ -6,6 +6,7 @@ public class InputRouter : MonoBehaviour
     [SerializeField] private GameLayerStack gameLayerStack;
     [SerializeField] private PlayerControlArbitration playerControlArbitration;
     [SerializeField] private PlayerInputReceiver playerInputReceiver;
+    [SerializeField] private DialogueManager dialogueManager;
 
     private void Awake()
     {
@@ -26,6 +27,10 @@ public class InputRouter : MonoBehaviour
         if(playerInputReceiver == null)
         {
             playerInputReceiver = FindAnyObjectByType<PlayerInputReceiver>();
+        }
+        if(dialogueManager == null)
+        {
+            dialogueManager = GetComponent<DialogueManager>();
         }
     }
 
@@ -57,11 +62,6 @@ public class InputRouter : MonoBehaviour
 
     private void OnDisable()
     {
-        if(inputReader == null)
-        {
-            Debug.LogWarning("Not Got inputReader");
-            return;
-        }
         if(gameLayerStack != null)
             gameLayerStack.CurrentLayerChanged -= OnCurrentLayerChanged;
 
@@ -163,13 +163,9 @@ public class InputRouter : MonoBehaviour
                 break;
 
             case GameLayerType.Dialogue:
-                Debug.Log("Route Interact to dialogue next line.");
+                dialogueManager.RequestAdvance();
                 break;
-
-            case GameLayerType.DialogueChoice:
-                Debug.Log("Route Interact to dialogue choice confirm.");
-                break;
-
+                
             default:
                 Debug.Log($"Interact ignored in layer: {gameLayerStack.CurrentLayer}");
                 break;
@@ -259,7 +255,10 @@ public class InputRouter : MonoBehaviour
         switch (gameLayerStack.CurrentLayer)
         {
             case GameLayerType.DialogueChoice:
-                Debug.Log($"Route Navigate to dialogue choices: {navigateInput}");
+                if (dialogueManager != null)
+                {
+                    dialogueManager.HandleChoiceSelectedNavigate(navigateInput);
+                }
                 break;
 
             case GameLayerType.Inventory:
@@ -288,7 +287,11 @@ public class InputRouter : MonoBehaviour
         switch (gameLayerStack.CurrentLayer)
         {
             case GameLayerType.DialogueChoice:
-                Debug.Log("Route Submit to dialogue choice.");
+                if (dialogueManager != null)
+                {
+                    dialogueManager.HandleChoiceConfirmed();
+                    Debug.Log("Submit dialogue choice.");
+                }
                 break;
 
             case GameLayerType.Inventory:
