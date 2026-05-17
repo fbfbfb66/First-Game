@@ -183,6 +183,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DialogueManager
   layerStack: {fileID: 0}
   eventBus: {fileID: 0}
+  flagCenter: {fileID: 0}
 --- !u!1 &187590589
 GameObject:
   m_ObjectHideFlags: 0
@@ -977,7 +978,7 @@ Transform:
   m_GameObject: {fileID: 844227987}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.84, y: -7.93, z: 0}
+  m_LocalPosition: {x: -1.66, y: -7.93, z: 0}
   m_LocalScale: {x: 0.6, y: 0.6, z: 0.6}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -1029,7 +1030,7 @@ Transform:
   m_GameObject: {fileID: 913036114}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.05, y: 2.74, z: 0}
+  m_LocalPosition: {x: 0.28, y: 2.74, z: 0}
   m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -1512,10 +1513,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c947a6370e9c39a48ad706ad1c7cf17e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCDialogueInteractable
-  dialogueData: {fileID: 11400000, guid: ea96fb94b76f8bb4f9b8f15de3343308, type: 2}
+  dialogueProfile: {fileID: 11400000, guid: 36421efd2348d4944b1c88e22723fd70, type: 2}
   dialogueManager: {fileID: 0}
   worldDialogueView: {fileID: 0}
   worldDialogueChoiceView: {fileID: 0}
+  flagCenter: {fileID: 0}
 --- !u!4 &1458071007
 Transform:
   m_ObjectHideFlags: 0

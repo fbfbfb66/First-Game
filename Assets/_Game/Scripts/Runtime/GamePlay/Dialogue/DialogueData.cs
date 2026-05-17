@@ -20,7 +20,7 @@ public class DialogueData : ScriptableObject
             if (node.NodeID == nodeID)
                 return node;
         }
-        Debug.LogWarning($"Node with ID {nodeID} not found in dialogue {dialogueID}");
+        Debug.Log($"Node with ID {nodeID} not found in dialogue {dialogueID}");
         return null;
     }
 }

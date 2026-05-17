@@ -6,6 +6,7 @@ public class DialogueManager : MonoBehaviour
 {
     [SerializeField] private GameLayerStack layerStack;
     [SerializeField] private GameEventBus eventBus;
+    [SerializeField] private GameFlagCenter flagCenter;
 
     private DialogueData currentDialogue;
     private DialogueNode currentNode;
@@ -28,6 +29,10 @@ public class DialogueManager : MonoBehaviour
         if (eventBus == null)
         {
             eventBus = FindAnyObjectByType<GameEventBus>();
+        }
+        if(flagCenter == null)
+        {
+            flagCenter = FindAnyObjectByType<GameFlagCenter>();
         }
     }
 
@@ -83,6 +88,12 @@ public class DialogueManager : MonoBehaviour
         if (selectedChoice != null)
         {
             currentNode = currentDialogue.GetNode(selectedChoice.NextNodeID);
+            if(currentNode == null)
+            {
+                ExitChoiceMode();
+                EndDialogue();
+                return;
+            }
             ExecuteEvents(selectedChoice.EventOnSelect, null);
             if (currentNode != null)
             {
@@ -158,7 +169,7 @@ public class DialogueManager : MonoBehaviour
 
     private void ExecuteEvents(IReadOnlyList<DialogueEventAction> events,DialogueLine line)
     {
-        DialogueContext context = new DialogueContext(eventBus,line,currentNode,currentDialogue,currentSender,currentInstigator);
+        DialogueContext context = new DialogueContext(eventBus,flagCenter,line,currentNode,currentDialogue,currentSender,currentInstigator);
         foreach (var action in events)
         {
             if(action == null) continue;

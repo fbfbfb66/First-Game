@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4441224f0ecd4c24b9e25ec34b7ccc7c, type: 3}
+  m_Name: OldManDialogueProfile
+  m_EditorClassIdentifier: Assembly-CSharp::NPCDialogueProfile
+  profiledID: OldManDialogueProfile
+  dialogueEntries:
+  - entryID: after_accept_help
+    dialogueData: {fileID: 11400000, guid: 9e33b48bedb5e834893ea9ed2a062166, type: 2}
+    conditions:
+    - {fileID: 11400000, guid: 4a9e0e058d7ee1442a44be4b7d1c93aa, type: 2}
+    - {fileID: 11400000, guid: 86da35d046355e4489bff3b9f00be831, type: 2}
+  - entryID: intro
+    dialogueData: {fileID: 11400000, guid: ea96fb94b76f8bb4f9b8f15de3343308, type: 2}
+    conditions:
+    - {fileID: 11400000, guid: a8f36c9fd1265e84188126fdeaee01af, type: 2}
+  - entryID: fallback
+    dialogueData: {fileID: 11400000, guid: 0d406ce19c67c0041b7f8eea7ada9449, type: 2}
+    conditions:
+    - {fileID: 11400000, guid: 3f6f2003179134d47a853e100cb38f8a, type: 2}

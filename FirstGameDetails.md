@@ -14,8 +14,9 @@
   - 输入读取与路由：`GameInputReader` + `InputRouter`。
   - 玩家输入、移动与状态机：`PlayerInputReceiver` + `PlayerMovement` + `Player` + FSM 状态类。
   - 世界交互：`IInteractable` + `InteractionContext` + `InteractionDetector`。
-  - 对话系统：`DialogueManager` + `DialogueData` + `DialogueNode` + `WorldDialogueView` + `WorldDialogueChoiceView`。
-  - 事件总线：`GameEventBus` + `IGameEvent` + `GameSignalEvent`。
+  - 对话系统：`DialogueManager` + `DialogueData` + `NPCDialogueProfile` + `ConditionalDialogueEntry` + `WorldDialogueView` + `WorldDialogueChoiceView`。
+  - 事件总线：`GameEventBus` + `IGameEvent` + `GameSignalEvent` + `GameFlagChangedEvent`。
+  - 游戏 Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagEntry` + `GameCondition` + `FlagBoolCondition`。
 
 ## 2. Unity Git 提交规则
 
@@ -58,11 +59,7 @@ First Game/
 Assets/_Game/
 |-- Animation/
 |   |-- AnimationController/
-|   |   |-- NPC.controller
-|   |   `-- Player.controller
 |   `-- AnimationStates/
-|       |-- NPC_OldMan/
-|       `-- Player/
 |-- Art/
 |   |-- NPC/
 |   `-- Player/
@@ -70,8 +67,10 @@ Assets/_Game/
 |-- Data/
 |   |-- Core/
 |   |-- Dialogue/
+|   |   |-- DialogueData/
 |   |   |-- Events/
-|   |   `-- OldManIntroDialogue.asset
+|   |   `-- OldManDialogueProfile.asset
+|   |-- Flags/
 |   `-- Player/
 |-- Fonts/
 |-- Materials/
@@ -89,7 +88,7 @@ Assets/_Game/
 `-- TileMaps/
 ```
 
-说明：Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资源一起提交。
+Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资源一起提交。
 
 ## 5. 场景列表
 
@@ -103,7 +102,7 @@ Assets/_Game/
 
 ## 6. 输入与游戏层
 
-输入配置来自 `Assets/Settings/InputSystem_Actions.inputactions`，生成包装代码为 `Assets/Settings/InputSystem_Actions.cs`。
+输入配置来自 `Assets/Settings/InputSystem_Actions.inputactions`，生成代码为 `Assets/Settings/InputSystem_Actions.cs`。
 
 - `Player` Action Map：移动、跳跃、攻击、冲刺、交互、使用物品。
 - `Game` Action Map：暂停、打开背包、打开地图。
@@ -139,14 +138,27 @@ Assets/_Game/
 - `IGameEvent.cs`：事件总线事件的标记接口。
 - `GameEventBus.cs`：按事件类型保存订阅者，支持 `Subscribe`、`Unsubscribe` 和 `Publish`。
 - `GameSignalEvent.cs`：通用信号事件，包含 `SignalID`、`Sender` 和 `Instigator`。
+- `GameFlagChangedEvent.cs`：Flag 变化事件，包含 Flag ID、旧值、新值、发送者和触发者。
 - `DebugGameSignalPublisher.cs`：调试用信号发布组件。
 - `DebugGameSignalListener.cs`：调试用信号监听组件。
+
+### Core/Flags
+
+- `GameFlagEntry.cs`：单个布尔 Flag 定义，包含 `FlagID`、默认值和描述。
+- `GameFlagDatabase.cs`：ScriptableObject Flag 数据库，保存初始布尔 Flag 列表。
+- `GameFlagCenter.cs`：运行时 Flag 中心，初始化默认 Flag，提供 `SetBool`、`GetBool` 和 `HasBool`，并在值变化时发布 `GameFlagChangedEvent`。
+
+### Core/Conditions
+
+- `GameCondition.cs`：条件 ScriptableObject 基类。
+- `GameConditionContext.cs`：条件检查上下文，保存 `GameFlagCenter`、发送者和触发者。
+- `FlagBoolCondition.cs`：布尔 Flag 条件，检查指定 Flag 是否等于期望值。
 
 ### Core/FSM
 
 - `Entity.cs`：实体基类，持有 `Animator` 和 `StateMachine`。
 - `EntityState.cs`：状态基类，提供 `Enter`、`LogicalUpdate`、`PhysicalUpdate`、`Exit`。
-- `StateMachine.cs`：保存当前状态，支持初始化、切换和更新。
+- `StateMachine.cs`：保存当前状态，支持初始化、切换和更新。初始化状态时会调用初始状态的 `Enter()`。
 
 ### GamePlay/Interaction
 
@@ -160,15 +172,18 @@ Assets/_Game/
 - `DialogueNode.cs`：对话节点，包含台词列表和选项列表。
 - `DialogueLine.cs`：单句台词，包含说话者、文本、自动推进时间、等待输入标记、开始/结束事件。
 - `DialogueChoice.cs`：对话选项，包含选项文本、下一节点 ID 和选择事件。
-- `DialogueContext.cs`：对话事件执行上下文，包含事件总线、当前台词、当前节点、对话数据、发送者和触发者。
+- `DialogueContext.cs`：对话事件执行上下文，包含事件总线、Flag 中心、当前台词、当前节点、对话数据、发送者和触发者。
 - `DialogueEventAction.cs`：对话事件 ScriptableObject 基类。
-- `DialogueManager.cs`：驱动对话流程，管理对话层、选项层、台词推进、选项确认和事件执行。
-- `NPCDialogueInteractable.cs`：让 NPC 通过世界交互启动指定对话。
+- `DialogueManager.cs`：驱动对话流程，管理对话层、选项层、台词推进、选项确认和事件执行；如果选项跳转到不存在的节点，会退出选项模式并结束对话。
+- `ConditionalDialogueEntry.cs`：一条条件对话入口，持有 `DialogueData` 和条件列表，所有条件满足时可被选中。
+- `NPCDialogueProfile.cs`：NPC 对话配置，按 `ConditionalDialogueEntry` 顺序选择第一个满足条件的对话。
+- `NPCDialogueInteractable.cs`：让 NPC 通过世界交互启动对话，当前使用 `NPCDialogueProfile` 按 Flag 条件选择对话数据。
 - `WorldDialogueView.cs`：显示和隐藏世界空间台词文本。
 - `WorldDialogueChoiceView.cs`：显示选项、处理上下导航、返回当前选中项。
 - `DebugDialogueStarter.cs`：编辑器上下文菜单启动对话的调试组件。
 - `Events/DebugLogDialogueEvent.cs`：对话事件，执行时输出调试日志。
 - `Events/PublishSignalDialogueEvent.cs`：对话事件，执行时通过 `GameEventBus` 发布 `GameSignalEvent`。
+- `Events/SetFlagDialogueEvent.cs`：对话事件，执行时通过 `GameFlagCenter` 设置布尔 Flag。
 
 ### GamePlay/NPC
 
@@ -197,18 +212,19 @@ Assets/_Game/
 - `Player_RunTurnState.cs`：跑步转身状态，等待转身动画结束，再根据输入回到跑步或待机。
 - `PlayerAnimationHash.cs`：集中保存动画状态 hash。
 
-## 8. 对话与事件设计
+## 8. 对话、条件与 Flag 流程
 
-当前对话流程以 `DialogueData` 为数据源，以 `DialogueManager` 为运行时驱动：
+当前对话流程以 `NPCDialogueProfile` 为 NPC 入口配置，以 `DialogueData` 为实际对话数据源，以 `DialogueManager` 为运行时驱动：
 
 1. 玩家在 `Gameplay` 层按交互键。
 2. `InputRouter` 将交互请求发送给 `PlayerInputReceiver`。
 3. `PlayerGround` 消费请求，并调用 `InteractionDetector.TryInteract()`。
-4. `NPCDialogueInteractable` 检查可交互条件后调用 `DialogueManager.StartDialogue()`。
-5. `DialogueManager` 压入 `Dialogue` 层，逐句显示台词。
-6. 台词结束后如果节点有选项，显示 `WorldDialogueChoiceView` 并压入 `DialogueChoice` 层。
-7. 选项确认后跳转到下一节点，并执行选项事件。
-8. 对话结束时隐藏 UI，并弹出对话相关层。
+4. `NPCDialogueInteractable` 检查是否可交互，并通过 `NPCDialogueProfile.SelectDialogue()` 选择对话。
+5. `NPCDialogueProfile` 按列表顺序检查 `ConditionalDialogueEntry`，第一条满足条件的入口会返回对应 `DialogueData`。
+6. `DialogueManager` 压入 `Dialogue` 层，逐句显示台词。
+7. 台词结束后如果节点有选项，显示 `WorldDialogueChoiceView` 并压入 `DialogueChoice` 层。
+8. 选项确认后跳转到下一节点，并执行选项事件。
+9. 对话结束时隐藏 UI，并弹出对话相关层。
 
 事件扩展点：
 
@@ -217,13 +233,23 @@ Assets/_Game/
 - 选项选择事件：`DialogueChoice.EventOnSelect`。
 - 通用事件可继承 `DialogueEventAction`。
 - 跨系统信号优先通过 `PublishSignalDialogueEvent` 发布 `GameSignalEvent`。
+- 对话改变剧情状态时使用 `SetFlagDialogueEvent` 设置 `GameFlagCenter` 中的布尔 Flag。
 
-当前数据资产：
+当前对话与 Flag 资源：
 
-- `Assets/_Game/Data/Dialogue/OldManIntroDialogue.asset`。
-- `Assets/_Game/Data/Dialogue/Events/DebugEvent_HelpOldMan.asset`。
+- `Assets/_Game/Data/Dialogue/OldManDialogueProfile.asset`。
+- `Assets/_Game/Data/Dialogue/DialogueData/OldManIntroDialogue.asset`。
+- `Assets/_Game/Data/Dialogue/DialogueData/AccptedOldManDialogue.asset`。
+- `Assets/_Game/Data/Dialogue/DialogueData/FallBackDialogue.asset`。
+- `Assets/_Game/Data/Dialogue/Events/Condition_NotAskedOldMan.asset`。
+- `Assets/_Game/Data/Dialogue/Events/Condition_AfterAskedOldMan.asset`。
+- `Assets/_Game/Data/Dialogue/Events/Condition_NotAcceptedHelpOldMan.asset`。
+- `Assets/_Game/Data/Dialogue/Events/Condition_AfterAcceptedHelpOldMan.asset`。
+- `Assets/_Game/Data/Dialogue/Events/SetFlag_AskedOldMan.asset`。
+- `Assets/_Game/Data/Dialogue/Events/SetFlag_AcceptedHelpOldMan.asset`。
 - `Assets/_Game/Data/Dialogue/Events/DebugEvent_OldManLineStart.asset`。
 - `Assets/_Game/Data/Dialogue/Events/Signal_OldManMentionsStoneGate.asset`。
+- `Assets/_Game/Data/Flags/DefaultGameFlagDatabase.asset`。
 
 ## 9. 玩家跑步状态设计
 
@@ -262,22 +288,25 @@ Assets/_Game/
 
 ## 10. 当前资源更新
 
-- 资源目录重组：旧的 `Art` 动作分散目录被移除，新增 `Art/Player` 与 `Art/NPC`。
-- 动画状态目录重组：新增 `AnimationStates/Player` 与 `AnimationStates/NPC_OldMan`。
-- 新增 `NPC.controller`，更新 `Player.controller`。
-- 新增 `Fonts/`，并更新 TextMesh Pro 字体材质资源。
-- 新增对话数据目录 `Data/Dialogue/` 和对话事件资产。
-- 更新 `BootScene.unity` 与 `GameScene.unity`，接入事件总线、对话管理器、NPC、世界交互和对话 UI。
-- 更新 `ProjectSettings/TagManager.asset` 与 `ProjectSettings/Physics2DSettings.asset`。
-- 更新 `PlayerBaseConfig.asset` 中的玩家移动/跑步参数。
+- 对话数据目录重组：旧的 `Assets/_Game/Data/Dialogue/OldManIntroDialogue.asset` 移入 `Assets/_Game/Data/Dialogue/DialogueData/`。
+- 新增 `OldManDialogueProfile.asset`，用于按条件选择老人的不同对话。
+- 新增老人的后续对话与兜底对话资源：`AccptedOldManDialogue.asset`、`FallBackDialogue.asset`。
+- 新增 Flag 数据库目录 `Assets/_Game/Data/Flags/` 和 `DefaultGameFlagDatabase.asset`。
+- 新增条件资源与 Flag 设置事件资源，用于记录是否询问过老人、是否接受帮助老人。
+- 删除旧的 `DebugEvent_HelpOldMan.asset` 与旧位置的 `OldManIntroDialogue.asset`。
+- 更新 `BootScene.unity` 与 `GameScene.unity`，接入事件总线、Flag 中心、条件对话配置、NPC、世界交互和对话 UI。
+- 更新 TextMesh Pro 字体材质与 `Assets/_Game/Fonts/Hexin Pixel Font.asset`。
 
 ## 11. 当前注意事项
 
+- `GameFlagCenter.InitializeBoolFlags()` 当前假设 `initialBoolFlags` 已配置；如果场景中忘记绑定默认数据库，会出现空引用风险。
+- `NPCDialogueProfile.SelectDialogue()` 可能返回 `null`；当前 `NPCDialogueInteractable.Interact()` 没有在调用 `StartDialogue()` 前显式兜底检查。
 - `NPCDialogueInteractable.GetInteractionPrompt()` 目前仍抛出 `NotImplementedException`，若后续需要显示交互提示，需要补齐实现。
-- `WorldDialogueChoiceView` 字段名 `nvaigationCooldown` 存在拼写问题，但会影响序列化字段名，重命名前要考虑 Unity 资产迁移。
+- `FlagBoolCondition` 字段 `expecteValue` 存在拼写问题，但会影响 Unity 序列化字段名，重命名前要考虑资源迁移。
+- `NPCDialogueProfile` 字段 `profiledID` 可能是 `profileID` 的拼写误差，重命名前同样要考虑序列化迁移。
+- `WorldDialogueChoiceView` 字段名 `nvaigationCooldown` 存在拼写问题，但会影响序列化字段名，重命名前要考虑 Unity 资源迁移。
 - `Interaction` 中 `faingRight` 字段存在拼写问题，不影响当前逻辑。
 - `StateMachine.LogicialUpdate` 存在拼写问题，但当前 `Player.Update()` 使用同名调用，功能上可运行。
-- `StateMachine.InitializeState` 目前只赋值初始状态，没有调用初始状态的 `Enter()`；如后续依赖初始状态进入逻辑，需要检查。
 - `GameEventBus.Publish()` 在没有订阅者时会输出 warning，调试阶段有帮助；正式版本可视情况降低日志级别。
 - `RunBufferDuration` 不宜过长，否则角色松手后会显得不够听话，通常 `0.1` 秒左右比较自然。
 
@@ -291,5 +320,6 @@ Assets/_Game/
 4. 检查 `ProjectSettings/EditorBuildSettings.asset` 的启用场景是否变化。
 5. 检查 `Assets/Settings/InputSystem_Actions.inputactions` 的 Action Map、Action 和 Binding 是否变化。
 6. 检查 `Assets/_Game/Data/Core/GameLayerRuleDatabase.asset` 的层规则是否变化。
-7. 检查 `Packages/manifest.json` 是否新增或移除关键依赖。
-8. 检查 `.gitignore` 和 `.gitattributes` 是否符合 Unity 提交规范。
+7. 检查对话、Flag、Condition 相关 ScriptableObject 是否新增、移动或删除。
+8. 检查 `Packages/manifest.json` 是否新增或移除关键依赖。
+9. 检查 `.gitignore` 和 `.gitattributes` 是否符合 Unity 提交规范。

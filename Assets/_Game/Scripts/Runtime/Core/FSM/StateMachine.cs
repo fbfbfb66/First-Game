@@ -5,7 +5,10 @@ public class StateMachine
     public void InitializeState(EntityState currentState)
     {
         if(this.currentState == null)
+        {
             this.currentState = currentState;
+            currentState.Enter();
+        }
     }
 
     public void ChangeState(EntityState stateChangeTo)

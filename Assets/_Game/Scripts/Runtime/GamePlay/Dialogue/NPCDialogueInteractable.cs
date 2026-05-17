@@ -3,15 +3,20 @@ using UnityEngine;
 
 public class NPCDialogueInteractable : MonoBehaviour,IInteractable
 {
-    [SerializeField] private DialogueData dialogueData;
+    [Header("Dialogue")]
+    [SerializeField] private NPCDialogueProfile dialogueProfile;
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private WorldDialogueView worldDialogueView;
     [SerializeField] private WorldDialogueChoiceView worldDialogueChoiceView;
+    [Header("Condition")]
+    [SerializeField] private GameFlagCenter flagCenter;
 
     private void Awake()
     {
         if(dialogueManager == null)
             dialogueManager = FindAnyObjectByType<DialogueManager>();
+        if(flagCenter == null)
+            flagCenter = FindAnyObjectByType<GameFlagCenter>();
         if(worldDialogueView == null)
             worldDialogueView = GetComponentInChildren<WorldDialogueView>(true);
         if(worldDialogueChoiceView == null)
@@ -22,7 +27,7 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
 
     public bool CanInteract(InteractionContext context)
     {
-        if(dialogueData == null || dialogueManager == null || worldDialogueChoiceView == null || worldDialogueView == null || dialogueManager.IsRunning)
+        if(dialogueProfile == null || dialogueManager == null || worldDialogueChoiceView == null || worldDialogueView == null || dialogueManager.IsRunning)
             return false;
         return true;
     }
@@ -38,8 +43,15 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
         {
             Debug.LogWarning("Cannot start dialogue");
             return;
-        } 
+        }
+        DialogueData dialogueData = SelectDialogueData(context); 
 
         dialogueManager.StartDialogue(dialogueData,worldDialogueView,worldDialogueChoiceView,gameObject,context.Interactor);
+    }
+
+    private DialogueData SelectDialogueData(InteractionContext interactionContext)
+    {
+        GameConditionContext context = new(flagCenter,gameObject,interactionContext.Interactor);
+        return dialogueProfile.SelectDialogue(context);
     }
 }

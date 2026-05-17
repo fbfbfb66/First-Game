@@ -270,6 +270,7 @@ GameObject:
   - component: {fileID: 1511534911}
   - component: {fileID: 1511534913}
   - component: {fileID: 1511534914}
+  - component: {fileID: 1511534915}
   m_Layer: 0
   m_Name: GameRoot
   m_TagString: Untagged
@@ -354,6 +355,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17a6c676645185d42b3471fc1634a928, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameEventBus
+--- !u!114 &1511534915
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1511534906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f9e5ea8debbbb04b95c74feff80dcc2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameFlagCenter
+  eventBus: {fileID: 1511534914}
+  initialBoolFlags: {fileID: 11400000, guid: 52fb6f85b4fc67542abdbf493039d2d4, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
