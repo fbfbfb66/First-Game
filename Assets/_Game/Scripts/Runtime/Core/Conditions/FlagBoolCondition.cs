@@ -1,11 +1,13 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 [CreateAssetMenu(
     fileName = "FlagBoolCondition",
     menuName = "Game/Condition/Flag Bool")]
 public class FlagBoolCondition : GameCondition
 {
     [SerializeField] private string flagID;
-    [SerializeField] private bool expecteValue;
+    [FormerlySerializedAs("expecteValue")]
+    [SerializeField] private bool expectedValue;
 
     public override bool IsMet(GameConditionContext context)
     {
@@ -26,6 +28,6 @@ public class FlagBoolCondition : GameCondition
         }
 
 
-        return expecteValue == context.FlagCenter.GetBool(flagID);
+        return expectedValue == context.FlagCenter.GetBool(flagID);
     }
 }

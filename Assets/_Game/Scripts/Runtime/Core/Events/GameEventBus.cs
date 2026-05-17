@@ -42,7 +42,7 @@ public class GameEventBus : MonoBehaviour
         bool hasSubscribers = eventTable.TryGetValue(type, out var existingDelegate);
         if (!hasSubscribers)
         {
-            Debug.LogWarning($"No subscribers for event type {type}. Event will be ignored.");
+            Debug.Log($"No subscribers for event type {type}. Event will be ignored.");
             return;
         }
         if (existingDelegate is Action<T> action)

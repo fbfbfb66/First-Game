@@ -1,14 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 [CreateAssetMenu(
     fileName = "NPCDialogueProfile",
     menuName = "Game/Dialogue/NPC Dialogue Profile")]
 public class NPCDialogueProfile : ScriptableObject
 {
-    [SerializeField] private string profiledID;
+    [FormerlySerializedAs("profiledID")]
+    [SerializeField] private string profileID;
     [SerializeField] private List<ConditionalDialogueEntry> dialogueEntries = new();
 
-    public string ProfiledID => profiledID;
+    public string ProfileID => profileID;
 
     public DialogueData SelectDialogue(GameConditionContext context)
     {

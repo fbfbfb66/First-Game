@@ -51,7 +51,7 @@ public class Player : Entity
 
     private void Update()
     {
-        stateMachine.LogicialUpdate();
+        stateMachine.LogicalUpdate();
     }
 
     private void FixedUpdate()

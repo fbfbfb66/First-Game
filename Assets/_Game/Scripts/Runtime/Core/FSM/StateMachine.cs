@@ -18,7 +18,7 @@ public class StateMachine
         currentState.Enter();
     }
 
-    public void LogicialUpdate()
+    public void LogicalUpdate()
     {
         currentState.LogicalUpdate();
     }

@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Condition_AfterAskedOldMan
   m_EditorClassIdentifier: Assembly-CSharp::FlagBoolCondition
   flagID: asked_old_man
-  expecteValue: 1
+  expectedValue: 1

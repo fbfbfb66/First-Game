@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class Interaction : MonoBehaviour
 {
@@ -7,7 +8,8 @@ public class Interaction : MonoBehaviour
     [SerializeField] private string npcName;
     [SerializeField] private Transform target;
     [SerializeField] private Transform VisualLayer;
-    private bool faingRight = false;
+    [FormerlySerializedAs("faingRight")]
+    private bool facingRight = false;
     private void Awake()
     {
         if(speakerName == null)
@@ -17,6 +19,11 @@ public class Interaction : MonoBehaviour
     }
     private void Update()
     {
+        if(target == null)
+        {
+            return;
+        }
+
         Vector2 dir = target.position - transform.root.position;
         HandleFlip(dir);
     }
@@ -51,13 +58,18 @@ public class Interaction : MonoBehaviour
 
     private void HandleFlip(Vector2 input)
     {
-        if(input.x < 0 && faingRight) Flip();
-        if(input.x > 0 && !faingRight) Flip();
+        if(input.x < 0 && facingRight) Flip();
+        if(input.x > 0 && !facingRight) Flip();
     }
 
     private void Flip()
     {
-        faingRight = !faingRight;
+        if(VisualLayer == null)
+        {
+            return;
+        }
+
+        facingRight = !facingRight;
         Vector3 scale = VisualLayer.localScale;
         scale.x = -scale.x;
         VisualLayer.localScale = scale;

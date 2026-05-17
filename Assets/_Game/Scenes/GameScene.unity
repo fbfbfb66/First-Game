@@ -1020,7 +1020,7 @@ MonoBehaviour:
   - {fileID: 535130134}
   - {fileID: 1386597767}
   - {fileID: 1882221155}
-  nvaigationCooldown: 0.1
+  navigationCooldown: 0.1
 --- !u!4 &913036116
 Transform:
   m_ObjectHideFlags: 0

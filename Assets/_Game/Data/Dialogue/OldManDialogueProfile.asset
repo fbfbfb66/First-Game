@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4441224f0ecd4c24b9e25ec34b7ccc7c, type: 3}
   m_Name: OldManDialogueProfile
   m_EditorClassIdentifier: Assembly-CSharp::NPCDialogueProfile
-  profiledID: OldManDialogueProfile
+  profileID: OldManDialogueProfile
   dialogueEntries:
   - entryID: after_accept_help
     dialogueData: {fileID: 11400000, guid: 9e33b48bedb5e834893ea9ed2a062166, type: 2}

@@ -63,6 +63,12 @@ public class GameFlagCenter : MonoBehaviour
     {
         boolFlags.Clear();
 
+        if(initialBoolFlags == null)
+        {
+            Debug.Log("GameFlagCenter has no initial flag database. Runtime flags will start empty.");
+            return;
+        }
+
         for(int i = 0; i < initialBoolFlags.BoolFlags.Count; i++)
         {
             GameFlagEntry entry = initialBoolFlags.BoolFlags[i];

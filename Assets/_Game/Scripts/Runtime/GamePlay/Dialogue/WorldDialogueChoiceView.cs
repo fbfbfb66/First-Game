@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class WorldDialogueChoiceView : MonoBehaviour
 {
@@ -8,7 +9,8 @@ public class WorldDialogueChoiceView : MonoBehaviour
     [SerializeField] private List<TMP_Text> choiceSlots;
 
     [Header("Input")]
-    [SerializeField] private float nvaigationCooldown = 0.1f;
+    [FormerlySerializedAs("nvaigationCooldown")]
+    [SerializeField] private float navigationCooldown = 0.1f;
 
     private IReadOnlyList<DialogueChoice> currentChoices;
     private int selectedIndex;
@@ -67,7 +69,7 @@ public class WorldDialogueChoiceView : MonoBehaviour
         
         selectedIndex = ((selectedIndex % currentChoices.Count) + currentChoices.Count) % currentChoices.Count;
 
-        nextNavigationTime = Time.time + nvaigationCooldown;
+        nextNavigationTime = Time.time + navigationCooldown;
         if(selectedIndex != previousSelectedIndex)
         {
             RefreshChoiceSlot(previousSelectedIndex);

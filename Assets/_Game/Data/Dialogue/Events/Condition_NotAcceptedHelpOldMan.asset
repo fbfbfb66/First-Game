@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Condition_NotAcceptedHelpOldMan
   m_EditorClassIdentifier: Assembly-CSharp::FlagBoolCondition
   flagID: accepted_help_old_man
-  expecteValue: 0
+  expectedValue: 0

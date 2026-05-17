@@ -8,6 +8,8 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private WorldDialogueView worldDialogueView;
     [SerializeField] private WorldDialogueChoiceView worldDialogueChoiceView;
+    [SerializeField] private string interactionPrompt = "Talk";
+
     [Header("Condition")]
     [SerializeField] private GameFlagCenter flagCenter;
 
@@ -34,7 +36,7 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
 
     public string GetInteractionPrompt(InteractionContext context)
     {
-        throw new System.NotImplementedException();
+        return interactionPrompt;
     }
 
     public void Interact(InteractionContext context)
@@ -44,7 +46,12 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
             Debug.LogWarning("Cannot start dialogue");
             return;
         }
-        DialogueData dialogueData = SelectDialogueData(context); 
+        DialogueData dialogueData = SelectDialogueData(context);
+        if(dialogueData == null)
+        {
+            Debug.LogWarning($"Cannot start dialogue. No dialogue matched profile on {name}.");
+            return;
+        }
 
         dialogueManager.StartDialogue(dialogueData,worldDialogueView,worldDialogueChoiceView,gameObject,context.Interactor);
     }
