@@ -4,7 +4,7 @@ using UnityEngine;
     menuName = "Game/Dialogue/Event/Set Bool Flag")]
 public class SetFlagDialogueEvent : DialogueEventAction
 {
-    [SerializeField] private string flagID;
+    [SerializeField] private GameFlagData flagData;
     [SerializeField] private bool value;
     public override void Execute(DialogueContext context)
     {
@@ -13,6 +13,6 @@ public class SetFlagDialogueEvent : DialogueEventAction
             Debug.LogWarning("Missing FlagCenter.");
             return;
         }
-        context.FlagCenter.SetBool(flagID,value,context.Sender,context.Instigator);
+        context.FlagCenter.SetBool(flagData.FlagID,value,context.Sender,context.Instigator);
     }
 }

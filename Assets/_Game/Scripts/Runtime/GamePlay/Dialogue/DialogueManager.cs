@@ -7,6 +7,7 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private GameLayerStack layerStack;
     [SerializeField] private GameEventBus eventBus;
     [SerializeField] private GameFlagCenter flagCenter;
+    [SerializeField] private QuestManager questManager;
 
     private DialogueData currentDialogue;
     private DialogueNode currentNode;
@@ -33,6 +34,10 @@ public class DialogueManager : MonoBehaviour
         if(flagCenter == null)
         {
             flagCenter = FindAnyObjectByType<GameFlagCenter>();
+        }
+        if(questManager == null)
+        {
+            questManager = FindAnyObjectByType<QuestManager>();
         }
     }
 
@@ -169,7 +174,7 @@ public class DialogueManager : MonoBehaviour
 
     private void ExecuteEvents(IReadOnlyList<DialogueEventAction> events,DialogueLine line)
     {
-        DialogueContext context = new DialogueContext(eventBus,flagCenter,line,currentNode,currentDialogue,currentSender,currentInstigator);
+        DialogueContext context = new DialogueContext(eventBus,flagCenter,questManager,line,currentNode,currentDialogue,currentSender,currentInstigator);
         foreach (var action in events)
         {
             if(action == null) continue;

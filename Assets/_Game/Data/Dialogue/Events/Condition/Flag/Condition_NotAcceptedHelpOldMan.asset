@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 293b971b21c717348b921d15e32b212b, type: 3}
-  m_Name: Condition_AfterAskedOldMan
+  m_Name: Condition_NotAcceptedHelpOldMan
   m_EditorClassIdentifier: Assembly-CSharp::FlagBoolCondition
-  flagID: asked_old_man
-  expectedValue: 1
+  flagData: {fileID: 11400000, guid: fedc1103cc4cdb642a3afe9adf5d2a24, type: 2}
+  expectedValue: 0

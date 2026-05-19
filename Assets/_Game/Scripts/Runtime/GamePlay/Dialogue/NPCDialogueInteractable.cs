@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 
@@ -12,6 +13,7 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
 
     [Header("Condition")]
     [SerializeField] private GameFlagCenter flagCenter;
+    [SerializeField] private QuestManager questManager;
 
     private void Awake()
     {
@@ -19,6 +21,9 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
             dialogueManager = FindAnyObjectByType<DialogueManager>();
         if(flagCenter == null)
             flagCenter = FindAnyObjectByType<GameFlagCenter>();
+        if(questManager == null)
+            questManager = FindAnyObjectByType<QuestManager>();
+
         if(worldDialogueView == null)
             worldDialogueView = GetComponentInChildren<WorldDialogueView>(true);
         if(worldDialogueChoiceView == null)
@@ -58,7 +63,7 @@ public class NPCDialogueInteractable : MonoBehaviour,IInteractable
 
     private DialogueData SelectDialogueData(InteractionContext interactionContext)
     {
-        GameConditionContext context = new(flagCenter,gameObject,interactionContext.Interactor);
+        GameConditionContext context = new(flagCenter,questManager,gameObject,interactionContext.Interactor);
         return dialogueProfile.SelectDialogue(context);
     }
 }

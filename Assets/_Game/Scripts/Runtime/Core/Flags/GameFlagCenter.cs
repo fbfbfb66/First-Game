@@ -50,6 +50,15 @@ public class GameFlagCenter : MonoBehaviour
         return defaultValue;
     }
 
+    public bool GetBool(GameFlagData flagData)
+    {
+        if(flagData == null)
+        {
+            return false;
+        }
+        return GetBool(flagData.FlagID);
+    }
+
     public bool HasBool(string flagID)
     {
         if (string.IsNullOrWhiteSpace(flagID))
@@ -71,7 +80,7 @@ public class GameFlagCenter : MonoBehaviour
 
         for(int i = 0; i < initialBoolFlags.BoolFlags.Count; i++)
         {
-            GameFlagEntry entry = initialBoolFlags.BoolFlags[i];
+            GameFlagData entry = initialBoolFlags.BoolFlags[i];
 
             if(entry == null) continue;
             if(string.IsNullOrWhiteSpace(entry.FlagID)) continue;

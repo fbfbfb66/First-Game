@@ -6,7 +6,7 @@ using UnityEngine;
     menuName = "Game/Flags/Game Flag Database")]
 public class GameFlagDatabase : ScriptableObject
 {
-    [SerializeField] private List<GameFlagEntry> boolFlags = new();
+    [SerializeField] private List<GameFlagData> boolFlags = new();
 
-    public IReadOnlyList<GameFlagEntry> BoolFlags => boolFlags;
+    public IReadOnlyList<GameFlagData> BoolFlags => boolFlags;
 }

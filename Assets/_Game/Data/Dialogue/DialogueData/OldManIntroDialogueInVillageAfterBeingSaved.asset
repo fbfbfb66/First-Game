@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9bb5cfe80a99e204ba9eb9ab256f3c6e, type: 3}
-  m_Name: OldManIntroDialogue
+  m_Name: OldManIntroDialogueInVillageAfterBeingSaved
   m_EditorClassIdentifier: Assembly-CSharp::DialogueData
   dialogueID: old_man_intro
   startingNodeID: start
@@ -46,6 +46,7 @@ MonoBehaviour:
       nextNodeID: accept_node
       eventOnSelect:
       - {fileID: 11400000, guid: 8a23a3a79d338f44280f26c061357402, type: 2}
+      - {fileID: 11400000, guid: 392fae94bcd468a468a4b1bc6d03c191, type: 2}
     - choiceID: ask_more
       choiceText: "\u90A3\u4E2A\u602A\u7269\u5230\u5E95\u662F\u4EC0\u4E48\uFF1F"
       nextNodeID: explain_node

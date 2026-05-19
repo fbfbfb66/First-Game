@@ -290,7 +290,6 @@ public class InputRouter : MonoBehaviour
                 if (dialogueManager != null)
                 {
                     dialogueManager.HandleChoiceConfirmed();
-                    Debug.Log("Submit dialogue choice.");
                 }
                 break;
 

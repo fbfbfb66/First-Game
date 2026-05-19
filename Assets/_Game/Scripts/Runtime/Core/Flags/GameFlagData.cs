@@ -1,7 +1,9 @@
-using System;
+
 using UnityEngine;
-[Serializable]
-public class GameFlagEntry 
+[CreateAssetMenu(
+    fileName = "GameFlagDatabase",
+    menuName = "Game/Flags/Flag Data")]
+public class GameFlagData : ScriptableObject
 {
     [SerializeField] private string flagID;
     [SerializeField] private bool defaultValue;

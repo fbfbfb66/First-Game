@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 293b971b21c717348b921d15e32b212b, type: 3}
-  m_Name: Condition_NotAcceptedHelpOldMan
-  m_EditorClassIdentifier: Assembly-CSharp::FlagBoolCondition
-  flagID: accepted_help_old_man
-  expectedValue: 0
+  m_Script: {fileID: 11500000, guid: 685734234fda46d46bf68b8c5b42fc00, type: 3}
+  m_Name: Condition_HelpOldMan_InProgress
+  m_EditorClassIdentifier: Assembly-CSharp::QuestStateCondition
+  questData: {fileID: 0}
+  expectedState: 0
