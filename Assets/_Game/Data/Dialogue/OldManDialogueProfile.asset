@@ -19,11 +19,14 @@ MonoBehaviour:
     conditions:
     - {fileID: 11400000, guid: 4a9e0e058d7ee1442a44be4b7d1c93aa, type: 2}
     - {fileID: 11400000, guid: 86da35d046355e4489bff3b9f00be831, type: 2}
+    - {fileID: 11400000, guid: 26ce5a8406bcdf842914d316a862a117, type: 2}
   - entryID: intro
     dialogueData: {fileID: 11400000, guid: ea96fb94b76f8bb4f9b8f15de3343308, type: 2}
     conditions:
     - {fileID: 11400000, guid: a8f36c9fd1265e84188126fdeaee01af, type: 2}
+    - {fileID: 11400000, guid: f7c083b45e50cc749b1ec5d8279f3d08, type: 2}
   - entryID: fallback
     dialogueData: {fileID: 11400000, guid: 0d406ce19c67c0041b7f8eea7ada9449, type: 2}
     conditions:
     - {fileID: 11400000, guid: 3f6f2003179134d47a853e100cb38f8a, type: 2}
+    - {fileID: 11400000, guid: 26ce5a8406bcdf842914d316a862a117, type: 2}

@@ -11,5 +11,11 @@ public static class PlayerAnimationHash
 
 
     public static readonly int Walk = Animator.StringToHash("Walk");
-    public static readonly int Jump = Animator.StringToHash("Jump");
+
+    public static readonly int JumpStart = Animator.StringToHash("JumpStart");
+    public static readonly int JumpUp = Animator.StringToHash("JumpUp");
+    public static readonly int Apex = Animator.StringToHash("Apex");
+    public static readonly int Fall = Animator.StringToHash("Fall");
+    public static readonly int BaseLand = Animator.StringToHash("BaseLand");
+    public static readonly int RollingLand = Animator.StringToHash("RollingLand");
 }

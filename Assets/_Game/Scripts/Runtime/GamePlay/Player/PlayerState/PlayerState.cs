@@ -5,6 +5,7 @@ public class PlayerState : EntityState
     protected Player player;
     protected PlayerMovement movement;
     protected PlayerInputReceiver input;
+    protected GroundSensor groundSensor;
     protected PlayerAnimationTrigger animationTrigger;
     public PlayerState(Player player,StateMachine stateMachine, int stateName, Animator anim) : base(stateMachine, stateName, anim)
     {
@@ -12,5 +13,25 @@ public class PlayerState : EntityState
         movement = player.playerMovement;
         input = player.playerInputReceiver;
         animationTrigger = player.playerAnimationTrigger;
+        groundSensor = player.groundSensor;
+    }
+
+    protected void ChangeStateToMoveState()
+    {
+        if(input.MoveInput.x == 0)
+        {
+            stateMachine.ChangeState(player.idleState);
+        }
+        else
+        {
+            if(movement.playerMoveType == PlayerMoveType.Run)
+            {
+                stateMachine.ChangeState(player.runState);
+            }
+            else if(movement.playerMoveType == PlayerMoveType.Walk)
+            {
+                Debug.Log("Change to WalkState");
+            }
+        }
     }
 }

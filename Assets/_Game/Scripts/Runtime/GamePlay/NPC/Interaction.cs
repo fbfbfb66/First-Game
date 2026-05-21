@@ -1,19 +1,20 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public class Interaction : MonoBehaviour
 {
-    [SerializeField] private TMP_Text speakerName;
     [SerializeField] private string npcName;
+    [SerializeField] private TMP_Text speakerName;
     [SerializeField] private Transform target;
-    [SerializeField] private Transform VisualLayer;
-    [FormerlySerializedAs("faingRight")]
-    private bool facingRight = false;
+    [SerializeField] private Transform visualLayer;
+    [SerializeField] private Movement movement;
     private void Awake()
     {
         if(speakerName == null)
             speakerName = GetComponentInChildren<TMP_Text>(true);
+
+        if(movement == null)
+            movement = GetComponentInParent<Movement>();
         
         Hide();
     }
@@ -25,7 +26,7 @@ public class Interaction : MonoBehaviour
         }
 
         Vector2 dir = target.position - transform.root.position;
-        HandleFlip(dir);
+        movement.HandleFlip(dir);
     }
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -54,24 +55,5 @@ public class Interaction : MonoBehaviour
     {
         if(speakerName == null) return;
         speakerName.gameObject.SetActive(false);        
-    }
-
-    private void HandleFlip(Vector2 input)
-    {
-        if(input.x < 0 && facingRight) Flip();
-        if(input.x > 0 && !facingRight) Flip();
-    }
-
-    private void Flip()
-    {
-        if(VisualLayer == null)
-        {
-            return;
-        }
-
-        facingRight = !facingRight;
-        Vector3 scale = VisualLayer.localScale;
-        scale.x = -scale.x;
-        VisualLayer.localScale = scale;
     }
 }

@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 685734234fda46d46bf68b8c5b42fc00, type: 3}
   m_Name: Condition_HelpOldMan_NotStarted
   m_EditorClassIdentifier: Assembly-CSharp::QuestStateCondition
-  questData: {fileID: 0}
+  questData: {fileID: 11400000, guid: 0b787ff1d9eb1e14e80bccded1dea68a, type: 2}
   expectedState: 0

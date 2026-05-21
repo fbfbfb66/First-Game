@@ -9,16 +9,20 @@ public class Player : Entity
     public PlayerInputReceiver playerInputReceiver;
     public PlayerAnimationTrigger playerAnimationTrigger;
     public InteractionDetector interaction;
-    public Rigidbody2D playerRb;
     public TimeTool timeTool;
+    public GroundSensor groundSensor;
 
     #region 
-    public Player_IdleState idleState;
-    public Player_RunState runState;
+    public Player_IdleState idleState {get;private set;}
+    public Player_RunState runState {get;private set;}
 
-    public Player_RunTurnState runTurnState;
-    public Player_RunEndState runEndState;
-    
+    public Player_RunTurnState runTurnState {get;private set;}
+    public Player_RunEndState runEndState {get;private set;}
+
+    public Player_JumpStart jumpStartState {get;private set;}
+    public Player_JumpUp jumpUpState {get;private set;}
+    public Player_Apex apexState {get;private set;}
+    public Player_Fall fallState {get;private set;}
     #endregion
 
     protected override void Awake()
@@ -26,8 +30,6 @@ public class Player : Entity
         base.Awake();
         if(playerMovement == null)
             playerMovement = GetComponent<PlayerMovement>();
-        if(playerRb == null)
-            playerRb = GetComponent<Rigidbody2D>();
         if(playerInputReceiver == null)
             playerInputReceiver = GetComponent<PlayerInputReceiver>();
         if(playerAnimationTrigger == null)
@@ -36,12 +38,18 @@ public class Player : Entity
             interaction = GetComponentInChildren<InteractionDetector>();
         if(timeTool == null)
             timeTool = GetComponent<TimeTool>();
+        if(groundSensor == null)
+            groundSensor = GetComponentInChildren<GroundSensor>();
 
         
         idleState = new Player_IdleState(this,stateMachine,PlayerAnimationHash.Idle,anim);
         runState = new Player_RunState(this,stateMachine,PlayerAnimationHash.Run,anim);
         runTurnState = new Player_RunTurnState(this,stateMachine,PlayerAnimationHash.RunTurn,anim);
         runEndState = new Player_RunEndState(this,stateMachine,PlayerAnimationHash.RunEnd,anim);
+        jumpStartState = new Player_JumpStart(this,stateMachine,PlayerAnimationHash.JumpStart,anim);
+        jumpUpState = new Player_JumpUp(this,stateMachine,PlayerAnimationHash.JumpUp,anim);
+        apexState = new Player_Apex(this,stateMachine,PlayerAnimationHash.Apex,anim);
+        fallState = new Player_Fall(this,stateMachine,PlayerAnimationHash.Fall,anim);
     }
 
     private void Start()

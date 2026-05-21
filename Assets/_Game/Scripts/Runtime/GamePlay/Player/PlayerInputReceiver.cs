@@ -16,7 +16,7 @@ public class PlayerInputReceiver : MonoBehaviour
 
     public void RequestJump()
     {
-        Debug.Log("Player received jump request.");
+        jumpPressed = true;
     }
 
     public void RequestAttack()

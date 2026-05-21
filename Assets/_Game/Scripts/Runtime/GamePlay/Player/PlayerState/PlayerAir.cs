@@ -1,16 +1,18 @@
 using UnityEngine;
 
-public class PlayerAir : MonoBehaviour
+public class PlayerAir : PlayerState
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public PlayerAir(Player player, StateMachine stateMachine, int stateName, Animator anim) : base(player, stateMachine, stateName, anim)
     {
-        
     }
 
-    // Update is called once per frame
-    void Update()
+    public override void LogicalUpdate()
     {
-        
+        base.LogicalUpdate();
+        if (groundSensor.IsGrounded)
+        {
+            ChangeStateToMoveState();
+        }
     }
+
 }

@@ -9,20 +9,23 @@ public class PlayerGround : PlayerState
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+        if(groundSensor.IsGrounded == false && movement.GetCurrentVelocity().y < 0)
+        {
+            stateMachine.ChangeState(player.fallState);
+            return;
+        }
+
+        if (input.ConsumeJump())
+        {
+            stateMachine.ChangeState(player.jumpStartState);
+            return;
+        }
+
         if (input.ConsumeWorldInteract())
         {
             player.interaction.TryInteract();
         }
-        if(input.MoveInput.x == 0)
-        {
-            stateMachine.ChangeState(player.idleState);
-        }
-        else if(input.MoveInput.x != 0)
-        {
-            if(movement.playerMoveType == PlayerMoveType.Run)
-            {
-                stateMachine.ChangeState(player.runState);
-            }
-        }
+        
+        ChangeStateToMoveState();
     }
 }

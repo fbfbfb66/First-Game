@@ -1,35 +1,27 @@
 using System.Collections;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerMovement : Movement
 {
-    [SerializeField] private Transform visualLayer;
     [Space]
     [SerializeField] private Player player;
-    public bool facingRight {get;private set;} = true;
     private float runVelocity;
     private float walkVelocity;
     private Vector2 jumpForce;
-    private Rigidbody2D playerRb;
     public PlayerMoveType playerMoveType{get;private set;}
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake();
         if(player == null)
             player = GetComponentInParent<Player>();
     }
     private void Start()
     {
         SetPlayerMoveMode(PlayerMoveType.Run);
-        playerRb = player.playerRb;
-        if(playerRb != null)
+        if(rb != null)
         {
             InitializePlayerMovement(player.playerBaseConfig);
         }
-    }
-
-    public Vector2 GetCurrentVelocity()
-    {
-        return playerRb.linearVelocity;
     }
 
     public float GetMoveVelocity()
@@ -39,37 +31,21 @@ public class PlayerMovement : MonoBehaviour
 
     public void HandleJump()
     {
-        playerRb.linearVelocity += jumpForce;
+        float jumpX = facingRight ? jumpForce.x : -jumpForce.x;
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x + jumpX, jumpForce.y);
     }
-    public void HandleMoveAndFlip(Vector2 inputMove)
+    public override void HandleMoveAndFlip(Vector2 inputMove)
     {
         float moveVelocity = GetMoveVelocity();
-        Vector2 finalVelocity = new Vector2(moveVelocity * inputMove.x,playerRb.linearVelocity.y);
+        Vector2 finalVelocity = new Vector2(moveVelocity * inputMove.x,rb.linearVelocity.y);
         SetRigibodyVelocity(finalVelocity);
         HandleFlip(inputMove);
     }
     public void HandleMove(Vector2 inputMove)
     {
         float moveVelocity = GetMoveVelocity();
-        Vector2 finalVelocity = new Vector2(moveVelocity * inputMove.x,playerRb.linearVelocity.y);
+        Vector2 finalVelocity = new Vector2(moveVelocity * inputMove.x,rb.linearVelocity.y);
         SetRigibodyVelocity(finalVelocity);
-    }
-
-    public void HandleFlip(Vector2 inputMove)
-    {
-        if(inputMove.x < 0 && facingRight) Flip();
-        if(inputMove.x > 0 && !facingRight) Flip();
-    }
-    private void Flip()
-    {
-        facingRight = !facingRight;
-        Vector3 scale = visualLayer.localScale;
-        scale.x = -scale.x;
-        visualLayer.localScale = scale;
-    }
-    public void SetRigibodyVelocity(Vector2 velocity)
-    {
-        playerRb.linearVelocity = velocity;
     }
 
     public void SetPlayerMoveMode(PlayerMoveType playerMoveType)
@@ -84,7 +60,7 @@ public class PlayerMovement : MonoBehaviour
         walkVelocity = config.WalkVelocity;
         runVelocity = config.RunVelocity;
         jumpForce = config.JumpForce;
-        playerRb.gravityScale = config.GravityScale;
+        rb.gravityScale = config.GravityScale;
     }
 }
         
