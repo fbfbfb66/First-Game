@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PlayerBaseConfig
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBaseConfig
   runVelocity: 13
-  walkVelocity: 0
+  walkVelocity: 4
   jumpForce: {x: 2, y: 19}
   apexThreshold: 0.2
   canEndRunEarlyDuration: 1.5

@@ -25,7 +25,7 @@ public class PlayerGround : PlayerState
         {
             player.interaction.TryInteract();
         }
-        
-        ChangeStateToMoveState();
+        if(groundSensor.IsGrounded)
+            ChangeStateToMoveState();
     }
 }

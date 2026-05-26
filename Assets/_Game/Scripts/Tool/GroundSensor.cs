@@ -8,16 +8,10 @@ public class GroundSensor : MonoBehaviour
 
     public bool IsGrounded {get;private set;} = true;
 
-    private void Update()
-    {
-        IsGrounded = DetectedGround();
-    }
-
-    private bool DetectedGround()
+    public void UpdateGroundState()
     {
         RaycastHit2D hit = Physics2D.Raycast(point.position,Vector2.down,distance,whatIsGround);
-        if(hit.collider == null) return false;
-        return true;
+        IsGrounded = hit.collider != null;
     }
 
     private void OnDrawGizmos()

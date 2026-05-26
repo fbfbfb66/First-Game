@@ -16,6 +16,12 @@ public class PlayerState : EntityState
         groundSensor = player.groundSensor;
     }
 
+    public override void LogicalUpdate()
+    {
+        base.LogicalUpdate();
+        groundSensor.UpdateGroundState();
+    }
+
     protected void ChangeStateToMoveState()
     {
         if(input.MoveInput.x == 0)
@@ -30,7 +36,7 @@ public class PlayerState : EntityState
             }
             else if(movement.playerMoveType == PlayerMoveType.Walk)
             {
-                Debug.Log("Change to WalkState");
+                stateMachine.ChangeState(player.walkState);
             }
         }
     }

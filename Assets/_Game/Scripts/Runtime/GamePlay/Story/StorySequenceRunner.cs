@@ -7,6 +7,7 @@ public class StorySequenceRunner : MonoBehaviour
     [SerializeField] private GameLayerStack layerStack;
     [SerializeField] private GameFlagCenter flagCenter;
     [SerializeField] private QuestManager questManager;
+    [SerializeField] private StorySceneBindings sceneBindings;
 
     private Coroutine currentSequenceCoroutine;
 
@@ -20,6 +21,8 @@ public class StorySequenceRunner : MonoBehaviour
             flagCenter = FindAnyObjectByType<GameFlagCenter>();
         if(questManager == null)
             questManager = FindAnyObjectByType<QuestManager>();
+        if(sceneBindings == null)
+            sceneBindings = FindAnyObjectByType<StorySceneBindings>();
     }
 
     public bool TryRunSequence(StorySequence sequence,GameObject instigator)
@@ -40,9 +43,9 @@ public class StorySequenceRunner : MonoBehaviour
 
     private IEnumerator RunSequenceCoroutine(StorySequence sequence,GameObject instigator)
     {
-        StoryContext context = new StoryContext(this,layerStack,flagCenter,questManager,instigator);
+        StoryContext context = new StoryContext(this,layerStack,flagCenter,questManager,sceneBindings,instigator);
 
-        IReadOnlyList<StoryStepBehaviour> steps = sequence.Steps;
+        IReadOnlyList<StoryStepAction> steps = sequence.Steps;
 
         foreach(var step in steps)
         {

@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5428917e535d1694ab29941dd6469add, type: 3}
+  m_Name: Step_Show_HelpCry
+  m_EditorClassIdentifier: Assembly-CSharp::ShowStoryTextStepAction
+  textViewKey: {fileID: 11400000, guid: 3e2a96fd6e4ac9347b11d56ea5ceb26c, type: 2}
+  content: "\u6551\u547D\uFF01"

@@ -47,7 +47,6 @@ public class PlayerMovement : Movement
         Vector2 finalVelocity = new Vector2(moveVelocity * inputMove.x,rb.linearVelocity.y);
         SetRigibodyVelocity(finalVelocity);
     }
-
     public void SetPlayerMoveMode(PlayerMoveType playerMoveType)
     {
         this.playerMoveType =playerMoveType;

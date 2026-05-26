@@ -14,8 +14,10 @@ public class Player : Entity
 
     #region 
     public Player_IdleState idleState {get;private set;}
-    public Player_RunState runState {get;private set;}
 
+    public Player_WalkState walkState {get;private set;}
+
+    public Player_RunState runState {get;private set;}
     public Player_RunTurnState runTurnState {get;private set;}
     public Player_RunEndState runEndState {get;private set;}
 
@@ -43,6 +45,7 @@ public class Player : Entity
 
         
         idleState = new Player_IdleState(this,stateMachine,PlayerAnimationHash.Idle,anim);
+        walkState = new Player_WalkState(this,stateMachine,PlayerAnimationHash.Walk,anim);
         runState = new Player_RunState(this,stateMachine,PlayerAnimationHash.Run,anim);
         runTurnState = new Player_RunTurnState(this,stateMachine,PlayerAnimationHash.RunTurn,anim);
         runEndState = new Player_RunEndState(this,stateMachine,PlayerAnimationHash.RunEnd,anim);

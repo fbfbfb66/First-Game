@@ -1,3 +1,4 @@
+using UnityEngine;
 public class StateMachine 
 {
     public EntityState currentState{ get; private set; }
@@ -13,6 +14,10 @@ public class StateMachine
 
     public void ChangeState(EntityState stateChangeTo)
     {
+        if (!CanChangeState(stateChangeTo))
+        {
+            return;
+        }
         currentState.Exit();
         currentState = stateChangeTo;
         currentState.Enter();
@@ -26,5 +31,10 @@ public class StateMachine
     public void PhysicalUpdate()
     {
         currentState.PhysicalUpdate();
+    }
+
+    private bool CanChangeState(EntityState stateChangeTo)
+    {
+        return stateChangeTo != currentState;
     }
 }

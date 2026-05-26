@@ -1,7 +1,9 @@
 using System.Collections;
 using UnityEngine;
-
-public class DebugLogStoryStep : StoryStepBehaviour
+[CreateAssetMenu(
+    fileName = "HideStoryTextStep",
+    menuName = "Game/Story/Step/Debug Story Text")]
+public class DebugLogStoryStep : StoryStepAction
 {
     [SerializeField] private string message;
     public override IEnumerator Execute(StoryContext context)

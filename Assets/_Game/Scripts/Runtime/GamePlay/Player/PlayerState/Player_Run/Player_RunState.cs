@@ -18,12 +18,19 @@ public class Player_RunState : Player_RunTransition
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+        if(movement.playerMoveType == PlayerMoveType.Walk)
+        {
+            stateMachine.ChangeState(player.walkState);
+            return;
+        }
         if(input.MoveInput.x == 0 && isFirstTimeRelese)
         {
             isFirstTimeRelese = false;
             player.timeTool.StartTimeCounter(player.playerBaseConfig.RunBufferDuration, RunBufferCoroutineID);
+            return;
         }
-        if(input.MoveInput.x == 0 && !player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID))
+
+        if(input.MoveInput.x == 0 && !player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID) && !player.timeTool.timeCounterCoroutines.ContainsKey(RunBufferCoroutineID))
         {
             stateMachine.ChangeState(player.runEndState);
         }

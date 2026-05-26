@@ -4,8 +4,8 @@ using UnityEngine;
 public class StorySequence : MonoBehaviour
 {
    [SerializeField] private string sequenceID;
-   [SerializeField] private List<StoryStepBehaviour> steps = new();
+   [SerializeField] private List<StoryStepAction> steps = new();
 
     public string SequenceID => sequenceID;
-    public IReadOnlyList<StoryStepBehaviour> Steps => steps;
+    public IReadOnlyList<StoryStepAction> Steps => steps;
 }
