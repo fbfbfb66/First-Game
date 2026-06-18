@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-05-26。
+最后更新时间：2026-06-18。
 
 ## 1. 项目概览
 
@@ -20,7 +20,7 @@
   - 事件总线：`GameEventBus` + `IGameEvent` + `GameSignalEvent` + `GameFlagChangedEvent` + `QuestStateChangedEvent`。
   - Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagData` + `GameCondition` + `FlagBoolCondition`。
   - Quest 系统：`QuestManager` + `QuestDatabase` + `QuestData` + `QuestState` + `QuestStateCondition`。
-  - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryContext`。
+  - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
 
 ## 2. Unity Git 提交规则
 
@@ -870,7 +870,19 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
   - `TryGetGameObject()`、`GetGameObject()`：按 key 查找对象，缺失时可输出警告。
   - `TryGetComponent<T>()`、`GetComponent<T>()`：按 key 查找对象并取组件。
   - `BuildLookUp()`：跳过空 key、空 target 和重复 key，生成运行时字典。
-- 关联：`StorySequenceRunner` 把它放进 `StoryContext`，`ShowStoryTextStepAction`、`HideStoryTextStepAction`、`SetPlayerMoveModeStoryStepAction` 等步骤通过它访问场景对象。
+- 关联：`StorySequenceRunner` 把它放进 `StoryContext`，`ShowStoryTextStepAction`、`HideStoryTextStepAction`、`SetPlayerMoveModeStoryStepAction`、`StopPlayerStoryStepAction`、`SwitchCameraStoryStepAction` 等步骤通过它访问场景对象。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Story/StoryCameraDirector.cs`
+
+- 脚本职责：剧情镜头导演，集中控制 Cinemachine 虚拟相机的优先级切换。
+- 关键字段/属性：
+  - `activePriority`：目标镜头切换后的优先级。
+  - `inactivePriority`：旧镜头降级后的优先级。
+  - `lowerPreviousCameera`：切换新镜头时是否降低旧镜头优先级，字段名存在拼写 `Cameera`。
+  - `currentCamera`、`CurrentCamera`：当前剧情镜头缓存和只读访问属性。
+- 函数：
+  - `SwitchTo(StorySceneBindings sceneBindings, StoryBindingKey targetCameraKey)`：通过场景绑定 key 查找 `CinemachineVirtualCameraBase`，必要时降低旧镜头优先级，再把目标镜头设为激活优先级。
+- 关联：由 `SwitchCameraStoryStepAction` 调用；依赖 `StorySceneBindings` 中配置的镜头绑定 key。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Story/StoryTextView.cs`
 
@@ -983,6 +995,46 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - 函数：
   - `Execute(StoryContext context)`：从 `StorySceneBindings` 取 `PlayerMovement` 并调用 `SetPlayerMoveMode()`。
 - 关联：用于剧情中临时切换玩家步行/跑步速度。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Story/Steps/PushGameLayerStoryStepAction.cs`
+
+- 脚本职责：剧情中压入指定游戏层的步骤资源，默认用于进入 `Cutscene` 层。
+- 字段：
+  - `layerType`：要压入的游戏层，默认 `Cutscene`。
+- 函数：
+  - `Execute(StoryContext context)`：从上下文读取 `GameLayerStack`，调用 `PushLayer(layerType)`。
+- 关联：用于剧情开始时切换输入/控制层；通常和 `PopGameLayerStoryStepAction` 成对使用。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Story/Steps/PopGameLayerStoryStepAction.cs`
+
+- 脚本职责：剧情中弹出指定游戏层的步骤资源，默认用于退出 `Cutscene` 层。
+- 字段：
+  - `layerType`：要弹出的游戏层，默认 `Cutscene`。
+- 函数：
+  - `Execute(StoryContext context)`：从上下文读取 `GameLayerStack`，调用 `PopLayer(layerType)`。
+- 关联：用于剧情结束时恢复上一层输入/控制状态；依赖 `GameLayerStack` 的栈顶匹配保护。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Story/Steps/StopPlayerStoryStepAction.cs`
+
+- 脚本职责：剧情中清空玩家移动输入并停止玩家刚体速度的步骤资源。
+- 字段：
+  - `playerkey`：用于查找玩家对象的场景绑定 key，字段名存在大小写不一致。
+- 函数：
+  - `Execute(StoryContext context)`：从 `StorySceneBindings` 取玩家对象，然后依次清空输入和停止速度。
+  - `ClearPlayerInput(GameObject player)`：查找 `PlayerInputReceiver` 并调用 `ClearMoveInput()`。
+  - `StopPlayerVelocity(GameObject player)`：查找 `PlayerMovement` 并调用 `SetRigibodyVelocity(Vector2.zero)`。
+- 关联：常用于切入剧情或镜头演出前固定玩家位置；依赖玩家对象上同时存在 `PlayerInputReceiver` 和 `PlayerMovement`。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Story/Steps/SwitchCameraStoryStepAction.cs`
+
+- 脚本职责：剧情中切换 Cinemachine 虚拟相机的步骤资源。
+- 字段：
+  - `cameraDirectorKey`：用于查找 `StoryCameraDirector` 的场景绑定 key。
+  - `targetCameraKey`：用于查找目标虚拟相机的场景绑定 key。
+  - `waitAfterSwitch`：切换成功后的等待秒数。
+- 函数：
+  - `Execute(StoryContext context)`：通过 `StorySceneBindings` 获取镜头导演并调用 `SwitchTo()`；切换成功且等待时间大于 0 时等待指定秒数。
+- 关联：依赖 `StoryCameraDirector` 和 Cinemachine；用于在剧情序列中切到玩家镜头、老人镜头等场景镜头。
 
 ### Runtime/GamePlay/NPC
 
@@ -1309,7 +1361,10 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 3. `StoryTrigger` 根据 `GameCondition` 列表判断是否满足启动条件。
 4. `StorySequenceRunner` 创建 `StoryContext`，其中包含 Flag、Quest、层栈、场景绑定和触发者。
 5. `StorySequenceRunner` 顺序执行 `StorySequence.Steps` 中每个 `StoryStepAction.Execute()`。
-6. 当前已有调试日志、等待秒数、等待条件、显示/隐藏剧情文本、设置玩家移动模式等步骤资源。
+6. 剧情开始或结束可通过 `PushGameLayerStoryStepAction`、`PopGameLayerStoryStepAction` 压入/弹出 `Cutscene` 等层，影响输入路由。
+7. 剧情可通过 `StopPlayerStoryStepAction` 清空玩家移动输入并停止刚体速度。
+8. 剧情可通过 `SwitchCameraStoryStepAction` 调用 `StoryCameraDirector`，按绑定 key 切换 Cinemachine 虚拟相机。
+9. 当前已有调试日志、等待秒数、等待条件、显示/隐藏剧情文本、设置玩家移动模式、停止玩家、游戏层压栈/弹栈和切换剧情镜头等步骤资源。
 
 ## 9. 对话、条件、Flag 与 Quest 资源流程
 
@@ -1354,11 +1409,20 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 
 - `Assets/_Game/Data/Story/BindingKeys/BindingKey_Player.asset`
 - `Assets/_Game/Data/Story/BindingKeys/BindingKey_StoryText_RightPrompt.asset`
+- `Assets/_Game/Data/Story/BindingKeys/BindingKey_StoryCameraDirector.asset`
+- `Assets/_Game/Data/Story/BindingKeys/BindingKey_Camera_Player.asset`
+- `Assets/_Game/Data/Story/BindingKeys/BindingKey_Camera_OldMan.asset`
+- `Assets/_Game/Data/Story/Steps/Debug.asset`
 - `Assets/_Game/Data/Story/Steps/Step_Show_HelpCry.asset`
 - `Assets/_Game/Data/Story/Steps/Step_Hide_StoryText.asset`
 - `Assets/_Game/Data/Story/Steps/Step_SetMoveMode_Walk.asset`
 - `Assets/_Game/Data/Story/Steps/Step_SetMoveMode_Run.asset`
 - `Assets/_Game/Data/Story/Steps/Step_Wait_HelpOldMan_InProgress.asset`
+- `Assets/_Game/Data/Story/Steps/PushGameLayerStoryStep.asset`
+- `Assets/_Game/Data/Story/Steps/PopGameLayerStoryStep.asset`
+- `Assets/_Game/Data/Story/Steps/StopPlayerStoryStep.asset`
+- `Assets/_Game/Data/Story/Steps/Camera/Step_SwitchCamera_Player.asset`
+- `Assets/_Game/Data/Story/Steps/Camera/Step_SwitchCamera_OldMan.asset`
 - `Assets/_Game/Data/Story/Steps/Wait/Step_Wait_1s.asset`
 - `Assets/_Game/Data/Story/Steps/Wait/Step_Wait_4s.asset`
 
@@ -1404,14 +1468,14 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - 新增 `QuestManager`、`QuestData`、`QuestDatabase`、`QuestState`、`QuestStateCondition`、`QuestStateChangedEvent` 和 `SetQuestStateDialogueEvent`。
 - 新增剧情序列脚本目录 `Assets/_Game/Scripts/Runtime/GamePlay/Story/`。
 - 剧情步骤已由 `StoryStepBehaviour` 场景组件改为 `StoryStepAction` ScriptableObject 资源。
-- 新增 `StoryBindingKey`、`StorySceneBindings` 和 `StoryTextView`，剧情步骤可通过绑定 key 控制场景对象和剧情文本 UI。
+- 新增 `StoryBindingKey`、`StorySceneBindings`、`StoryCameraDirector` 和 `StoryTextView`，剧情步骤可通过绑定 key 控制场景对象、剧情镜头和剧情文本 UI。
 - 新增剧情资源目录 `Assets/_Game/Data/Story/`，包含 `BindingKeys/` 和 `Steps/` 资源。
-- 新增剧情步骤资源：显示/隐藏剧情文本、等待 1 秒/4 秒、等待老人帮助任务进入进行中、切换玩家 Walk/Run 移动模式。
+- 新增剧情步骤资源：显示/隐藏剧情文本、等待 1 秒/4 秒、等待老人帮助任务进入进行中、切换玩家 Walk/Run 移动模式、压入/弹出游戏层、停止玩家、切换玩家/老人剧情镜头和调试日志。
 - 新增基础移动组件 `Movement`，玩家移动组件继承它。
 - 新增玩家 `Walk` 动画状态与 `Player_WalkState` 实际移动逻辑，`PlayerBaseConfig.asset` 中 `walkVelocity` 当前为 4。
 - 玩家跳跃状态拆分为 `Player_JumpStart`、`Player_JumpUp`、`Player_Apex`、`Player_Fall`。
 - 跑步过渡状态移动到 `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Run/`。
-- `GameScene.unity` 已加入 `StorySceneBindings`、`StoryCanvas`、剧情文本视图和 Input System UI EventSystem。
+- `GameScene.unity` 已加入 `StorySceneBindings`、`StoryCameraDirector`、`StoryCanvas`、剧情文本视图、剧情相机绑定和 Input System UI EventSystem。
 - 老人对话资源已调整为“村庄救下后介绍”“苔藓区域说明”“苔藓区域兜底”三组数据。
 - `BootScene.unity` 已接入 Quest 管理相关运行时对象引用。
 - `InputRouter` 删除了确认对话选项时的调试日志输出。
@@ -1438,6 +1502,8 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - `Player_RunState` 中 `isFirstTimeRelese` 存在拼写问题；若改名需要同步所有引用。
 - `Movement.SetRigibodyVelocity` 方法名存在拼写问题；若改名需要同步所有调用。
 - `QuestData` 中 `descrition` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
+- `StoryCameraDirector` 中 `lowerPreviousCameera` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
+- `StopPlayerStoryStepAction` 中 `playerkey` 字段命名大小写不一致；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `HideStoryTextStepAction` 和 `ShowStoryTextStepAction` 中缺失 `StorySceneBindings` 时的警告文本仍写成了设置玩家移动模式，后续可统一改文案。
 - 当前项目没有在命令行中接入 Unity 编译/测试流程，脚本改动后建议在 Unity Editor 中观察 Console。
 
