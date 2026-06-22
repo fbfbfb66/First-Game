@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-06-18。
+最后更新时间：2026-06-23。
 
 ## 1. 项目概览
 
@@ -21,6 +21,7 @@
   - Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagData` + `GameCondition` + `FlagBoolCondition`。
   - Quest 系统：`QuestManager` + `QuestDatabase` + `QuestData` + `QuestState` + `QuestStateCondition`。
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
+  - UI 与背包雏形：`UI_HPBarView` + `ItemData`。
 
 ## 2. Unity Git 提交规则
 
@@ -171,6 +172,24 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
   - `OnContinueGameClicked()`：当前逻辑同样加载游戏场景，后续可接入存档。
   - `OnQuitGameClicked()`：调用退出游戏逻辑。
 - 关联：依赖 `SceneLoader` 切换到 `GameScene`，依赖 `GameLayerStack` 让输入系统进入菜单/UI 模式。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UI_HPBarView.cs`
+
+- 脚本职责：控制 UI 血条填充区域的显示宽度。
+- 关键字段：
+  - `fillClip`：血条填充裁剪区域的 `RectTransform`，由场景 UI 绑定。
+  - `fullWidth`：血条满值宽度，当前固定为 `600f`。
+- 函数：
+  - `UpdateHpBar(float value)`：接收 0 到 1 的血量比例；比例非法时输出错误日志，合法时把 `fillClip` 横向宽度设置为 `fullWidth * value`。
+- 关联：`GameScene.unity` 中的 `HPBar` 对象挂载该脚本，并绑定 `FillClip` 节点作为裁剪填充区域。
+
+### Runtime/Systems/InventorySystem
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemData.cs`
+
+- 脚本职责：背包物品数据的 ScriptableObject 雏形。
+- 当前状态：类体为空，尚未定义物品名称、图标、堆叠、描述或使用效果等字段。
+- 关联：与 `GameScene.unity` 中新增的 `Canvas_Inventory` 背包界面雏形对应，后续可作为背包格子展示和物品逻辑的数据来源。
 
 ### Runtime/GameFlow
 
@@ -1476,6 +1495,10 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - 玩家跳跃状态拆分为 `Player_JumpStart`、`Player_JumpUp`、`Player_Apex`、`Player_Fall`。
 - 跑步过渡状态移动到 `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Run/`。
 - `GameScene.unity` 已加入 `StorySceneBindings`、`StoryCameraDirector`、`StoryCanvas`、剧情文本视图、剧情相机绑定和 Input System UI EventSystem。
+- `GameScene.unity` 已加入 `HPBar` 血条 UI，挂载 `UI_HPBarView` 并绑定 `FillClip` 裁剪节点。
+- `GameScene.unity` 已加入 `Canvas_Inventory` 背包界面雏形，当前包含滚动视图和多个 Slot 图像节点。
+- 新增 UI 图片资源目录 `Assets/_Game/Art/UI/`，包含 `04.png`、`06.png`、`07.png` 及对应 `.meta`。
+- 新增背包系统脚本目录 `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/`，当前包含 `ItemData` ScriptableObject 雏形。
 - 老人对话资源已调整为“村庄救下后介绍”“苔藓区域说明”“苔藓区域兜底”三组数据。
 - `BootScene.unity` 已接入 Quest 管理相关运行时对象引用。
 - `InputRouter` 删除了确认对话选项时的调试日志输出。
@@ -1505,6 +1528,8 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - `StoryCameraDirector` 中 `lowerPreviousCameera` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `StopPlayerStoryStepAction` 中 `playerkey` 字段命名大小写不一致；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `HideStoryTextStepAction` 和 `ShowStoryTextStepAction` 中缺失 `StorySceneBindings` 时的警告文本仍写成了设置玩家移动模式，后续可统一改文案。
+- `UI_HPBarView` 中 `fullWidth` 当前硬编码为 `600f`，如果血条尺寸改为响应式或换图，需要改为从 `fillClip` 初始宽度或配置读取。
+- `ItemData` 目前只有空类定义，后续需要补齐物品基础字段和 `CreateAssetMenu` 等资源创建入口。
 - 当前项目没有在命令行中接入 Unity 编译/测试流程，脚本改动后建议在 Unity Editor 中观察 Console。
 
 ## 13. 更新规则
