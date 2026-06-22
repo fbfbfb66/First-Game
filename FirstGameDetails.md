@@ -21,7 +21,7 @@
   - Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagData` + `GameCondition` + `FlagBoolCondition`。
   - Quest 系统：`QuestManager` + `QuestDatabase` + `QuestData` + `QuestState` + `QuestStateCondition`。
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
-  - UI 与背包雏形：`UI_HPBarView` + `ItemData`。
+  - UI 与背包基础模型：`UI_HPBarView` + `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid`。
 
 ## 2. Unity Git 提交规则
 
@@ -187,9 +187,47 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemData.cs`
 
-- 脚本职责：背包物品数据的 ScriptableObject 雏形。
-- 当前状态：类体为空，尚未定义物品名称、图标、堆叠、描述或使用效果等字段。
-- 关联：与 `GameScene.unity` 中新增的 `Canvas_Inventory` 背包界面雏形对应，后续可作为背包格子展示和物品逻辑的数据来源。
+- 脚本职责：背包物品数据 ScriptableObject，用于描述物品静态配置。
+- 关键字段/属性：
+  - `itemId`、`ItemId`：物品唯一 ID。
+  - `displayName`、`DisplayName`：物品显示名称。
+  - `description`、`Description`：物品描述文本。
+  - `icon`、`Icon`：物品 UI 图标。
+  - `category`、`Category`：物品分类。
+  - `width`、`height`、`Width`、`Height`：物品占用背包格尺寸，宽度限制 1 到 4，高度限制 1 到 8。
+  - `maxStack`、`MaxStack`：最大堆叠数量。
+  - `canRotate`、`CanRotate`：是否允许在背包格中旋转。
+- 关联：通过 `CreateAssetMenu` 暴露 `Game/Inventory/Item Data` 创建入口；被 `InventoryItem` 作为运行时物品实例的数据来源。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemCategory.cs`
+
+- 脚本职责：定义背包物品分类枚举。
+- 枚举值：`Material`、`Consumable`、`Weapon`、`Armor`、`Quest`、`Tool`、`Misc`。
+- 关联：由 `ItemData.category` 使用，用于后续筛选、排序、页签或物品规则判断。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/InventoryItem.cs`
+
+- 脚本职责：运行时背包物品实例，保存物品数据、数量和旋转状态。
+- 关键属性：
+  - `Data`：引用的 `ItemData`。
+  - `Amount`：当前堆叠数量。
+  - `IsRotated`：当前是否旋转。
+  - `CurrentWidth`、`CurrentHeight`：根据旋转状态计算后的实际占格尺寸。
+- 函数：
+  - `InventoryItem(ItemData data, int amount)`：校验 `data` 非空，并确保数量在 1 到 `data.MaxStack` 之间。
+  - `Rotate()`：如果物品允许旋转，则切换 `IsRotated`。
+- 关联：依赖 `ItemData` 的尺寸、堆叠和旋转配置；后续会由 `InventoryGrid` 或背包容器持有。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/InventoryGrid.cs`
+
+- 脚本职责：背包二维格子模型。
+- 关键字段/属性：
+  - `cells`：二维 `InventoryItem` 数组，保存格子占用状态。
+  - `Width`、`Height`：网格尺寸。
+- 函数：
+  - `InventoryGrid(int width, int height)`：创建指定尺寸的格子数组，并校验宽高必须大于 0。
+  - `IsInside(int x, int y)`：判断坐标是否在背包网格范围内。
+- 关联：当前只实现网格尺寸和边界判断，后续可扩展放置、移除、重叠检查和查找空位逻辑。
 
 ### Runtime/GameFlow
 
@@ -1498,7 +1536,8 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - `GameScene.unity` 已加入 `HPBar` 血条 UI，挂载 `UI_HPBarView` 并绑定 `FillClip` 裁剪节点。
 - `GameScene.unity` 已加入 `Canvas_Inventory` 背包界面雏形，当前包含滚动视图和多个 Slot 图像节点。
 - 新增 UI 图片资源目录 `Assets/_Game/Art/UI/`，包含 `04.png`、`06.png`、`07.png` 及对应 `.meta`。
-- 新增背包系统脚本目录 `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/`，当前包含 `ItemData` ScriptableObject 雏形。
+- 背包系统脚本目录 `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/` 已扩展为 `ItemData`、`ItemCategory`、`InventoryItem` 和 `InventoryGrid`。
+- `ItemData` 已加入物品 ID、显示名、描述、图标、分类、占格尺寸、最大堆叠和旋转配置，并提供 `Game/Inventory/Item Data` 资源创建入口。
 - 老人对话资源已调整为“村庄救下后介绍”“苔藓区域说明”“苔藓区域兜底”三组数据。
 - `BootScene.unity` 已接入 Quest 管理相关运行时对象引用。
 - `InputRouter` 删除了确认对话选项时的调试日志输出。
@@ -1529,7 +1568,8 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - `StopPlayerStoryStepAction` 中 `playerkey` 字段命名大小写不一致；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `HideStoryTextStepAction` 和 `ShowStoryTextStepAction` 中缺失 `StorySceneBindings` 时的警告文本仍写成了设置玩家移动模式，后续可统一改文案。
 - `UI_HPBarView` 中 `fullWidth` 当前硬编码为 `600f`，如果血条尺寸改为响应式或换图，需要改为从 `fillClip` 初始宽度或配置读取。
-- `ItemData` 目前只有空类定义，后续需要补齐物品基础字段和 `CreateAssetMenu` 等资源创建入口。
+- `InventoryGrid` 目前只实现尺寸初始化和边界判断，后续需要补齐放置、移除、堆叠合并、重叠检测和查找空位逻辑。
+- `InventoryItem` 目前只支持初始化校验和旋转，后续需要根据交互需求补充数量变化、拆分堆叠或使用消耗逻辑。
 - 当前项目没有在命令行中接入 Unity 编译/测试流程，脚本改动后建议在 Unity Editor 中观察 Console。
 
 ## 13. 更新规则
