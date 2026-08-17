@@ -69,6 +69,7 @@ Assets/_Game/
 |   |-- Core/
 |   |-- Dialogue/
 |   |-- Flags/
+|   |-- Items/
 |   |-- Player/
 |   |-- Story/
 |   `-- Quests/
@@ -87,6 +88,8 @@ Assets/_Game/
 |   |   `-- UI/
 |   `-- Tool/
 |-- Settings/
+|-- Tests/
+|   `-- EditMode/
 |-- Shaders/
 `-- TileMaps/
 ```
@@ -220,14 +223,45 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/InventoryGrid.cs`
 
-- 脚本职责：背包二维格子模型。
+- 脚本职责：背包二维格子模型。纯 C# 类，不继承 `MonoBehaviour`，不引用任何 Unity UI 或屏幕坐标，坐标单位是"格"。
 - 关键字段/属性：
-  - `cells`：二维 `InventoryItem` 数组，保存格子占用状态。
+  - `cells`：二维 `InventoryItem` 数组，索引顺序固定为 `cells[x, y]`。一个跨多格的物品，会让它覆盖的每一格都保存**同一个** `InventoryItem` 引用。
   - `Width`、`Height`：网格尺寸。
 - 函数：
   - `InventoryGrid(int width, int height)`：创建指定尺寸的格子数组，并校验宽高必须大于 0。
-  - `IsInside(int x, int y)`：判断坐标是否在背包网格范围内。
-- 关联：当前只实现网格尺寸和边界判断，后续可扩展放置、移除、重叠检查和查找空位逻辑。
+  - `IsInside(int x, int y)`：判断单个坐标是否在网格范围内。
+  - `IsInside(int x, int y, int areaWidth, int areaHeight)`：判断一个左上角在 `(x, y)` 的矩形区域是否完整落在网格内。只检查左上角和右下角两点，为 O(1)。
+  - `IsAreaEmpty(int x, int y, int areaWidth, int areaHeight)`：判断区域内每一格是否都为 `null`。**约定不做边界检查**，调用者需先用 `IsInside` 保证区域合法。
+  - `Place(InventoryItem item, int x, int y)`：先校验 `item` 非空、区域在界内、区域为空，全部通过后把 `item` 写入覆盖到的每一格并返回 `true`；任一条件不满足返回 `false` 且**不修改任何格子**（不留半填状态）。物品尺寸取 `CurrentWidth` / `CurrentHeight`，因此自动支持旋转。
+  - `GetItemAt(int x, int y)`：返回该格的物品；**越界返回 `null` 而不抛异常**，因为将来会由鼠标位置驱动调用，划出背包范围属于正常情况。
+- 关联：被 `PlayerInventory` 持有。尚未实现移除、堆叠合并、旋转与网格的联动、查找空位。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/PlayerInventory.cs`
+
+- 脚本职责：把 `InventoryGrid` 接入游戏运行时。玩家身上的背包组件。
+- 关键字段：
+  - `width`、`height`：网格尺寸，`[SerializeField]` 暴露给 Inspector，当前为 4 × 8（与 `GameScene` 中已有的 32 个 Slot 对应）。
+  - `debugItem`：调试用 `ItemData` 引用，当前绑定 `GreenHerb.asset`。
+  - `grid`：运行时创建的 `InventoryGrid` 实例。
+- 函数：
+  - `Awake()`：创建 `InventoryGrid`，把 `debugItem` 放入 (0, 0)，并打印网格。
+  - `PrintGrid()`：临时调试工具，把网格逐行输出到 Console，空格显示 `.`，有物品显示其显示名首字。
+- 关联：挂在 `GameScene` 的 `Player` 对象上。`Awake()` 里的放置与打印属于**临时调试代码**，接入拾取流程后应移除。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/FirstGame.Inventory.asmdef`
+
+- 职责：把背包系统编译成独立程序集 `FirstGame.Inventory`，从默认的 `Assembly-CSharp` 中分离出来。
+- 配置要点：
+  - `references` 为空：背包系统在**编译层面**无法引用项目中任何其他模块，依赖方向由编译器强制。
+  - `autoReferenced: true`：`Assembly-CSharp` 会自动引用它，因此其余脚本使用 `ItemData` 等类型无需额外配置。
+- 目的：让 `InventoryGrid` 等纯逻辑类可以被 EditMode 单元测试引用（asmdef 无法引用 `Assembly-CSharp`）。
+
+#### `Assets/_Game/Tests/EditMode/`
+
+- `FirstGame.Inventory.Tests.asmdef`：EditMode 测试程序集。引用 `FirstGame.Inventory`、`UnityEngine.TestRunner`、`UnityEditor.TestRunner`，`includePlatforms` 限定为 `Editor`，因此不会打进游戏包。
+- `InventoryGridTests.cs`：`InventoryGrid` 的单元测试。覆盖构造校验、`IsInside` 单点与矩形版、`IsAreaEmpty` 空与被占两种情况、`Place` 的成功/越界/重叠/失败不留痕、`GetItemAt` 越界返回 null。
+  - 测试内通过 `JsonUtility.FromJsonOverwrite` 写入 `ItemData` 的私有序列化字段来构造测试物品，避免为了测试放宽生产代码的封装。
+  - 运行方式：`Window → General → Test Runner → EditMode → Run All`。
 
 ### Runtime/GameFlow
 
@@ -1538,6 +1572,11 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - 新增 UI 图片资源目录 `Assets/_Game/Art/UI/`，包含 `04.png`、`06.png`、`07.png` 及对应 `.meta`。
 - 背包系统脚本目录 `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/` 已扩展为 `ItemData`、`ItemCategory`、`InventoryItem` 和 `InventoryGrid`。
 - `ItemData` 已加入物品 ID、显示名、描述、图标、分类、占格尺寸、最大堆叠和旋转配置，并提供 `Game/Inventory/Item Data` 资源创建入口。
+- 新增物品资源目录 `Assets/_Game/Data/Items/`，包含第一个物品 `GreenHerb.asset`（1×1，Consumable，最大堆叠 3）。
+- 背包系统已拆分为独立程序集 `FirstGame.Inventory`（`FirstGame.Inventory.asmdef`），其余脚本仍在 `Assembly-CSharp`。
+- 新增测试目录 `Assets/_Game/Tests/EditMode/`，包含 `FirstGame.Inventory.Tests.asmdef` 与 `InventoryGridTests.cs`，这是项目第一批自动化测试。
+- `InventoryGrid` 新增 `IsInside` 矩形重载、`IsAreaEmpty`、`Place`、`GetItemAt`。
+- 新增 `PlayerInventory`，挂在 `GameScene` 的 `Player` 对象上，负责在运行时创建 `InventoryGrid`（当前 4 × 8）。
 - 老人对话资源已调整为“村庄救下后介绍”“苔藓区域说明”“苔藓区域兜底”三组数据。
 - `BootScene.unity` 已接入 Quest 管理相关运行时对象引用。
 - `InputRouter` 删除了确认对话选项时的调试日志输出。
@@ -1568,9 +1607,14 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - `StopPlayerStoryStepAction` 中 `playerkey` 字段命名大小写不一致；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `HideStoryTextStepAction` 和 `ShowStoryTextStepAction` 中缺失 `StorySceneBindings` 时的警告文本仍写成了设置玩家移动模式，后续可统一改文案。
 - `UI_HPBarView` 中 `fullWidth` 当前硬编码为 `600f`，如果血条尺寸改为响应式或换图，需要改为从 `fillClip` 初始宽度或配置读取。
-- `InventoryGrid` 目前只实现尺寸初始化和边界判断，后续需要补齐放置、移除、堆叠合并、重叠检测和查找空位逻辑。
+- `InventoryGrid` 已实现边界判断、空区域判断、放置和取格；仍缺移除、堆叠合并、旋转与网格联动、查找空位。
 - `InventoryItem` 目前只支持初始化校验和旋转，后续需要根据交互需求补充数量变化、拆分堆叠或使用消耗逻辑。
-- 当前项目没有在命令行中接入 Unity 编译/测试流程，脚本改动后建议在 Unity Editor 中观察 Console。
+- `InventoryItem.Rotate()` 是 public 的，物品已放入 `InventoryGrid` 之后再调用它，会让 `CurrentWidth`/`CurrentHeight` 与 `cells` 中的实际占用不一致。实现旋转交互前必须先决定旋转的归属（大概率要改由 `InventoryGrid` 提供 `TryRotate`）。
+- `PlayerInventory.Awake()` 中放置 `debugItem` 和调用 `PrintGrid()` 属于临时调试代码，拾取流程接通后应移除。
+- `ItemData.itemId` 是手填字符串，没有唯一性校验。它将是存档系统的主键，实现存档前需要加编辑器校验或改为资源引用。
+- `InputRouter.OnDisable()` 在 `inputReader` 为 null 时会抛 `NullReferenceException`（`OnEnable()` 有 null 判断并提前返回，`OnDisable()` 没有）。直接从 `GameScene` 开始 Play、跳过 `BootScene` 时会复现。
+- 当前项目没有在命令行中接入 Unity 编译流程，脚本改动后建议在 Unity Editor 中观察 Console。
+- 纯逻辑代码（当前为 `InventorySystem`）已接入 EditMode 单元测试，改动后应在 Test Runner 中 Run All 确认。注意：**Play 模式表现正常不等于逻辑正确**，两种验证都要做。
 
 ## 13. 更新规则
 
