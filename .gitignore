@@ -33,6 +33,7 @@ sysinfo.txt
 *.opendb
 *.VC.db
 *.csproj.lscache
+.vsconfig
 
 
 # Rider
