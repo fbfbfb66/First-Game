@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerInventory : MonoBehaviour
@@ -8,15 +9,35 @@ public class PlayerInventory : MonoBehaviour
 
     [SerializeField] private ItemData debugItem;
 
+    public event Action<InventoryItem, int, int> ItemPlaced;
+
     private InventoryGrid grid;
 
     private void Awake()
     {
         grid = new InventoryGrid(width, height);
-        InventoryItem item = new InventoryItem(debugItem, 1);
-        grid.Place(item, 0, 0);
         Debug.Log($"背包已创建：{grid.Width}*{grid.Height}");
+    }
+
+    private void Start()
+    {
+        // 测试：放置一个调试物品
+        PlaceDebugItem(0, 0);
+        PlaceDebugItem(1, 1);
+        PlaceDebugItem(3, 6);
         PrintGrid();
+    }
+
+    public bool IsInside(int x, int y) => grid.IsInside(x, y);
+    public InventoryItem GetItemAt(int x, int y) => grid.GetItemAt(x, y);
+
+    private void PlaceDebugItem(int x,int y)
+    {
+        InventoryItem item = new InventoryItem(debugItem, 1);
+        if (grid.Place(item, x, y))
+        {
+            ItemPlaced?.Invoke(item, x, y);
+        }
     }
 
     private void PrintGrid()

@@ -106,6 +106,26 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 | 1 | `Assets/_Game/Scenes/MainMenuScene.unity` | 主菜单场景 |
 | 2 | `Assets/_Game/Scenes/GameScene.unity` | 游戏主场景 |
 
+### `GameScene` 背包 UI 结构
+
+```text
+Canvas (Screen Space - Overlay)
+`-- Inventory                        <- InventoryView
+    `-- InventoryArea (ScrollRect)
+        `-- Viewport (RectMask2D)
+            `-- Content              <- GridLayoutGroup (Cell 240, Spacing 5) + ContentSizeFitter
+                |-- Slot .. Slot (31) <- 32 个静态格子底图
+                `-- ItemLayer        <- InventoryPointerHandler
+                    `-- ItemView(Clone) ...
+```
+
+要点：
+
+- `ItemLayer` 是 `Content` 的**最后一个子物体**，因此在渲染与射线顺序上位于所有 Slot 之上。
+- `ItemLayer` 挂 `LayoutElement`（勾选 `Ignore Layout`），否则会被 `GridLayoutGroup` 当成第 33 个格子摆走。
+- `ItemLayer` 锚点为 stretch/stretch、pivot 为 (0, 1)，并挂一个 `Alpha = 0` 且开启 `Raycast Target` 的 `Image` 作为隐形鼠标热区。**pivot 一旦被改动，`TryGetCellAt` 的换算结果会整体偏移。**
+- 物品显示对象不是 Slot 的子物体——多格物品无法塞进单个 Slot，只能由 `ItemLayer` 统一按坐标摆放。
+
 ## 6. 输入与游戏层
 
 输入配置来自 `Assets/Settings/InputSystem_Actions.inputactions`，生成代码为 `Assets/Settings/InputSystem_Actions.cs`。
@@ -186,6 +206,41 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
   - `UpdateHpBar(float value)`：接收 0 到 1 的血量比例；比例非法时输出错误日志，合法时把 `fillClip` 横向宽度设置为 `fullWidth * value`。
 - 关联：`GameScene.unity` 中的 `HPBar` 对象挂载该脚本，并绑定 `FillClip` 节点作为裁剪填充区域。
 
+#### `Assets/_Game/Scripts/Runtime/UI/InventoryView.cs`
+
+- 脚本职责：背包数据层与屏幕像素之间的唯一翻译官。负责「格子坐标 ↔ 屏幕坐标」双向换算，并把 `InventoryItem` 生成为屏幕上的 `ItemView`。
+- 关键字段：
+  - `itemLayer`：所有物品显示对象的父节点，同时是坐标换算的参照系与鼠标射线接收区。**其 pivot 必须为 (0, 1)（左上角）**，`TryGetCellAt` 依赖这一前提。
+  - `inventory`：数据来源 `PlayerInventory`。依赖方向为 UI → 数据，反向被 asmdef 禁止。
+  - `itemViewPrefab`：物品显示预制体。
+  - `cellSize` / `spacing`：需与 `Content` 上 `GridLayoutGroup` 的 Cell Size、Spacing 保持一致，当前为 240 / 5，故一格步长为 245。
+  - `hoveredCell`：鼠标当前所在格子，`(-1, -1)` 表示不在任何格子上。用于「只在跨格时才响应」的变化检测。
+- 函数：
+  - `OnEnable()` / `OnDisable()`：订阅、取消订阅 `PlayerInventory.ItemPlaced`。
+  - `ShowItem(InventoryItem, int x, int y)`：事件回调。实例化 `ItemView`，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
+  - `TryGetCellAt(Vector2 screenPosition, out int x, out int y)`：`ShowItem` 的反函数。经 `RectTransformUtility.ScreenPointToLocalPointInRectangle` 把屏幕坐标转为 `itemLayer` 局部坐标（Canvas 为 Screen Space - Overlay，摄像机参数传 `null`），再除以步长并 `FloorToInt` 得到格子坐标，最后用 `inventory.IsInside` 校验。
+  - `UpdateHover(Vector2 screenPosition)` / `ClearHover()`：由 `InventoryPointerHandler` 调用。仅在格子发生变化时输出日志（当前为调试输出，后续替换为高亮表现）。
+- 关联：挂在 `GameScene` 的 `Inventory` 对象上。
+
+#### `Assets/_Game/Scripts/Runtime/UI/ItemView.cs`
+
+- 脚本职责：单个物品在屏幕上的表现。预制体为两层结构——根物体的 `Image` 是不透明底板（表达「这块区域被占用」），子物体 `Icon` 是物品图标（表达「这是什么」）。
+- 关键字段：
+  - `icon`：子物体 `Icon` 的 `Image`。勾选 `Preserve Aspect`，使非等比图标不被拉伸。
+- 函数：
+  - `SetIcon(InventoryItem item)`：设置图标 sprite；`item` 或其 `Data` 为空时禁用 `icon`，避免留下白色方块。
+- 关联：预制体位于 `Assets/_Game/Prefabs/`，由 `InventoryView.ShowItem` 实例化。根物体与 `Icon` 的 `Raycast Target` 均关闭，以免遮挡 `ItemLayer` 的鼠标射线。
+
+#### `Assets/_Game/Scripts/Runtime/UI/InventoryPointerHandler.cs`
+
+- 脚本职责：接收 `EventSystem` 指针事件并转达给 `InventoryView`。不做任何判断。
+- 存在原因：`EventSystem` 只调用**被射线击中的那个 GameObject** 上的接口，而 `InventoryView` 挂在没有 `Graphic` 的 `Inventory` 上，收不到射线。此脚本挂在真正被鼠标压住的 `ItemLayer` 上，从而把「接收输入」与「负责显示」拆开。
+- 实现接口：`IPointerMoveHandler`、`IPointerExitHandler`。
+- 函数：
+  - `OnPointerMove(PointerEventData)`：把 `eventData.position` 交给 `InventoryView.UpdateHover`。
+  - `OnPointerExit(PointerEventData)`：调用 `InventoryView.ClearHover`。
+- 关联：挂在 `GameScene` 的 `ItemLayer` 上。
+
 ### Runtime/Systems/InventorySystem
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemData.cs`
@@ -241,12 +296,17 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 - 脚本职责：把 `InventoryGrid` 接入游戏运行时。玩家身上的背包组件。
 - 关键字段：
   - `width`、`height`：网格尺寸，`[SerializeField]` 暴露给 Inspector，当前为 4 × 8（与 `GameScene` 中已有的 32 个 Slot 对应）。
-  - `debugItem`：调试用 `ItemData` 引用，当前绑定 `GreenHerb.asset`。
-  - `grid`：运行时创建的 `InventoryGrid` 实例。
+  - `debugItem`：调试用 `ItemData` 引用。
+  - `grid`：运行时创建的 `InventoryGrid` 实例，不对外暴露。
+- 事件：
+  - `ItemPlaced`（`Action<InventoryItem, int, int>`）：物品成功放入网格后触发。为 UI 层提供的唯一通知入口。属于 View ↔ Model 的局部同步，因此使用 C# `event Action` 而非 `GameEventBus`；后者用于「玩家获得物品」这类真正跨系统的事件。
 - 函数：
-  - `Awake()`：创建 `InventoryGrid`，把 `debugItem` 放入 (0, 0)，并打印网格。
-  - `PrintGrid()`：临时调试工具，把网格逐行输出到 Console，空格显示 `.`，有物品显示其显示名首字。
-- 关联：挂在 `GameScene` 的 `Player` 对象上。`Awake()` 里的放置与打印属于**临时调试代码**，接入拾取流程后应移除。
+  - `Awake()`：只创建 `InventoryGrid`。
+  - `Start()`：调用 `PlaceDebugItem` 放入调试物品并 `PrintGrid()`。**放置必须在 `Start()` 而非 `Awake()`**——Unity 保证所有 `OnEnable()` 执行完才开始执行任何 `Start()`，否则 `InventoryView` 可能尚未订阅 `ItemPlaced`，事件会白喊。
+  - `PlaceDebugItem(int x, int y)`：创建 `InventoryItem`，调用 `grid.Place()`；**仅在返回 true 时**才触发 `ItemPlaced`。保证屏幕上不会出现数据层中不存在的物品。
+  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `PlaceDebugItem` 直接调用 `grid.Place()` 而跳过事件通知。
+  - `PrintGrid()`：临时调试工具，把网格逐行输出到 Console，空格显示 `.`，有物品显示其显示名首字。物品 `displayName` 为空时会抛 `IndexOutOfRangeException`。
+- 关联：挂在 `GameScene` 的 `Player` 对象上。`Start()` 里的放置与打印属于**临时调试代码**，接入拾取流程后应移除。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/FirstGame.Inventory.asmdef`
 

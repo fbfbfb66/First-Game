@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8c1dedf1fbd03514dbf97828f4c276da, type: 3}
-  m_Name: GreenHerb
+  m_Name: KuroganeKatana
   m_EditorClassIdentifier: FirstGame.Inventory::ItemData
-  itemId: green_herb
-  displayName: "\u7EFF\u8272\u8349\u836F"
-  description: "\u6062\u590D\u5C11\u91CF\u751F\u547D\u503C"
-  icon: {fileID: 4365562314628016434, guid: a1173bcd75bc72941b4f679edfb3f30e, type: 3}
-  category: 1
-  width: 1
+  itemId: kurogane_katana
+  displayName: "\u9ED1\u94C1\xB7\u80E7\u6708"
+  description: "\u4EE5\u9ED1\u94A2\u953B\u9020\u7684\u6B66\u58EB\u5200\uFF0C\u6F06\u9ED1\u7684\u5200\u8EAB\u6CDB\u7740\u51B0\u51B7\u5FAE\u5149"
+  icon: {fileID: 21300000, guid: aa11890ddce637849a24ff79debe6842, type: 3}
+  category: 2
+  width: 2
   height: 1
-  maxStack: 3
-  canRotate: 0
+  maxStack: 1
+  canRotate: 1
