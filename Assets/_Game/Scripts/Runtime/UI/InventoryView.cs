@@ -1,8 +1,16 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class InventoryView : MonoBehaviour
 {
+    [SerializeField] private Image PlacementPreview;
+    [SerializeField] private Color validPlacementColor;
+    [SerializeField] private Color invalidPlacementColor;
+    [SerializeField] private Vector2 offsetDelta = new Vector2(-11f, -15f);
+    [SerializeField] private Vector2 offsetPos = new Vector2(10.5f, 0f);
+    [SerializeField] private float previewFollowSpeed = 15f;
+    [Space]
     [SerializeField] private RectTransform itemLayer;
     [SerializeField] private RectTransform dragLayer;
     [SerializeField] private PlayerInventory inventory;
@@ -45,9 +53,9 @@ public class InventoryView : MonoBehaviour
             {
                 if (itemViews.TryGetValue(dragItem, out var itemView))
                 {
+                    RectTransform rect = (RectTransform)itemView.transform;
                     if (RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer, screenPosition, null, out Vector2 localPosition))
                     {
-                        RectTransform rect = (RectTransform)itemView.transform;
                         dragItemOriginalPosition = rect.anchoredPosition;
                         rect.SetParent(dragLayer, true);
                         grabOffset = localPosition - rect.anchoredPosition;
@@ -55,6 +63,8 @@ public class InventoryView : MonoBehaviour
                     }
                     itemView.SetBackgroundTransparent(true);
                     allowToHeighlight = false;
+                    GetDropItemAt(dragItemOriginalPosition, out int originalX, out int originalY);
+                    ShowPlacementPreview(new Vector2Int(originalX,originalY), dragItem);
                 }
                 Debug.Log($"Begin dragging item: {dragItem.Data.DisplayName} from cell ({x}, {y})");
             }
@@ -62,14 +72,17 @@ public class InventoryView : MonoBehaviour
     }
     public void Drag(Vector2 screenPosition)
     {
-        if (dragItem != null && itemViews.TryGetValue(dragItem, out var itemView))
-        {
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer, screenPosition, null, out Vector2 localPosition))
-            {
-                RectTransform rect = (RectTransform)itemView.transform;
-                rect.anchoredPosition = localPosition - grabOffset;
-            }
-        }
+        if (dragItem == null || itemViews.TryGetValue(dragItem, out var itemView) == false)
+            return;
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer, screenPosition, null, out Vector2 localPosition) == false)
+            return;
+
+        RectTransform rect = (RectTransform)itemView.transform;
+        rect.anchoredPosition = localPosition - grabOffset;
+
+        Vector2 itemLayerPosition = itemLayer.InverseTransformPoint(rect.position);
+        GetDropItemAt(itemLayerPosition, out int x, out int y);
+        UpdatePlacementPreview(new Vector2Int(x, y), inventory.CanPlace(dragItem, x, y, true));
     }
     public void EndDrag()
     {
@@ -89,6 +102,7 @@ public class InventoryView : MonoBehaviour
                 rect.anchoredPosition = dragItemOriginalPosition;
 
             itemView.SetBackgroundTransparent(false);
+            HidePlacementPreview();
         }
         allowToHeighlight = true;
         dragItem = null;
@@ -141,7 +155,7 @@ public class InventoryView : MonoBehaviour
         view.SetIcon(item);
         itemViews.Add(item, view);
         rect.anchoredPosition = GetAnchorPositionForCell(x, y);
-        rect.sizeDelta = new Vector2(cellSize * item.CurrentWidth + (item.CurrentWidth - 1) * spacing, cellSize * item.CurrentHeight + (item.CurrentHeight - 1) * spacing);
+        rect.sizeDelta = GetRectSizeDelta(item);
     }
 
     public bool TryGetCellAt(Vector2 screenPosition, out int x, out int y)
@@ -161,10 +175,15 @@ public class InventoryView : MonoBehaviour
         return false;
     }
 
-    public Vector2 GetAnchorPositionForCell(int x,int y)
+    public Vector2 GetAnchorPositionForCell(int x, int y)
     {
         float step = cellSize + spacing;
         return new Vector2(x * step, -y * step);
+    }
+
+    public Vector2 GetRectSizeDelta(InventoryItem item)
+    {
+        return new Vector2(cellSize * item.CurrentWidth + (item.CurrentWidth - 1) * spacing, cellSize * item.CurrentHeight + (item.CurrentHeight - 1) * spacing);
     }
 
     private void GetDropItemAt(Vector2 itemPosition, out int x, out int y)
@@ -172,5 +191,39 @@ public class InventoryView : MonoBehaviour
         x = Mathf.RoundToInt(itemPosition.x / (cellSize + spacing));
         y = Mathf.RoundToInt(-itemPosition.y / (cellSize + spacing));
     }
+
+    /// <summary>
+    /// 拖拽开始时调用一次：把预览框摆好并【瞬间】就位。
+    /// 不能走 Lerp —— 否则框会从上一次拖拽残留的位置一路飞过来。
+    /// </summary>
+    private void ShowPlacementPreview(Vector2Int cell, InventoryItem item)
+    {
+        RectTransform rect = PlacementPreview.rectTransform;
+        PlacementPreview.gameObject.SetActive(true);
+        rect.SetAsLastSibling();
+        rect.sizeDelta = GetRectSizeDelta(item) + offsetDelta;
+        rect.anchoredPosition = GetPreviewPosition(cell);
+        PlacementPreview.color = validPlacementColor;
+    }
+
+    /// <summary>
+    /// 拖拽中每帧调用：只做颜色和位置两件事。
+    /// 位置用 Lerp 朝目标格逼近，目标中途变了也能随时改道。
+    /// 用 unscaledDeltaTime：背包若在暂停时打开，deltaTime 会是 0，动画会整个停住。
+    /// </summary>
+    private void UpdatePlacementPreview(Vector2Int cell, bool valid)
+    {
+        RectTransform rect = PlacementPreview.rectTransform;
+        PlacementPreview.color = valid ? validPlacementColor : invalidPlacementColor;
+        rect.anchoredPosition = Vector2.Lerp(
+            rect.anchoredPosition,
+            GetPreviewPosition(cell),
+            previewFollowSpeed * Time.unscaledDeltaTime);
+    }
+
+    private void HidePlacementPreview() => PlacementPreview.gameObject.SetActive(false);
+
+    /// <summary>格子坐标 → 预览框的 anchoredPosition（含视觉微调偏移）。</summary>
+    private Vector2 GetPreviewPosition(Vector2Int cell) => GetAnchorPositionForCell(cell.x, cell.y) + offsetPos;
 
 }

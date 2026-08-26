@@ -5,6 +5,94 @@
 
 ---
 
+## 2026-08-26 (2) — 拖动中的绿/红落点预览
+
+### 背景
+
+上一步松手才知道放不放得下。这次让玩家**拖动过程中**就看见结果：
+一个半透明色块吸附在目标格上，能放显示绿色，被挡住或越界显示红色。
+
+纯表现层，数据层一行没改 —— 这正是当初坚持「`CanPlace` 是查询、绝不修改网格」的回报，
+它现在每帧被调用也完全安全。
+
+### 做了什么
+
+- `ItemLayer` 下新增常驻 `PlacementPreview`（半透明 Image，默认隐藏，关闭 Raycast Target）。
+- `InventoryView` 新增 `ShowPlacementPreview` / `UpdatePlacementPreview` / `HidePlacementPreview`
+  三段式方法，外加 `GetPreviewPosition`。
+- `Drag()` 每帧经世界坐标把物品左上角换算到 `itemLayer` 空间，查 `CanPlace` 并刷新预览。
+- 预览框位置用 `Vector2.Lerp` 缓动追向目标格。
+
+### 关键决策与理由
+
+| 决策 | 理由 |
+| --- | --- |
+| 预览框挂在 `ItemLayer` 下，不挂 `DragLayer` | 它要吸附格子，就必须和格子同坐标系；且背包滚动时会跟着内容走 |
+| 常驻 + `SetActive` 开关，不 `Instantiate` / `Destroy` | 拖拽是高频操作，反复创建销毁持续产生 GC 垃圾 |
+| `SetAsLastSibling`（画在物品**上面**） | 一开始用的 `SetAsFirstSibling`，结果红色预览恰好被"挡路的那件物品"盖住——而那正是它唯一需要被看见的时刻 |
+| 位置用每帧 `Lerp`，不用协程 | 目标格一直在变，Lerp 天然可打断、可改道；协程适合一次性、有始有终、目标不变的动画 |
+| 用 `Time.unscaledDeltaTime` | 背包若在 `timeScale = 0` 时打开，`deltaTime` 恒为 0，动画会整个停住 |
+| 颜色做成 `[SerializeField] Color` | 手感参数要反复试，Inspector 取色器可直接粘 Hex，改完不用等编译 |
+| 砍掉"出现时展开"的协程动画 | Lerp 版效果已经够好。能用更简单手段满足需求时，不该为了用上某个技术而用它 |
+
+### 踩的坑
+
+**1. 渲染顺序 = Hierarchy 顺序**
+
+同一个 Canvas 下没有 Z 轴参与，排在后面的后画、盖在前者之上。
+`SetAsFirstSibling` 让预览框最先画，于是被每一个 ItemView 盖住。
+
+**2. 一个值只能有一个主人**
+
+第一版 `SetPlacementPreview` 每帧无条件写 `sizeDelta` / `anchoredPosition`，
+任何跨帧动画都会被它当帧覆盖掉。想做动画，得先把「每帧要做的」和「状态变化时做一次的」分开。
+
+**3. 「刚开始拖动时框会飘一下」**
+
+`BeginDrag` 传给预览的是 `TryGetCellAt` 得到的**鼠标按下格**，
+而预览要的是**物品左上角格**。抓多格物品的右下角时两者差一整格，
+框先摆错位置、再滑向正确格子。改用 `dragItemOriginalPosition` 反算即可。
+
+这个 bug 的定位方式值得记：**症状出现在"刚开始拖动"这个时机 → 直接去看 `BeginDrag`。**
+当时的第一直觉是"加个节流字段拦住更新"，但那只会让框静止地歪在错误位置，
+把错因埋掉 —— 症状消失不等于问题解决。
+
+### 学到的东西
+
+**两个 RectTransform 之间怎么换算坐标**
+
+经由世界坐标中转，这是所有 Transform 通用的：
+
+```
+A 局部 --A.TransformPoint()--> 世界 --B.InverseTransformPoint()--> B 局部
+```
+
+`rect.position` 拿到的已经是世界坐标（`anchoredPosition` 才是局部的），所以只需要后半段。
+`ScreenPointToLocalPointInRectangle` 干的是同一件事，只是输入为屏幕坐标、需要额外知道摄像机。
+
+**Lerp 的缓动感是免费的**
+
+`current = Lerp(current, target, t)` 每帧挪掉剩余距离的一小截，
+距离越近挪得越少，自然形成"快速接近、缓缓贴合"，不需要任何动画曲线。
+
+### 遗留问题
+
+- 承接上一条的遗留项（调试代码、搬家无事件、旋转数据不一致、`itemViews` 只增不减等）均未变
+- 预览框的 `offsetPos` / `offsetDelta` 是纯观感微调，若以后改 `cellSize` 需要重调
+- 协程 / `yield return` 仍未接触，进知识停车场
+
+### 下次从哪继续
+
+背包的拖放交互已经完整：显示 → 悬停 → 拖动 → 实时预览 → 落格改数据。
+
+两个方向二选一：
+
+1. **阶段 4：旋转** —— 需要先解决 `InventoryItem.Rotate()` 在物品已入网格时造成数据不一致的问题
+2. **接入拾取** —— 世界中的草药 → 按 E → 进背包，打通第一条真正的纵向链，
+   顺带删掉 `PlayerInventory.Start()` 里的调试代码
+
+---
+
 ## 2026-08-26 — 松手真的搬家：Remove / CanPlace / TryMove
 
 ### 背景

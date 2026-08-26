@@ -118,6 +118,7 @@ Canvas_Inventory (Screen Space - Overlay)
 |           `-- Content                  <- GridLayoutGroup (Cell 240, Spacing 5) + ContentSizeFitter
 |               |-- Slot .. Slot (31)    <- 32 个静态格子底图
 |               `-- ItemLayer            <- InventoryPointerHandler
+|                   |-- PlacementPreview  <- 拖放预览框（默认隐藏）
 |                   `-- ItemView(Clone) ...
 `-- DragLayer                            <- 拖拽期间物品的临时父节点
 ```
@@ -128,6 +129,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - `ItemLayer` 挂 `LayoutElement`（勾选 `Ignore Layout`），否则会被 `GridLayoutGroup` 当成第 33 个格子摆走。
 - `ItemLayer` 锚点为 stretch/stretch、pivot 为 (0, 1)，并挂一个 `Alpha = 0` 且开启 `Raycast Target` 的 `Image` 作为隐形鼠标热区。**pivot 一旦被改动，`TryGetCellAt` 的换算结果会整体偏移。**
 - 物品显示对象不是 Slot 的子物体——多格物品无法塞进单个 Slot，只能由 `ItemLayer` 统一按坐标摆放。
+- `PlacementPreview` 是一张半透明 `Image`，anchor/pivot 同为 (0, 1)，**关闭 `Raycast Target`**（否则会挡住 `ItemLayer` 的鼠标射线，拖动直接失灵），默认 `SetActive(false)`。它必须是 `ItemLayer` 的子物体：预览框要吸附到格子，就得和格子共用同一套坐标系，且背包滚动时会跟着内容一起走。拖拽开始时 `SetAsLastSibling()` 把它排到所有 `ItemView` **之后**——同一 Canvas 下渲染顺序即 Hierarchy 顺序，排在后面才画在上面。若排在前面（`SetAsFirstSibling`），红色预览恰好会被"挡路的那件物品"的底板完全盖住，而那正是它唯一需要被看见的时刻。
 - `DragLayer` 是 `Canvas_Inventory` 的**直接子物体且排在最后**，因此位于 `Viewport` 上 `Mask` 的作用范围之外，拖出背包的物品不会被裁掉；排最后保证它画在其余 UI 之上。锚点 stretch/stretch、offset 全 0、**pivot 同样为 (0, 1)**（必须与 `ItemLayer` 一致，否则拖拽定位会整体偏移）。**刻意不挂 `Image`**——挂了会变成覆盖全屏的射线目标，吞掉所有 UI 鼠标事件；也不挂 `Mask`。
 
 ## 6. 输入与游戏层
@@ -219,6 +221,10 @@ Canvas_Inventory (Screen Space - Overlay)
   - `inventory`：数据来源 `PlayerInventory`。依赖方向为 UI → 数据，反向被 asmdef 禁止。
   - `itemViewPrefab`：物品显示预制体。
   - `cellSize` / `spacing`：需与 `Content` 上 `GridLayoutGroup` 的 Cell Size、Spacing 保持一致，当前为 240 / 5，故一格步长为 245。
+  - `PlacementPreview`：拖放预览框的 `Image`。常驻场景、靠 `SetActive` 开关，**不做 `Instantiate` / `Destroy`**——拖拽是高频操作，反复创建销毁会持续产生 GC 垃圾。
+  - `validPlacementColor` / `invalidPlacementColor`：合法 / 非法落点的颜色，含透明度。做成字段而非常量，因为这属于要反复试的手感参数，Inspector 取色器底部可直接粘 Hex。
+  - `offsetPos` / `offsetDelta`：预览框相对格子的位置与尺寸微调，用于做出"内缩一圈"的边框观感。
+  - `previewFollowSpeed`：预览框追向目标格的速度。
   - `itemViews`：`Dictionary<InventoryItem, ItemView>`，从数据对象反查其显示对象。刻意放在 UI 层——`InventoryItem` 不该知道自己有没有被显示，且它在 asmdef 内也引用不到 `ItemView`。
   - `hoveredCell` / `hoveredItem`：鼠标当前所在格子 / 当前悬停的物品。高亮以 `hoveredItem` 为判断依据，因此在同一多格物品的不同格之间移动不会触发重复的高亮切换。
   - `dragItem` / `dragItemOriginalPosition` / `grabOffset`：拖拽中的物品、它在 `itemLayer` 下的原始 `anchoredPosition`、按下瞬间「鼠标 → 物品」的偏移。
@@ -228,8 +234,11 @@ Canvas_Inventory (Screen Space - Overlay)
   - `ShowItem(InventoryItem, int x, int y)`：事件回调。实例化 `ItemView` 并登记进 `itemViews`，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
   - `TryGetCellAt(Vector2 screenPosition, out int x, out int y)`：`ShowItem` 的反函数。经 `RectTransformUtility.ScreenPointToLocalPointInRectangle` 把屏幕坐标转为 `itemLayer` 局部坐标（Canvas 为 Screen Space - Overlay，摄像机参数传 `null`），再除以步长并 `FloorToInt` 得到格子坐标，最后用 `inventory.IsInside` 校验。用 `FloorToInt` 而非 `CeilToInt`：格子 n 覆盖 `[n, n+1)` 区间，且出界时结果为负数便于识别。
   - `UpdateHover(Vector2 screenPosition)` / `ClearHover()`：由 `InventoryPointerHandler` 调用。仅在悬停物品发生变化时切换 `ItemView` 的高亮。
-  - `BeginDrag(Vector2 screenPosition)`：以 `eventData.pressPosition` 为输入。查出按下格子里的物品，记下原位置，**先** `SetParent(dragLayer, true)` **再**计算 `grabOffset`（两者必须在同一坐标系内），并抑制高亮。
-  - `Drag(Vector2 screenPosition)`：`anchoredPosition = 鼠标在 dragLayer 局部坐标 - grabOffset`，保持抓取时的相对位置不变。
+  - `BeginDrag(Vector2 screenPosition)`：以 `eventData.pressPosition` 为输入。查出按下格子里的物品，记下原位置，**先** `SetParent(dragLayer, true)` **再**计算 `grabOffset`（两者必须在同一坐标系内），并抑制高亮。最后调 `ShowPlacementPreview`，其格子**必须由 `dragItemOriginalPosition` 反算**，不能用 `TryGetCellAt` 得到的按下格——玩家抓多格物品的右下角时两者相差一整格，预览框会先摆错位置、再滑向正确格子，表现为"刚开始拖动时框会飘一下"。
+  - `Drag(Vector2 screenPosition)`：`anchoredPosition = 鼠标在 dragLayer 局部坐标 - grabOffset`，保持抓取时的相对位置不变。随后用 `itemLayer.InverseTransformPoint(rect.position)` 把物品左上角换算到 `itemLayer` 空间，求出落点格并调 `UpdatePlacementPreview`。**拖拽期间物品必须留在 `dragLayer`**（否则会被 Mask 裁掉），所以不能用 `EndDrag` 那种 `SetParent` 换算法；此处经由世界坐标中转：`rect.position` 已是世界坐标，`InverseTransformPoint` 再转入 `itemLayer` 局部空间，`ScrollRect` 滚动、缩放都自动成立。函数体用早退（guard clause）写法，主线逻辑保持零缩进。
+  - `ShowPlacementPreview(Vector2Int cell, InventoryItem item)` / `UpdatePlacementPreview(Vector2Int cell, bool valid)` / `HidePlacementPreview()`：拖放预览框的三段生命周期，刻意拆成三个方法而不是一个带 `enable` / `valid` 参数的方法——「出现」「每帧刷新」「消失」需要做的事并不相同，捏在一起会让每个调用点都要反推参数含义。`Show` 负责显示、置顶、设尺寸并**瞬间**就位（走缓动会让框从上一次拖拽的残留位置飞过来）；`Update` 每帧只刷颜色并用 `Vector2.Lerp` 朝目标格逼近，`t` 取 `previewFollowSpeed * Time.unscaledDeltaTime`——**用 unscaled 是因为背包若在 `timeScale = 0` 时打开，`Time.deltaTime` 恒为 0，动画会整个停住**；`Hide` 只负责隐藏。
+  - `GetPreviewPosition(Vector2Int cell)`：格子坐标 → 预览框 `anchoredPosition`（叠加 `offsetPos`）。
+  - `GetRectSizeDelta(InventoryItem item)`：物品格数 → 像素尺寸，`n * cellSize + (n - 1) * spacing`。`ShowItem` 与预览框共用。
   - `EndDrag()`：**第一步必须是** `SetParent(itemLayer, true)`。`worldPositionStays: true` 会让 Unity 在换父节点时保持画面位置不变并重算 `anchoredPosition`，因此这一行执行完，`rect.anchoredPosition` 就已从 `dragLayer` 空间变成 `itemLayer` 空间——即与 `ShowItem` 同一套坐标系，可以直接换算格子。随后 `GetDropItemAt` 求出落点，交给 `inventory.TryMove`，**按其返回值决定画面**：成功则吸附到目标格，失败则退回 `dragItemOriginalPosition`。最后清理 `dragItem` 与高亮抑制。
   - `GetDropItemAt(Vector2 itemPosition, out int x, out int y)`：把物品**左上角**的 `anchoredPosition` 换算成格子坐标。与 `TryGetCellAt` 的两点区别：其一，落点必须由物品左上角决定而非鼠标位置，否则玩家抓着物品右下角拖动时，放置结果会整体偏移一整个抓取偏移量；其二，用 `RoundToInt` 而非 `FloorToInt`——`Floor` 只认「左上角落在哪格」，差几像素没对齐就会判到左边一格甚至负数，`Round` 才是「吸附到最近的格子」的手感。不做合法性判断，合法与否由 `TryMove` 回答。
   - `GetAnchorPositionForCell(int x, int y)`：格子坐标 → `anchoredPosition`，即 `(x * step, -y * step)`。`ShowItem` 与 `EndDrag` 共用，避免 `cellSize` / `spacing` 在 Inspector 改动后两处结果不一致。

@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: FirstGame.Inventory::ItemData
   itemId: green_herb
   displayName: "\u7EFF\u8272\u8349\u836F"
-  description: "\u6062\u590D\u5C11\u91CF\u751F\u547D\u503C"
-  icon: {fileID: 4365562314628016434, guid: a1173bcd75bc72941b4f679edfb3f30e, type: 3}
+  description: "\u6563\u53D1\u7740\u6DE1\u6DE1\u6E05\u9999\u7684\u836F\u8349\uFF0C\u4F7F\u7528\u540E\u53EF\u6062\u590D\u4E00\u5B9A\u751F\u547D\u503C"
+  icon: {fileID: 21300000, guid: 8db1845db536f9344ac43cee4b061c12, type: 3}
   category: 1
   width: 1
   height: 1
