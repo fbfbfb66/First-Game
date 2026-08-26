@@ -28,10 +28,22 @@ public class PlayerInventory : MonoBehaviour
         PrintGrid();
     }
 
+    public bool TryMove(InventoryItem item, int x, int y)
+    {
+        if (item == null) return false;
+        if(CanPlace(item, x, y,true))
+        {
+            grid.Remove(item);
+            grid.Place(item, x, y);
+            return true;
+        }
+        return false;
+    }
     public bool IsInside(int x, int y) => grid.IsInside(x, y);
+    public bool CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false) => grid.CanPlace(item, x, y, ignoreItem);
     public InventoryItem GetItemAt(int x, int y) => grid.GetItemAt(x, y);
 
-    private void PlaceDebugItem(int x,int y)
+    private void PlaceDebugItem(int x, int y)
     {
         InventoryItem item = new InventoryItem(debugItem, 1);
         if (grid.Place(item, x, y))

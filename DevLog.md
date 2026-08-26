@@ -1,7 +1,230 @@
-# FirstGame 开发日志
+﻿# FirstGame 开发日志
 
 按开发阶段倒序记录。每条包含：做了什么、为什么这么做、学到了什么、下次从哪继续。
 项目当前状态请看 [FirstGameDetails.md](FirstGameDetails.md)，本文件只记录过程。
+
+---
+
+## 2026-08-26 — 松手真的搬家：Remove / CanPlace / TryMove
+
+### 背景
+
+上一阶段拖拽已经能拖了，但完全是"视觉表演"：`EndDrag` 无论松在哪都把 `ItemView`
+弹回原位，`InventoryGrid` 从头到尾不知道有人拖过东西。
+
+这次目标：**玩家把物品拖到空位松手，物品真的搬过去（数据 + 画面一起变）；
+拖到别人身上或界外，弹回原位。**
+
+### 做了什么
+
+**数据层 `InventoryGrid`**
+
+- `Remove(InventoryItem item)`：扫全表按引用清格。
+- `IsAreaEmpty(...)` 加 `InventoryItem ignoreItem = null` 可选参数。
+- 新增 `CanPlace(item, x, y, ignoreItem = false)`，`Place` 改为先调它，判断逻辑只留一份。
+
+**数据层 `PlayerInventory`**
+
+- 新增 `TryMove(item, x, y)`：`CanPlace(ignoreItem: true)` → `Remove` → `Place`，返回 bool。
+- 转发 `CanPlace` 给 UI 层查询用。
+
+**表现层 `InventoryView`**
+
+- `EndDrag` 改为：`SetParent(itemLayer, true)` → 算落点 → `TryMove` → **按返回值**决定吸附还是弹回。
+- 抽出 `GetDropItemAt`（左上角 → 格子，`RoundToInt`）和 `GetAnchorPositionForCell`（格子 → 像素）。
+
+**测试**：`InventoryGridTests` 新增 13 条（Remove 5 条 + CanPlace 8 条），全绿。
+
+### 关键决策与理由
+
+| 决策 | 理由 |
+| --- | --- |
+| `Remove(item)` 而不是 `Remove(x, y)` | 手上的 `(x,y)` 是玩家点的那格，不一定是左上角；而网格根本没存过任何物品的左上角。按错原点擦，会既留自己的残格、又抹掉邻居 |
+| 先"问得下吗"再动手，而不是"先擦，失败再回滚" | 阶段 3 的绿/红预览每帧都要在**物品没动**的情况下查询一次，这个能力反正要建。回滚方案还得额外记原点 |
+| `CanPlace` 加 `ignoreItem` | 查询时物品自己还在网格里。2×2 物品右移一格，新旧区域重叠，不忽略自己就永远搬不动 |
+| `ignoreItem` 默认 false | 拾取新物品走的是同一个方法，那条路**不能**被放宽。两条测试正反各钉一遍 |
+| 落点用物品左上角，不用鼠标 | 抓右下角拖动时，用鼠标算会整体偏移一个抓取偏移量；且贴着右边界时画面放得下、`Place` 却越界失败 |
+| 落点用 `RoundToInt`，悬停仍用 `FloorToInt` | 鼠标是个点，落在哪格就是哪格；物品左上角差几像素没对齐时，应该"吸附到最近的格子" |
+| 校验写进 `TryMove`，不留在 `EndDrag` | 见下 |
+
+### 学到的东西
+
+**1. 安全检查要放在"被绕不过去"的地方**
+
+第一版能跑，但保证"物品不会消失"的那次 `CanPlace` 写在 `InventoryView` 里。
+数据层的底线由一个 UI 类守着——拾取系统、容器转移只要不知道这个约定，
+直接调 `TryMove` 就能让物品从网格里蒸发。而 `Place` 那个被丢掉的返回值，
+本来是唯一会喊"我失败了"的人。
+
+判断标准不是"现在会不会出错"，而是"下一个调用者不知道这个约定时会不会出错"。
+
+**2. 画面要跟着数据的实际结果走，不跟 UI 的预判走**
+
+改之前 `EndDrag` 问了两遍：自己判断一次决定画面，`TryMove` 内部又判断一次决定数据。
+现在两者必然一致，但数据层将来加任何一条规则（重量、类别限制、堆叠合并），
+两套判断就会分叉，表现为"画面搬过去了、数据还在原位"。
+
+**3. 幽灵占格与物品蒸发**
+
+同一件物品的引用同时留在两片区域 → 抓得到但看不见的幽灵；
+`Remove` 之后没放下 → 数据层没有、屏幕上还在的鬼影。
+两者都不会报错，都要等玩家操作很久之后才暴露。
+
+**4. `SetParent(parent, true)` 顺手解决了坐标系问题**
+
+`worldPositionStays: true` 会保持画面位置不变并重算 `anchoredPosition`。
+所以"先换回 `itemLayer`，再读 `anchoredPosition`"就自动完成了 dragLayer → itemLayer
+的坐标换算，不需要手动转。
+
+### 遗留问题
+
+- `PlayerInventory.Start()` 里的 `PlaceDebugItem` / `PrintGrid` 仍是临时调试代码，接通拾取后删
+- 搬家成功后不触发任何事件（`ItemPlaced` 只在放入时喊）。将来存档 / 联机需要统一的变更通知时要补
+- 拖动中没有任何合法性反馈，玩家松手才知道放不下 —— 下一步就是这个
+- `InventoryItem.Rotate()` 在物品已入网格后调用仍会造成数据不一致，做旋转前必须先解决
+- `itemViews` 字典目前只增不减。搬家不需要动它（key 是物品不是坐标），但将来做丢弃 / 移出背包时，必须同时 `Destroy(view.gameObject)`
+- `ScreenPointToLocalPointInRectangle` 仍在三处重复
+
+### 下次从哪继续
+
+当前功能链：
+
+```
+Grid 数据层（Place / Remove / CanPlace）  ✅
+    ↓
+ShowItem 画到屏幕                        ✅
+    ↓
+悬停 → 知道在哪个格子 / 哪个物品          ✅
+    ↓
+拖动 → ItemView 跟着鼠标                 ✅
+    ↓
+松手 → TryMove 真的改数据                ✅
+    ↓
+拖动中实时显示绿色 / 红色预览             ← 下一步
+```
+
+下一步是纯表现层：拖动过程中每帧用 `CanPlace(dragItem, x, y, true)` 查询落点，
+合法显示绿色、非法显示红色。数据层不需要任何改动——这正是上面第 2 条
+"`CanPlace` 是查询不是命令"要求它绝不修改网格的原因。
+
+再往后：旋转（阶段 4）、拾取接入（世界中的草药 → 按 E → 进背包）。
+
+---
+
+## 2026-08-18 — 背包数据接上屏幕：显示、悬停、拖拽
+
+### 背景
+
+上一次结束时，背包在 Console 里是通的（`PrintGrid()` 能打出 ASCII 网格），
+在屏幕上却是空的——数据层和场景里那 32 个手摆的 Slot 各活各的，中间毫无连接。
+本次的主线就是把这条链打通，并一路做到「物品能被鼠标拖起来」。
+
+### 做了什么
+
+**1. 数据 → 屏幕（`InventoryView`）**
+
+新建翻译层，双向换算格子坐标与像素：
+
+```
+格子 (x, y) → anchoredPosition = (x * step, -y * step)     step = 240 + 5 = 245
+n 格的边长  → n * cellSize + (n - 1) * spacing
+屏幕坐标    → itemLayer 局部坐标 → 除以 step 取整 → 格子 (x, y)
+```
+
+先在编辑器里手摆一个 Image 验证公式，再写代码。
+
+**2. 依赖方向被编译器强制纠正**
+
+最初让 `PlayerInventory` 持有 `InventoryView` 字段，编译报
+`CS0246: 找不到 InventoryView`。原因：`PlayerInventory` 在 `FirstGame.Inventory`
+asmdef 内，而 `InventoryView` 在 `Assembly-CSharp`，asmdef **看不见**它。
+
+没有改 asmdef 配置绕过去，而是把方向反过来：`PlayerInventory` 暴露
+`event Action<InventoryItem,int,int> ItemPlaced`，UI 层订阅。同一堵墙后来又挡了
+第二次——想给 `InventoryItem` 加 `ItemView` 字段时。
+
+事件选局部 `event Action` 而非 `GameEventBus`：「背包 UI 该重画了」只有那个 View
+关心，不是跨系统事件。（`GameEventBus` 也在 `Assembly-CSharp`，同样够不着。）
+
+**3. `ItemView` 两层结构**
+
+物品图标是透明 PNG，铺不满格子，中缝的格线会透出来。解法不是改图，而是分层：
+底板表达「占了哪」，图标表达「是什么」。两个信息用两个东西承载，才能各自变化。
+
+**4. 悬停检测（`InventoryPointerHandler` + EventSystem）**
+
+先用 `Update()` 轮询，改为 `IPointerMoveHandler` / `IPointerExitHandler`。
+接口必须挂在**被射线击中的物体**上，所以新建脚本挂 `ItemLayer`
+（`InventoryView` 在没有 Graphic 的 `Inventory` 上，收不到射线）。
+
+`ItemLayer` 改为 stretch 铺满 + `Alpha = 0` 的 `Image` 作隐形热区。
+放弃「32 个 Slot 各挂一个 handler」的方案：物品底板会挡住 Slot 的射线，
+且每个 Slot 都得知道自己是第几格。
+
+**5. 高亮**
+
+`Dictionary<InventoryItem, ItemView>` 建立数据 → 显示的反查。
+判断依据用 `hoveredItem` 而不是 `hoveredCell`：多格物品在自己的两格之间移动时，
+按格子判断会白白重设一次高亮，按物品判断则完全不产生状态变化。
+
+表现从改色改成微缩放，缩放放在一个专用子物体上——根物体的 pivot 必须留在 (0,1)
+服务定位公式，缩放需要的却是居中 pivot。
+
+**6. 拖拽（阶段 4.1，纯视觉）**
+
+`IBeginDragHandler` / `IDragHandler` / `IEndDragHandler`，松手一律退回原位，
+**完全不碰数据层**，这样出问题一定在表现层。
+
+- 抓取偏移：按下时记 `grabOffset = 鼠标 - 物品`，移动时 `物品 = 鼠标 - grabOffset`
+- 用 `eventData.pressPosition` 而非 `position`：`OnBeginDrag` 要等越过拖拽阈值才触发
+- 拖出面板被 `Viewport` 的 `Mask` 裁掉 → 新建 `DragLayer`，拖拽期间 `SetParent` 过去
+
+### 踩的坑
+
+| 现象 | 原因 |
+| --- | --- |
+| 退出 Play 时报「Inventory is not assigned」 | 销毁顺序不定，`OnDisable` 时对方已销毁，`== null` 为 true。配置错误只该在 `OnEnable` 报一次 |
+| 坐标偏半个网格，且只有右下角区域才有输出 | 用 Anchor Presets 时多按了 Shift，`ItemLayer` 的 pivot 被改成 (0.5, 0.5)。`ScreenPointToLocalPointInRectangle` 返回的是**相对 pivot** 的坐标 |
+| 拖拽时物品飞走 | 把 `itemLayer` 局部坐标赋给了 `transform.position`（世界坐标）。UI 里一律用 `anchoredPosition` |
+| 第一次悬停物品就抛 `ArgumentNullException` | `Dictionary.TryGetValue(null)` 会抛异常，"Try" 只保护「查不到」，不保护「key 非法」 |
+| 取消高亮后底板变白 | 硬编码 `Color.white` 当「正常色」，而真正的正常色在 prefab 里。两个真相来源必然对不上 |
+| 高亮完全看不出来 | `Color.white * 2` 渲染时被钳制回 1，和白色没区别 |
+
+### 学到了什么
+
+- **asmdef 把「谁能认识谁」变成编译期错误。** 两次挡住方向错误的设计，比靠自觉可靠。
+- **`class` 传引用，`struct` 传副本。** `(RectTransform)transform` 不是转换也不是复制，是换个视角看同一个对象。
+- **`anchoredPosition` 认锚点，`localPosition` 不认。** UI 里只用前者。
+- **状态清理不能只走成功路径。** 开始时清一次、结束时清一次，任何分支都留下干净状态。
+- **测试用例选错，跑通也不算通过。** `(0,0)` 测不出 x/y 交换，必须用 `(2,5)` 这种 x≠y 的坐标。
+- **UI 点不到时，先看 EventSystem 的 Inspector 里 `Pointer Enter` 是谁**，而不是回去读代码。
+- **`Place()` 成功才通知 UI。** 否则屏幕上会出现数据层查无此物的东西。越界测试专门验这条。
+
+### 下次从哪继续
+
+阶段 4 剩下两步：
+
+```
+4.2  拖到哪一格能放 / 不能放，实时预览绿或红
+4.3  松手真的移动物品；非法则退回
+```
+
+4.2 开始前要先定两件事：
+
+1. **拖拽过程中，物品在 `InventoryGrid` 里还占着原格子吗？**
+   一把 2×1 的刀往右挪一格，若仍占原位，`IsAreaEmpty` 会撞见自己而判失败。
+   立刻移除则数据与画面暂时不一致，取消时要放回去。
+2. **松手时以哪个格子为准？** 鼠标所在格，还是物品左上角所在格？
+   抓住物品右下角时两者能差好几格。
+
+其他待办：
+
+- 抽 `TryGetLocalPoint` 消除三处 `ScreenPointToLocalPointInRectangle` 重复
+- 物品移除时要从 `itemViews` 删除并 `Destroy`，生成与销毁必须成对
+- `allowToHeighlight` 拼写应为 `allowToHighlight`
+- `InputRouter.OnDisable()` 退出 Play 时抛 `NullReferenceException`（与背包无关，单独处理）
+- `KuroganeKatana` 的 `displayName` 为空会让 `PrintGrid()` 抛 `IndexOutOfRangeException`
+- 美术：多格物品需要匹配宽高比的图（2×1 物品配 2:1 的图），当前图集全是 16×16
 
 ---
 

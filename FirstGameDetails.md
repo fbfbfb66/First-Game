@@ -1,8 +1,8 @@
-# First Game Project Details
+﻿# First Game Project Details
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-06-23。
+最后更新时间：2026-08-26。
 
 ## 1. 项目概览
 
@@ -21,7 +21,8 @@
   - Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagData` + `GameCondition` + `FlagBoolCondition`。
   - Quest 系统：`QuestManager` + `QuestDatabase` + `QuestData` + `QuestState` + `QuestStateCondition`。
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
-  - UI 与背包基础模型：`UI_HPBarView` + `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid`。
+  - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView`。已打通「显示 → 悬停高亮 → 拖拽 → 落格改数据」。
+  - 其他 UI：`UI_HPBarView`。
 
 ## 2. Unity Git 提交规则
 
@@ -109,14 +110,16 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 ### `GameScene` 背包 UI 结构
 
 ```text
-Canvas (Screen Space - Overlay)
-`-- Inventory                        <- InventoryView
-    `-- InventoryArea (ScrollRect)
-        `-- Viewport (RectMask2D)
-            `-- Content              <- GridLayoutGroup (Cell 240, Spacing 5) + ContentSizeFitter
-                |-- Slot .. Slot (31) <- 32 个静态格子底图
-                `-- ItemLayer        <- InventoryPointerHandler
-                    `-- ItemView(Clone) ...
+Canvas_Inventory (Screen Space - Overlay)
+|-- BackGround
+|-- Inventory                            <- InventoryView
+|   `-- InventoryArea (ScrollRect)
+|       `-- Viewport (Mask)              <- 裁剪来源
+|           `-- Content                  <- GridLayoutGroup (Cell 240, Spacing 5) + ContentSizeFitter
+|               |-- Slot .. Slot (31)    <- 32 个静态格子底图
+|               `-- ItemLayer            <- InventoryPointerHandler
+|                   `-- ItemView(Clone) ...
+`-- DragLayer                            <- 拖拽期间物品的临时父节点
 ```
 
 要点：
@@ -125,6 +128,7 @@ Canvas (Screen Space - Overlay)
 - `ItemLayer` 挂 `LayoutElement`（勾选 `Ignore Layout`），否则会被 `GridLayoutGroup` 当成第 33 个格子摆走。
 - `ItemLayer` 锚点为 stretch/stretch、pivot 为 (0, 1)，并挂一个 `Alpha = 0` 且开启 `Raycast Target` 的 `Image` 作为隐形鼠标热区。**pivot 一旦被改动，`TryGetCellAt` 的换算结果会整体偏移。**
 - 物品显示对象不是 Slot 的子物体——多格物品无法塞进单个 Slot，只能由 `ItemLayer` 统一按坐标摆放。
+- `DragLayer` 是 `Canvas_Inventory` 的**直接子物体且排在最后**，因此位于 `Viewport` 上 `Mask` 的作用范围之外，拖出背包的物品不会被裁掉；排最后保证它画在其余 UI 之上。锚点 stretch/stretch、offset 全 0、**pivot 同样为 (0, 1)**（必须与 `ItemLayer` 一致，否则拖拽定位会整体偏移）。**刻意不挂 `Image`**——挂了会变成覆盖全屏的射线目标，吞掉所有 UI 鼠标事件；也不挂 `Mask`。
 
 ## 6. 输入与游戏层
 
@@ -211,35 +215,53 @@ Canvas (Screen Space - Overlay)
 - 脚本职责：背包数据层与屏幕像素之间的唯一翻译官。负责「格子坐标 ↔ 屏幕坐标」双向换算，并把 `InventoryItem` 生成为屏幕上的 `ItemView`。
 - 关键字段：
   - `itemLayer`：所有物品显示对象的父节点，同时是坐标换算的参照系与鼠标射线接收区。**其 pivot 必须为 (0, 1)（左上角）**，`TryGetCellAt` 依赖这一前提。
+  - `dragLayer`：拖拽期间物品的临时父节点，pivot 同为 (0, 1)。
   - `inventory`：数据来源 `PlayerInventory`。依赖方向为 UI → 数据，反向被 asmdef 禁止。
   - `itemViewPrefab`：物品显示预制体。
   - `cellSize` / `spacing`：需与 `Content` 上 `GridLayoutGroup` 的 Cell Size、Spacing 保持一致，当前为 240 / 5，故一格步长为 245。
-  - `hoveredCell`：鼠标当前所在格子，`(-1, -1)` 表示不在任何格子上。用于「只在跨格时才响应」的变化检测。
+  - `itemViews`：`Dictionary<InventoryItem, ItemView>`，从数据对象反查其显示对象。刻意放在 UI 层——`InventoryItem` 不该知道自己有没有被显示，且它在 asmdef 内也引用不到 `ItemView`。
+  - `hoveredCell` / `hoveredItem`：鼠标当前所在格子 / 当前悬停的物品。高亮以 `hoveredItem` 为判断依据，因此在同一多格物品的不同格之间移动不会触发重复的高亮切换。
+  - `dragItem` / `dragItemOriginalPosition` / `grabOffset`：拖拽中的物品、它在 `itemLayer` 下的原始 `anchoredPosition`、按下瞬间「鼠标 → 物品」的偏移。
+  - `allowToHeighlight`：拖拽期间抑制悬停高亮。
 - 函数：
   - `OnEnable()` / `OnDisable()`：订阅、取消订阅 `PlayerInventory.ItemPlaced`。
-  - `ShowItem(InventoryItem, int x, int y)`：事件回调。实例化 `ItemView`，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
-  - `TryGetCellAt(Vector2 screenPosition, out int x, out int y)`：`ShowItem` 的反函数。经 `RectTransformUtility.ScreenPointToLocalPointInRectangle` 把屏幕坐标转为 `itemLayer` 局部坐标（Canvas 为 Screen Space - Overlay，摄像机参数传 `null`），再除以步长并 `FloorToInt` 得到格子坐标，最后用 `inventory.IsInside` 校验。
-  - `UpdateHover(Vector2 screenPosition)` / `ClearHover()`：由 `InventoryPointerHandler` 调用。仅在格子发生变化时输出日志（当前为调试输出，后续替换为高亮表现）。
+  - `ShowItem(InventoryItem, int x, int y)`：事件回调。实例化 `ItemView` 并登记进 `itemViews`，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
+  - `TryGetCellAt(Vector2 screenPosition, out int x, out int y)`：`ShowItem` 的反函数。经 `RectTransformUtility.ScreenPointToLocalPointInRectangle` 把屏幕坐标转为 `itemLayer` 局部坐标（Canvas 为 Screen Space - Overlay，摄像机参数传 `null`），再除以步长并 `FloorToInt` 得到格子坐标，最后用 `inventory.IsInside` 校验。用 `FloorToInt` 而非 `CeilToInt`：格子 n 覆盖 `[n, n+1)` 区间，且出界时结果为负数便于识别。
+  - `UpdateHover(Vector2 screenPosition)` / `ClearHover()`：由 `InventoryPointerHandler` 调用。仅在悬停物品发生变化时切换 `ItemView` 的高亮。
+  - `BeginDrag(Vector2 screenPosition)`：以 `eventData.pressPosition` 为输入。查出按下格子里的物品，记下原位置，**先** `SetParent(dragLayer, true)` **再**计算 `grabOffset`（两者必须在同一坐标系内），并抑制高亮。
+  - `Drag(Vector2 screenPosition)`：`anchoredPosition = 鼠标在 dragLayer 局部坐标 - grabOffset`，保持抓取时的相对位置不变。
+  - `EndDrag()`：**第一步必须是** `SetParent(itemLayer, true)`。`worldPositionStays: true` 会让 Unity 在换父节点时保持画面位置不变并重算 `anchoredPosition`，因此这一行执行完，`rect.anchoredPosition` 就已从 `dragLayer` 空间变成 `itemLayer` 空间——即与 `ShowItem` 同一套坐标系，可以直接换算格子。随后 `GetDropItemAt` 求出落点，交给 `inventory.TryMove`，**按其返回值决定画面**：成功则吸附到目标格，失败则退回 `dragItemOriginalPosition`。最后清理 `dragItem` 与高亮抑制。
+  - `GetDropItemAt(Vector2 itemPosition, out int x, out int y)`：把物品**左上角**的 `anchoredPosition` 换算成格子坐标。与 `TryGetCellAt` 的两点区别：其一，落点必须由物品左上角决定而非鼠标位置，否则玩家抓着物品右下角拖动时，放置结果会整体偏移一整个抓取偏移量；其二，用 `RoundToInt` 而非 `FloorToInt`——`Floor` 只认「左上角落在哪格」，差几像素没对齐就会判到左边一格甚至负数，`Round` 才是「吸附到最近的格子」的手感。不做合法性判断，合法与否由 `TryMove` 回答。
+  - `GetAnchorPositionForCell(int x, int y)`：格子坐标 → `anchoredPosition`，即 `(x * step, -y * step)`。`ShowItem` 与 `EndDrag` 共用，避免 `cellSize` / `spacing` 在 Inspector 改动后两处结果不一致。
+- 依赖方向：View 只能**请求**数据层改动（`TryMove`），不能直接操作网格；改动成功与否一律以数据层的返回值为准，画面不按 UI 自己的预判摆放。当前两者结果必然一致，但数据层将来一旦加入重量上限、容器类别限制、堆叠合并等规则，UI 预判就会与真实结果分叉，表现为「画面搬过去了、数据还在原位」这类极难定位的问题。
 - 关联：挂在 `GameScene` 的 `Inventory` 对象上。
+- 已知技术债：`ScreenPointToLocalPointInRectangle` 的调用在三处重复（`TryGetCellAt`、`BeginDrag`、`Drag`），尚未抽成辅助方法。若 Canvas 改为 Screen Space - Camera，三处的摄像机参数都要改。
 
 #### `Assets/_Game/Scripts/Runtime/UI/ItemView.cs`
 
-- 脚本职责：单个物品在屏幕上的表现。预制体为两层结构——根物体的 `Image` 是不透明底板（表达「这块区域被占用」），子物体 `Icon` 是物品图标（表达「这是什么」）。
+- 脚本职责：单个物品在屏幕上的表现。预制体为多层结构——底板 `Image` 表达「这块区域被占用」，`Icon` 表达「这是什么」，另有一个专用于缩放的 `highlightTransform` 层。
 - 关键字段：
-  - `icon`：子物体 `Icon` 的 `Image`。勾选 `Preserve Aspect`，使非等比图标不被拉伸。
+  - `icon`：物品图标的 `Image`。勾选 `Preserve Aspect`，使图标宽高比与格子宽高比不一致时不被拉伸。
+  - `background`：底板 `Image`。拖拽期间置为 `Color.clear`，让原位置视觉上「空出来」。
+  - `highlightTransform`：**专门用于缩放的中间层**。缩放绕自身 pivot 进行，而根物体的 pivot 必须留在 (0, 1) 以服务 `anchoredPosition` 的定位公式；把缩放交给一个居中 pivot 的子物体，可让两个需求互不干扰（根物体负责「在哪一格」，子物体负责「什么表现」）。
+  - `highlightScale`：高亮时的缩放倍数，默认 1.1。
 - 函数：
-  - `SetIcon(InventoryItem item)`：设置图标 sprite；`item` 或其 `Data` 为空时禁用 `icon`，避免留下白色方块。
-- 关联：预制体位于 `Assets/_Game/Prefabs/`，由 `InventoryView.ShowItem` 实例化。根物体与 `Icon` 的 `Raycast Target` 均关闭，以免遮挡 `ItemLayer` 的鼠标射线。
+  - `SetIcon(InventoryItem item, bool value = true)`：设置图标 sprite；`item`、其 `Data` 为空或 `value` 为 false 时禁用 `icon`，避免留下白色方块。
+  - `SetBackgroundTransparent(bool)`：切换底板透明。
+  - `SetHighlighted(bool)`：缩放 `highlightTransform`；高亮时调用 `SetAsLastSibling()` 让放大后的物品画在邻居之上。
+- 关联：预制体位于 `Assets/_Game/Prefabs/`，由 `InventoryView.ShowItem` 实例化。底板与 `Icon` 的 `Raycast Target` 均关闭，以免遮挡 `ItemLayer` 的鼠标射线——物品「是谁」一律由 `grid.GetItemAt()` 回答，不靠显示对象自报。
 
 #### `Assets/_Game/Scripts/Runtime/UI/InventoryPointerHandler.cs`
 
 - 脚本职责：接收 `EventSystem` 指针事件并转达给 `InventoryView`。不做任何判断。
 - 存在原因：`EventSystem` 只调用**被射线击中的那个 GameObject** 上的接口，而 `InventoryView` 挂在没有 `Graphic` 的 `Inventory` 上，收不到射线。此脚本挂在真正被鼠标压住的 `ItemLayer` 上，从而把「接收输入」与「负责显示」拆开。
-- 实现接口：`IPointerMoveHandler`、`IPointerExitHandler`。
+- 实现接口：`IPointerMoveHandler`、`IPointerExitHandler`、`IBeginDragHandler`、`IDragHandler`、`IEndDragHandler`。
 - 函数：
   - `OnPointerMove(PointerEventData)`：把 `eventData.position` 交给 `InventoryView.UpdateHover`。
   - `OnPointerExit(PointerEventData)`：调用 `InventoryView.ClearHover`。
-- 关联：挂在 `GameScene` 的 `ItemLayer` 上。
+  - `OnBeginDrag(PointerEventData)`：传 **`eventData.pressPosition`**（按下瞬间的屏幕坐标）而非 `position`。`OnBeginDrag` 要等鼠标越过拖拽阈值才触发，此时 `position` 已偏离按下点几个像素，会同时影响抓取偏移与「按在哪一格」的判断。
+  - `OnDrag(PointerEventData)` / `OnEndDrag(PointerEventData)`：转达当前位置 / 结束拖拽。`OnEndDrag` 不传坐标——落点由 `InventoryView` 用物品自身的位置算，与松手瞬间鼠标在哪无关。
+- 关联：挂在 `GameScene` 的 `ItemLayer` 上。由于本脚本处理拖拽，起手于 `ItemLayer` 的拖拽不再触发 `InventoryArea` 上 `ScrollRect` 的滚动（滚轮不受影响）。
 
 ### Runtime/Systems/InventorySystem
 
@@ -286,10 +308,12 @@ Canvas (Screen Space - Overlay)
   - `InventoryGrid(int width, int height)`：创建指定尺寸的格子数组，并校验宽高必须大于 0。
   - `IsInside(int x, int y)`：判断单个坐标是否在网格范围内。
   - `IsInside(int x, int y, int areaWidth, int areaHeight)`：判断一个左上角在 `(x, y)` 的矩形区域是否完整落在网格内。只检查左上角和右下角两点，为 O(1)。
-  - `IsAreaEmpty(int x, int y, int areaWidth, int areaHeight)`：判断区域内每一格是否都为 `null`。**约定不做边界检查**，调用者需先用 `IsInside` 保证区域合法。
-  - `Place(InventoryItem item, int x, int y)`：先校验 `item` 非空、区域在界内、区域为空，全部通过后把 `item` 写入覆盖到的每一格并返回 `true`；任一条件不满足返回 `false` 且**不修改任何格子**（不留半填状态）。物品尺寸取 `CurrentWidth` / `CurrentHeight`，因此自动支持旋转。
+  - `IsAreaEmpty(int x, int y, int areaWidth, int areaHeight, InventoryItem ignoreItem = null)`：判断区域内每一格是否都为 `null`。命中 `ignoreItem` 的格子按「空」处理。**约定不做边界检查**，调用者需先用 `IsInside` 保证区域合法。
+  - `CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false)`：**纯查询，绝不修改网格**。校验 `item` 非空、区域在界内、区域为空。`ignoreItem` 为 true 时把 `item` 自己传给 `IsAreaEmpty` 当作「可忽略」——**移动已在网格中的物品时必须开启**，否则新旧区域一旦重叠，物品会被自己判定为障碍而永远挪不动一格（如 2×2 物品右移一格）。新物品入包则保持 false。
+  - `Place(InventoryItem item, int x, int y, bool ignoreItem = false)`：先调 `CanPlace`，通过后把 `item` 写入覆盖到的每一格并返回 `true`；否则返回 `false` 且**不修改任何格子**（不留半填状态）。判断逻辑只存在于 `CanPlace` 一处，避免「预判」与「实际」两套规则分叉。物品尺寸取 `CurrentWidth` / `CurrentHeight`，因此自动支持旋转。
+  - `Remove(InventoryItem item)`：**扫描整张表**，把所有等于该引用的格子置 `null`，返回是否至少清掉一格。刻意不用 `Remove(int x, int y)`——调用方手里通常只有「玩家点了哪一格」，那不一定是物品左上角，而网格并未记录任何物品的左上角坐标；按错误的原点往右下擦，会同时留下自己的残格并抹掉邻居的格子。用引用比较还顺带钉住一条规则：两株外观相同的草药是两件独立物品，移除一件不会波及另一件。
   - `GetItemAt(int x, int y)`：返回该格的物品；**越界返回 `null` 而不抛异常**，因为将来会由鼠标位置驱动调用，划出背包范围属于正常情况。
-- 关联：被 `PlayerInventory` 持有。尚未实现移除、堆叠合并、旋转与网格的联动、查找空位。
+- 关联：被 `PlayerInventory` 持有。尚未实现堆叠合并、旋转与网格的联动、查找空位。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/PlayerInventory.cs`
 
@@ -304,7 +328,8 @@ Canvas (Screen Space - Overlay)
   - `Awake()`：只创建 `InventoryGrid`。
   - `Start()`：调用 `PlaceDebugItem` 放入调试物品并 `PrintGrid()`。**放置必须在 `Start()` 而非 `Awake()`**——Unity 保证所有 `OnEnable()` 执行完才开始执行任何 `Start()`，否则 `InventoryView` 可能尚未订阅 `ItemPlaced`，事件会白喊。
   - `PlaceDebugItem(int x, int y)`：创建 `InventoryItem`，调用 `grid.Place()`；**仅在返回 true 时**才触发 `ItemPlaced`。保证屏幕上不会出现数据层中不存在的物品。
-  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `PlaceDebugItem` 直接调用 `grid.Place()` 而跳过事件通知。
+  - `TryMove(InventoryItem item, int x, int y)`：把已在网格中的物品移到 `(x, y)`，返回是否成功。内部顺序为 `CanPlace(..., ignoreItem: true)` → `grid.Remove()` → `grid.Place()`。**校验必须写在这里而不是调用方**：`Remove` 一旦执行，物品就必须有地方落，否则它会从数据层彻底消失，而屏幕上的 `ItemView` 和 `itemViews` 字典仍在，玩家会看到一个抓得到、却已不存在于网格中的「鬼影」。把这条底线交给某个 UI 类去守，等于让其他调用方（拾取、容器转移）随时能绕过它。
+  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryMove` / `PlaceDebugItem` 直接改数据而跳过校验与事件通知。
   - `PrintGrid()`：临时调试工具，把网格逐行输出到 Console，空格显示 `.`，有物品显示其显示名首字。物品 `displayName` 为空时会抛 `IndexOutOfRangeException`。
 - 关联：挂在 `GameScene` 的 `Player` 对象上。`Start()` 里的放置与打印属于**临时调试代码**，接入拾取流程后应移除。
 

@@ -31,33 +31,60 @@ public class InventoryGrid
         if (IsInside(maxX, maxY)) return true;
         return false;
     }
-    public bool IsAreaEmpty(int x, int y, int areaWidth, int areaHeight)
+    public bool IsAreaEmpty(int x, int y, int areaWidth, int areaHeight, InventoryItem ignoreItem = null)
     {
         for (int i = 0; i < areaWidth; i++)
         {
             for (int j = 0; j < areaHeight; j++)
             {
-                if (cells[x + i, y + j] != null) return false;
+                InventoryItem item = cells[x + i, y + j];
+                if (item == ignoreItem) continue;
+                if (item != null) return false;
             }
         }
         return true;
     }
 
-    public bool Place(InventoryItem item, int x, int y)
+    public bool Place(InventoryItem item, int x, int y, bool ignoreItem = false)
     {
-        if (item == null) return false;
-        if (IsInside(x, y, item.CurrentWidth, item.CurrentHeight) == false) return false;
-        if (IsAreaEmpty(x, y, item.CurrentWidth, item.CurrentHeight) == false) return false; 
-        
-        for(int i = 0;i < item.CurrentWidth; i++)
+        if(CanPlace(item, x, y, ignoreItem) == false) return false;
+
+        for (int i = 0; i < item.CurrentWidth; i++)
         {
-            for(int j = 0;j < item.CurrentHeight; j++)
+            for (int j = 0; j < item.CurrentHeight; j++)
             {
                 cells[x + i, y + j] = item;
             }
         }
         return true;
     }
+
+    public bool CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false)
+    {
+        if (item == null) return false;
+        if (IsInside(x, y, item.CurrentWidth, item.CurrentHeight) == false) return false;
+        if (IsAreaEmpty(x, y, item.CurrentWidth, item.CurrentHeight, ignoreItem ? item : null) == false) return false;
+        return true;
+    }
+
+    public bool Remove(InventoryItem item)
+    {
+        if (item == null) return false;
+        bool found = false;
+        for (int x = 0; x < Width; x++)
+        {
+            for (int y = 0; y < Height; y++)
+            {
+                if (cells[x, y] == item)
+                {
+                    found = true;
+                    cells[x, y] = null;
+                }
+            }
+        }
+        return found;
+    }
+
     public InventoryItem GetItemAt(int x, int y)
     {
         if (IsInside(x, y) == false) return null;

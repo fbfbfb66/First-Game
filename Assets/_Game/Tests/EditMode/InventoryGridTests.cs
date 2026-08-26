@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -275,5 +275,178 @@ public class InventoryGridTests
     public void GetItemAt_OutsideGrid_ReturnsNullInsteadOfThrowing(int x, int y)
     {
         Assert.IsNull(grid.GetItemAt(x, y));
+    }
+
+    // ------------------------------------------------------------
+    // Remove
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// 物品占的每一格都要被擦干净，不能只擦左上角。
+    /// 这是 Remove 存在的全部意义：拖动搬家时，
+    /// 旧位置一格残留都会变成抓得到、看不见的"幽灵"。
+    /// </summary>
+    [Test]
+    public void Remove_ExistingItem_ClearsEveryCellItOccupied()
+    {
+        InventoryItem rifle = CreateItem(2, 1);
+        grid.Place(rifle, 3, 2);
+
+        Assert.IsTrue(grid.Remove(rifle));
+
+        Assert.IsNull(grid.GetItemAt(3, 2));
+        Assert.IsNull(grid.GetItemAt(4, 2));
+    }
+
+    /// <summary>
+    /// 擦干净的直接证据：同一片区域必须能重新放东西。
+    /// 只要还剩一格残留，这个 Place 就会失败。
+    /// </summary>
+    [Test]
+    public void Remove_ThenPlaceAtSameSpot_Succeeds()
+    {
+        InventoryItem rifle = CreateItem(2, 1);
+        grid.Place(rifle, 3, 2);
+        grid.Remove(rifle);
+
+        InventoryItem herb = CreateItem(2, 1);
+        Assert.IsTrue(grid.Place(herb, 3, 2));
+        Assert.AreSame(herb, grid.GetItemAt(3, 2));
+    }
+
+    /// <summary>
+    /// 只能擦自己的格子，不能误伤邻居。
+    /// </summary>
+    [Test]
+    public void Remove_DoesNotTouchOtherItems()
+    {
+        InventoryItem rifle = CreateItem(2, 1);
+        InventoryItem herb = CreateItem(1, 1);
+        grid.Place(rifle, 3, 2);
+        grid.Place(herb, 5, 2);
+
+        grid.Remove(rifle);
+
+        Assert.AreSame(herb, grid.GetItemAt(5, 2));
+    }
+
+    /// <summary>
+    /// 返回值必须诚实：网格里没有这件物品，就不能说"移除成功"。
+    /// 拖放流程是"先 Remove 再 Place"，
+    /// 这里说谎会让我们在一个不该发生的状态上继续往下走。
+    /// </summary>
+    [Test]
+    public void Remove_ItemNotInGrid_ReturnsFalse()
+    {
+        grid.Place(CreateItem(2, 1), 3, 2);
+
+        Assert.IsFalse(grid.Remove(CreateItem(2, 1)));   // 长得一样，但不是同一个引用
+    }
+
+    [Test]
+    public void Remove_Null_ReturnsFalseInsteadOfThrowing()
+    {
+        Assert.IsFalse(grid.Remove(null));
+    }
+
+    // ------------------------------------------------------------
+    // CanPlace
+    // ------------------------------------------------------------
+
+    [Test]
+    public void CanPlace_OnEmptyArea_ReturnsTrue()
+    {
+        Assert.IsTrue(grid.CanPlace(CreateItem(2, 2), 3, 2));
+    }
+
+    [Test]
+    public void CanPlace_OverlappingAnotherItem_ReturnsFalse()
+    {
+        grid.Place(CreateItem(4, 2), 0, 0);
+
+        Assert.IsFalse(grid.CanPlace(CreateItem(1, 1), 3, 1));
+    }
+
+    [TestCase(7, 0)]
+    [TestCase(0, 5)]
+    [TestCase(-1, 0)]
+    public void CanPlace_OutsideGrid_ReturnsFalse(int x, int y)
+    {
+        Assert.IsFalse(grid.CanPlace(CreateItem(4, 2), x, y));
+    }
+
+    [Test]
+    public void CanPlace_Null_ReturnsFalseInsteadOfThrowing()
+    {
+        Assert.IsFalse(grid.CanPlace(null, 0, 0));
+    }
+
+    /// <summary>
+    /// CanPlace 存在的核心理由：拖动时物品还躺在原位，
+    /// 它必须能看穿"挡路的其实是我自己"。
+    /// 2×2 往右挪一格，新旧区域重叠 —— 不忽略自己就永远搬不动。
+    /// </summary>
+    [Test]
+    public void CanPlace_OverlappingItself_WithIgnore_ReturnsTrue()
+    {
+        InventoryItem handgun = CreateItem(2, 2);
+        grid.Place(handgun, 0, 0);
+
+        Assert.IsTrue(grid.CanPlace(handgun, 1, 0, ignoreItem: true));
+    }
+
+    /// <summary>
+    /// 反过来钉住默认行为：不传 ignoreItem 时，
+    /// 自己占的格子照样算"被占用"。
+    /// 新物品入包（拾取）走的就是这条路，不能被放宽。
+    /// </summary>
+    [Test]
+    public void CanPlace_OverlappingItself_WithoutIgnore_ReturnsFalse()
+    {
+        InventoryItem handgun = CreateItem(2, 2);
+        grid.Place(handgun, 0, 0);
+
+        Assert.IsFalse(grid.CanPlace(handgun, 1, 0));
+    }
+
+    /// <summary>
+    /// CanPlace 是一个"查询"，不是"命令"。
+    /// 拖动时每帧都会调它来刷新绿/红预览，
+    /// 它要是偷偷改了网格，那就是每帧都在破坏数据。
+    /// </summary>
+    [Test]
+    public void CanPlace_DoesNotModifyGrid()
+    {
+        InventoryItem herb = CreateItem(1, 1);
+        grid.Place(herb, 3, 0);
+
+        grid.CanPlace(CreateItem(2, 2), 3, 0);
+        grid.CanPlace(CreateItem(2, 2), 6, 4);
+
+        Assert.AreSame(herb, grid.GetItemAt(3, 0));
+        Assert.IsNull(grid.GetItemAt(6, 4));
+    }
+
+    /// <summary>
+    /// 把"搬家"的完整三步走一遍：问 → 擦 → 放。
+    /// 这是 InventoryView.EndDrag 里真实发生的流程，
+    /// 只是这里没有鼠标和 UI。
+    /// </summary>
+    [Test]
+    public void MoveItem_ByOneCell_KeepsExactlyOneCopyInGrid()
+    {
+        InventoryItem handgun = CreateItem(2, 2);
+        grid.Place(handgun, 0, 0);
+
+        Assert.IsTrue(grid.CanPlace(handgun, 1, 0, ignoreItem: true));
+        grid.Remove(handgun);
+        Assert.IsTrue(grid.Place(handgun, 1, 0));
+
+        // 新位置四格都是它
+        Assert.AreSame(handgun, grid.GetItemAt(1, 0));
+        Assert.AreSame(handgun, grid.GetItemAt(2, 1));
+        // 旧位置不能留幽灵
+        Assert.IsNull(grid.GetItemAt(0, 0));
+        Assert.IsNull(grid.GetItemAt(0, 1));
     }
 }
