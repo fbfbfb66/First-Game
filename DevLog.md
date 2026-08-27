@@ -5,6 +5,186 @@
 
 ---
 
+## 2026-08-27 — 堆叠、数量显示、背包开关
+
+### 背景
+
+拾取已经能把草药送进背包，但同种物品各占一格；背包 UI 也一直常驻在屏幕上。
+这次做三件事：数据层堆叠、屏幕上显示数量、按键开关背包。
+
+### 做了什么
+
+**堆叠（数据层）**
+
+- `InventoryItem.CanStackWith(ItemData)` / `Add(int) -> 剩余量`
+- `InventoryGrid.FindStackable(ItemData)`
+- `PlayerInventory.TryAdd` 改为「先堆叠、后开新格」，两条路的剩余量都用**递归**交给下一轮
+
+**数量显示**
+
+- `ItemView.SetAmount`，预制体加右下角 `TMP_Text`
+- 新增 `ItemAmountUpdated` 事件，`InventoryView.UpdateItemAmount` 从字典反查显示对象
+
+**背包开关**
+
+- 新增 `InventoryScreen`：监听 `GameLayerStack.CurrentLayerChanged`，切换 `Canvas_Inventory`
+- `InventoryView.OnEnable` 先 `Rebuild()` 全量同步再订阅；`ShowItem` 改为幂等
+- `PlayerInventory` 的 grid 改为惰性创建
+
+**测试**：新增 `PlayerInventoryTests`（9 条），`InventoryGridTests` 继续全绿。
+
+### 关键决策与理由
+
+| 决策 | 理由 |
+| --- | --- |
+| `Add` 返回剩余量而不是 void | 默默夹到 MaxStack = 物品凭空消失。方法不能吞掉自己处理不了的部分 |
+| `CanStackWith` 写在 `InventoryItem` 上 | 条件用到的 `Data`、`Amount` 都是它自己的数据。规则放在拥有数据的类里 |
+| 溢出用递归，不写第二套逻辑 | 两条路的形状相同：尽力吃下一部分 → 算出还剩多少 → 交给下一轮 |
+| `Math.Min` 只放在「开新格」分支 | 堆叠路上 `Add` 自己会算溢出，外面先夹一刀会导致溢出算两遍、丢失一部分 |
+| 拆成 `ItemPlaced` / `ItemAmountUpdated` 两个事件 | 堆叠不产生新物品。沿用前者会让屏幕上多出一个数据层不存在的物品 |
+| `InventoryScreen` 独立成脚本 | 「界面该不该出现」由游戏层驱动，「界面画什么」由背包数据驱动，两个不相干的系统 |
+| grid 改惰性创建，不用 `Awake` | 见下 |
+
+### 学到的东西
+
+**1. 开关逻辑早就写好了，缺的是「有人听见」**
+
+`InputRouter` 一直在 `PushLayer(Inventory)` / `PopLayer`，`CurrentLayerChanged` 一直在广播，
+只是没人订阅去显示 Canvas。需求听起来是「做一个开关」，实际动的只有表现层。
+
+**2. Unity 不保证跨对象的 Awake / OnEnable 顺序**
+
+只保证：同一对象的 `Awake` 早于它自己的 `OnEnable`；所有 `Awake`/`OnEnable` 早于任何 `Start`。
+`InventoryView.OnEnable` 跑在 `PlayerInventory.Awake` 之前，`grid` 还是 null，当场 NRE。
+
+两种解法：Script Execution Order（隐形依赖，藏在项目设置里，不推荐）；
+或者让被依赖方**自己保证随时就绪** —— 惰性创建，谁先访问谁负责建。
+
+意外收获：不依赖生命周期的类，在 EditMode 测试里可以直接 `AddComponent` 使用。
+**可测试性往往是「不依赖隐式顺序」的副产品，不是额外成本。**
+
+**3. 纯增量同步的 UI 一定会错位**
+
+背包关闭期间 `OnDisable` 退订，那段时间的 `ItemPlaced` 无人接收；重新打开时事件早已过去。
+事件是广播，不是留言。UI 的标准形状：
+
+```
+OnEnable  → 订阅 + 全量同步一次
+运行期间  → 事件增量更新
+OnDisable → 退订 + 清理自己的临时状态
+```
+
+存档读取、切换容器、UI 比数据后创建，都是同一个形状的问题。
+
+**4. 用测试逼出 bug，比 Play 里试快得多**
+
+`TryAdd(herb, 5)` 而 `MaxStack = 3` —— 第一行 `new InventoryItem(data, 5)` 直接抛异常，
+连堆叠分支都进不去。这个 bug 在游戏里要等到「地上掉落一堆物品」才会出现，
+但一条 `Assert.DoesNotThrow` 立刻就把它按住了。
+
+先写好会红的测试，再改到它变绿：失败信息会直接告诉你期望多少、实际多少，
+比反复 Play 精确得多。
+
+### 遗留问题
+
+按严重程度排列。第 1 条是唯一会造成**数据错误**的，其余都是「暂时看不出来」。
+
+**1. `TryAdd` 返回 `bool` 不够用 —— 会导致物品被复制（下一步就修）**
+
+`bool` 只能表达「全成功 / 全失败」，而真实结果有三种，第三种正在裸奔：
+
+| 真实结果 | 现在返回 | 后果 |
+| --- | --- | --- |
+| 全部放进去了 | true | 正常 |
+| 一个都没放进去（背包满） | false | 正常 |
+| **只放进去一部分** | **false** | 数据层已收下一部分，`WorldItem` 见 false 不销毁自己 → 玩家白得 |
+
+现在撞不上，只是因为 `WorldItem` 每次固定给 1 个。一旦做「地上掉落一堆子弹」立刻暴露。
+
+**2. `Rebuild` 只补不删**
+
+`Rebuild` 遍历的是「数据里还有的」，对「数据里没了、屏幕上还在的 `ItemView`」一无所知。
+等做丢弃 / 使用道具（物品会离开背包）时必须补上删除路径，
+同时要 `itemViews.Remove` **并且** `Destroy(view.gameObject)` —— 只做前者会留下删不掉的显示对象。
+
+**3. `InventoryItem.Rotate()` 在物品已入网格后调用会造成数据不一致**
+
+尺寸（`CurrentWidth/Height`）变了，但网格里占的格子没变。做旋转交互前必须先解决。
+
+**4. 搬家（`TryMove`）成功后不触发任何事件**
+
+`ItemPlaced` 只在放入时喊。将来做存档 / 联机 / 撤销，需要一个统一的「数据变更」通知时要补。
+
+**5. 小的**
+
+- `InventoryItem.Add` 里留了一句 `Debug.Log`，纯数据类不该打日志，顺手删
+- `InteractionContext.IneractorTransform` 拼写错误（少个 `t`），一直没改
+- 拾取失败（背包满）只有一行 Log，没有给玩家的反馈
+- `ScreenPointToLocalPointInRectangle` 在 `InventoryView` 里仍有三处重复
+
+### 明天从哪继续
+
+**目标：让「地上掉落一堆物品」这个场景完全正确。**
+
+也就是把遗留问题 1 修掉。做完之后，玩家捡一堆 5 株草药、背包只塞得下 3 株时，
+地上应该正确地剩下 2 株，而不是原封不动或者凭空消失。
+
+按这个顺序做，每步都能单独验证：
+
+**第 1 步：改 `PlayerInventory.TryAdd` 的签名**
+
+```csharp
+public int TryAdd(ItemData data, int amount = 1)   // 返回【没能放进去的剩余量】
+```
+
+- 全部放下 → 返回 0
+- 一个都放不下 → 返回 `amount`
+- 放下一部分 → 返回差额
+
+内部本来就在精确计算剩余量（那两个递归分支），只是最后丢掉了。递归改成把子调用的
+返回值直接传出去即可。和 `InventoryItem.Add` 的约定保持一致：**返回「你没吃下的」。**
+
+**第 2 步：改测试**
+
+`PlayerInventoryTests` 里所有 `Assert.IsTrue(inventory.TryAdd(...))` 要改成
+`Assert.AreEqual(0, ...)`，`IsFalse` 改成断言剩余量。
+**先改测试再改实现**，让它们红着，改到变绿。
+
+顺便补一条新的、现在还不存在的用例：
+
+```
+2×2 背包放满 3 格、MaxStack 3、最后一格空
+TryAdd(herb, 5) → 应返回 2（放进去 3，剩 2）
+```
+
+**第 3 步：`WorldItem` 支持「我是一堆几个」**
+
+加一个 `[SerializeField] private int amount = 1;`，`Interact` 改成：
+
+```
+int remaining = inventory.TryAdd(itemData, amount);
+remaining == 0        → Destroy(gameObject)
+remaining == amount   → 提示「背包满了」，什么都不做
+其余                   → amount = remaining，不销毁（地上那堆变少了）
+```
+
+第三种情况是这次改动的全部意义所在。
+
+**第 4 步：场景里验证**
+
+摆一株 `amount = 5` 的草药，`GreenHerb.MaxStack = 3`，背包故意留 1 格空位。
+按 F 之后：背包多出 3 株，地上那株还在，它的 `amount` 应该变成 2，再按一次 F 捡不动
+（背包满了）。
+
+**如果还有时间**：清掉遗留问题 5 里那几个小的（`Debug.Log`、拼写），都是几分钟的事。
+
+---
+
+一句话记住今天的主线：**一个方法不能吞掉自己处理不了的部分。**
+`InventoryItem.Add` 已经做对了（返回剩余量），`TryAdd` 还没有 —— 明天补上这一课的下半段。
+
+---
+
 ## 2026-08-27 — 打通第一条纵向链：世界里的草药 → 按 F → 进背包
 
 ### 背景

@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-08-26。
+最后更新时间：2026-08-27。
 
 ## 1. 项目概览
 
@@ -130,6 +130,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - `ItemLayer` 挂 `LayoutElement`（勾选 `Ignore Layout`），否则会被 `GridLayoutGroup` 当成第 33 个格子摆走。
 - `ItemLayer` 锚点为 stretch/stretch、pivot 为 (0, 1)，并挂一个 `Alpha = 0` 且开启 `Raycast Target` 的 `Image` 作为隐形鼠标热区。**pivot 一旦被改动，`TryGetCellAt` 的换算结果会整体偏移。**
 - 物品显示对象不是 Slot 的子物体——多格物品无法塞进单个 Slot，只能由 `ItemLayer` 统一按坐标摆放。
+- `Canvas_Inventory` 默认**未启用**，由 `InventoryScreen` 根据 `GameLayerType.Inventory` 开关。
 - `PlacementPreview` 是一张半透明 `Image`，anchor/pivot 同为 (0, 1)，**关闭 `Raycast Target`**（否则会挡住 `ItemLayer` 的鼠标射线，拖动直接失灵），默认 `SetActive(false)`。它必须是 `ItemLayer` 的子物体：预览框要吸附到格子，就得和格子共用同一套坐标系，且背包滚动时会跟着内容一起走。拖拽开始时 `SetAsLastSibling()` 把它排到所有 `ItemView` **之后**——同一 Canvas 下渲染顺序即 Hierarchy 顺序，排在后面才画在上面。若排在前面（`SetAsFirstSibling`），红色预览恰好会被"挡路的那件物品"的底板完全盖住，而那正是它唯一需要被看见的时刻。
 - `DragLayer` 是 `Canvas_Inventory` 的**直接子物体且排在最后**，因此位于 `Viewport` 上 `Mask` 的作用范围之外，拖出背包的物品不会被裁掉；排最后保证它画在其余 UI 之上。锚点 stretch/stretch、offset 全 0、**pivot 同样为 (0, 1)**（必须与 `ItemLayer` 一致，否则拖拽定位会整体偏移）。**刻意不挂 `Image`**——挂了会变成覆盖全屏的射线目标，吞掉所有 UI 鼠标事件；也不挂 `Mask`。
 
@@ -231,8 +232,11 @@ Canvas_Inventory (Screen Space - Overlay)
   - `dragItem` / `dragItemOriginalPosition` / `grabOffset`：拖拽中的物品、它在 `itemLayer` 下的原始 `anchoredPosition`、按下瞬间「鼠标 → 物品」的偏移。
   - `allowToHeighlight`：拖拽期间抑制悬停高亮。
 - 函数：
-  - `OnEnable()` / `OnDisable()`：订阅、取消订阅 `PlayerInventory.ItemPlaced`。
-  - `ShowItem(InventoryItem, int x, int y)`：事件回调。实例化 `ItemView` 并登记进 `itemViews`，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
+  - `OnEnable()`：**先 `Rebuild()` 全量同步，再订阅** `ItemPlaced` / `ItemAmountUpdated`。背包关闭期间本组件随 Canvas 一起被禁用，`OnDisable` 已退订，那段时间捡到的物品事件**没有任何人听见**——事件是广播不是留言，错过一次，UI 与数据就永久错位。所以 UI 的标准形状是「打开时全量同步一次 + 打开期间靠事件增量更新」。
+  - `OnDisable()`：退订，并清理拖拽状态——把拖拽中的 `ItemView` `SetParent` 回 `itemLayer`（否则它会一直留在 `DragLayer` 下，坐标系不对且不随背包滚动）、恢复其底板、隐藏预览框（否则下次打开会看到僵在原地的绿框），最后清空 `dragItem` 与 `allowToHeighlight`。取 `itemViews` 前必须先判 `dragItem != null`：**`Dictionary.TryGetValue` 对 null 键会抛 `ArgumentNullException`**，而「没在拖东西时关闭背包」恰恰是最常见的路径。
+  - `Rebuild()`：遍历 `inventory.GetPlacedItems()` 逐个 `ShowItem`。`ShowItem` 已做成幂等（同一 `InventoryItem` 复用已有的 `ItemView`），因此重复调用不会产生重复对象。**目前只补不删**：数据层已移除、屏幕上仍在的 `ItemView` 不会被清理——尚无「物品离开背包」的功能，做丢弃/使用时必须补上。
+  - `UpdateItemAmount(InventoryItem)`：`ItemAmountUpdated` 的回调，从 `itemViews` 反查显示对象并刷新数字。
+  - `ShowItem(InventoryItem, int x, int y)`：`ItemPlaced` 的回调，同时被 `Rebuild` 复用。**幂等**：`itemViews` 中已有该物品则复用其 `ItemView`，否则实例化并登记，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
   - `TryGetCellAt(Vector2 screenPosition, out int x, out int y)`：`ShowItem` 的反函数。经 `RectTransformUtility.ScreenPointToLocalPointInRectangle` 把屏幕坐标转为 `itemLayer` 局部坐标（Canvas 为 Screen Space - Overlay，摄像机参数传 `null`），再除以步长并 `FloorToInt` 得到格子坐标，最后用 `inventory.IsInside` 校验。用 `FloorToInt` 而非 `CeilToInt`：格子 n 覆盖 `[n, n+1)` 区间，且出界时结果为负数便于识别。
   - `UpdateHover(Vector2 screenPosition)` / `ClearHover()`：由 `InventoryPointerHandler` 调用。仅在悬停物品发生变化时切换 `ItemView` 的高亮。
   - `BeginDrag(Vector2 screenPosition)`：以 `eventData.pressPosition` 为输入。查出按下格子里的物品，记下原位置，**先** `SetParent(dragLayer, true)` **再**计算 `grabOffset`（两者必须在同一坐标系内），并抑制高亮。最后调 `ShowPlacementPreview`，其格子**必须由 `dragItemOriginalPosition` 反算**，不能用 `TryGetCellAt` 得到的按下格——玩家抓多格物品的右下角时两者相差一整格，预览框会先摆错位置、再滑向正确格子，表现为"刚开始拖动时框会飘一下"。
@@ -252,14 +256,24 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：单个物品在屏幕上的表现。预制体为多层结构——底板 `Image` 表达「这块区域被占用」，`Icon` 表达「这是什么」，另有一个专用于缩放的 `highlightTransform` 层。
 - 关键字段：
   - `icon`：物品图标的 `Image`。勾选 `Preserve Aspect`，使图标宽高比与格子宽高比不一致时不被拉伸。
+  - `amountLabel`：堆叠数量文字（`TMP_Text`，UI 版 `TextMeshProUGUI`），锚定在格子右下角，同样关闭 `Raycast Target`。
   - `background`：底板 `Image`。拖拽期间置为 `Color.clear`，让原位置视觉上「空出来」。
   - `highlightTransform`：**专门用于缩放的中间层**。缩放绕自身 pivot 进行，而根物体的 pivot 必须留在 (0, 1) 以服务 `anchoredPosition` 的定位公式；把缩放交给一个居中 pivot 的子物体，可让两个需求互不干扰（根物体负责「在哪一格」，子物体负责「什么表现」）。
   - `highlightScale`：高亮时的缩放倍数，默认 1.1。
 - 函数：
+  - `SetAmount(int amount)`：刷新右下角的数量文字。
   - `SetIcon(InventoryItem item, bool value = true)`：设置图标 sprite；`item`、其 `Data` 为空或 `value` 为 false 时禁用 `icon`，避免留下白色方块。
   - `SetBackgroundTransparent(bool)`：切换底板透明。
   - `SetHighlighted(bool)`：缩放 `highlightTransform`；高亮时调用 `SetAsLastSibling()` 让放大后的物品画在邻居之上。
 - 关联：预制体位于 `Assets/_Game/Prefabs/`，由 `InventoryView.ShowItem` 实例化。底板与 `Icon` 的 `Raycast Target` 均关闭，以免遮挡 `ItemLayer` 的鼠标射线——物品「是谁」一律由 `grid.GetItemAt()` 回答，不靠显示对象自报。
+
+#### `Assets/_Game/Scripts/Runtime/UI/InventoryScreen.cs`
+
+- 脚本职责：根据当前游戏层决定背包界面是否出现在屏幕上。
+- 存在原因：开关逻辑本身早已存在——`InputRouter.OnOpenInventoryPressed` 会 `PushLayer` / `PopLayer`，`OnUICancelPressed` 也能关闭，`GameLayerStack.CurrentLayerChanged` 一直在广播。缺的只是「有人听见这一声去显示 Canvas」。此事由游戏层状态驱动，而 `InventoryView` 由背包数据驱动，两者不该由同一个类负责。
+- 关键字段：`layerStack`（为空时 `Awake` 用 `FindAnyObjectByType` 兜底）、`root`（背包 Canvas）。
+- 函数：`CurrentLayerChanged(previous, current)` → `root.SetActive(current == GameLayerType.Inventory)`。
+- 关联：**不能挂在 `Canvas_Inventory` 自己身上**——它被关闭后 `OnEnable` 不再执行，也就永远收不到「该打开了」的通知。负责开关某个对象的脚本必须待在那个对象之外的常驻物体上。
 
 #### `Assets/_Game/Scripts/Runtime/UI/InventoryPointerHandler.cs`
 
@@ -304,7 +318,9 @@ Canvas_Inventory (Screen Space - Overlay)
   - `IsRotated`：当前是否旋转。
   - `CurrentWidth`、`CurrentHeight`：根据旋转状态计算后的实际占格尺寸。
 - 函数：
-  - `InventoryItem(ItemData data, int amount)`：校验 `data` 非空，并确保数量在 1 到 `data.MaxStack` 之间。
+  - `InventoryItem(ItemData data, int amount)`：校验 `data` 非空，并确保数量在 1 到 `data.MaxStack` 之间。**超过 `MaxStack` 会抛异常**——调用方有责任先把数量拆开，因为「一格装不下这么多」是调用方能预见的情况，不是构造函数该默默夹断的。
+  - `CanStackWith(ItemData data)`：同一个 `ItemData` 引用且 `Amount < MaxStack` 才能堆叠。判断写在这里而不是调用方，因为条件用到的 `Data` 和 `Amount` 都是它自己的数据；以后加规则（如损坏度不同不能堆）只需改这一处。
+  - `Add(int amount)`：增加数量，**返回没能吃下的剩余量**（未溢出则为 0）。刻意不是 `void`——若把超出 `MaxStack` 的部分默默夹掉，物品就凭空消失了；返回剩余量，调用方才有机会另开一格安置。
   - `Rotate()`：如果物品允许旋转，则切换 `IsRotated`。
 - 关联：依赖 `ItemData` 的尺寸、堆叠和旋转配置；后续会由 `InventoryGrid` 或背包容器持有。
 
@@ -323,6 +339,8 @@ Canvas_Inventory (Screen Space - Overlay)
   - `Place(InventoryItem item, int x, int y, bool ignoreItem = false)`：先调 `CanPlace`，通过后把 `item` 写入覆盖到的每一格并返回 `true`；否则返回 `false` 且**不修改任何格子**（不留半填状态）。判断逻辑只存在于 `CanPlace` 一处，避免「预判」与「实际」两套规则分叉。物品尺寸取 `CurrentWidth` / `CurrentHeight`，因此自动支持旋转。
   - `Remove(InventoryItem item)`：**扫描整张表**，把所有等于该引用的格子置 `null`，返回是否至少清掉一格。刻意不用 `Remove(int x, int y)`——调用方手里通常只有「玩家点了哪一格」，那不一定是物品左上角，而网格并未记录任何物品的左上角坐标；按错误的原点往右下擦，会同时留下自己的残格并抹掉邻居的格子。用引用比较还顺带钉住一条规则：两株外观相同的草药是两件独立物品，移除一件不会波及另一件。
   - `TryFindFreeCell(InventoryItem item, out int x, out int y)`：从左上角起**逐行**（`y` 外层、`x` 内层）扫描，返回第一个放得下该物品的位置。行优先是为了匹配玩家预期——连续拾取时物品一行行往下铺，而不是一列列往右铺。内部直接调用 `CanPlace`，不自己重写判断，规则只保留一份。
+  - `FindStackable(ItemData data)`：行优先扫描，返回第一个 `CanStackWith(data)` 为 true 的物品，没有则返回 `null`。
+  - `GetPlacedItems()`：返回 `IEnumerable<(InventoryItem item, int x, int y)>`，供 UI 全量重建使用。返回 `IEnumerable` 而非 `List`，是只给调用方「遍历」这一项能力。**用 `HashSet` 去重**——多格物品在 `cells` 里出现多次；按行优先扫描，**第一次遇到它的那一格必然是它的左上角**（占用区域是矩形），因此无需额外记录原点坐标。
   - `GetItemAt(int x, int y)`：返回该格的物品；**越界返回 `null` 而不抛异常**，因为将来会由鼠标位置驱动调用，划出背包范围属于正常情况。
 - 关联：被 `PlayerInventory` 持有。尚未实现堆叠合并、旋转与网格的联动。
 
@@ -331,15 +349,15 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：把 `InventoryGrid` 接入游戏运行时。玩家身上的背包组件。
 - 关键字段：
   - `width`、`height`：网格尺寸，`[SerializeField]` 暴露给 Inspector，当前为 4 × 8（与 `GameScene` 中已有的 32 个 Slot 对应）。
-  - `debugItem`：调试用 `ItemData` 引用，拾取接通后已无调用者，属于待清理的死字段。
-  - `grid`：运行时创建的 `InventoryGrid` 实例，不对外暴露。
+  - `grid` / `Grid`：运行时的 `InventoryGrid` 实例，不对外暴露。**由 `Grid` 属性惰性创建（`grid ??= new InventoryGrid(...)`），不在 `Awake()` 里建**——Unity 只保证「同一对象的 `Awake` 早于它自己的 `OnEnable`」以及「所有 `Awake`/`OnEnable` 早于任何 `Start`」，跨对象的先后由场景加载次序决定，`InventoryView.OnEnable` 完全可能先跑并立刻索要数据。惰性创建让「谁先访问谁负责建」，不依赖任何执行顺序；副作用是这个 MonoBehaviour 在 EditMode 测试里也能直接用（生命周期回调不跑也没关系）。`??=` 在此安全，是因为 `InventoryGrid` 是纯 C# 类，不存在 Unity 的假 null。
 - 事件：
-  - `ItemPlaced`（`Action<InventoryItem, int, int>`）：物品成功放入网格后触发。为 UI 层提供的唯一通知入口。属于 View ↔ Model 的局部同步，因此使用 C# `event Action` 而非 `GameEventBus`；后者用于「玩家获得物品」这类真正跨系统的事件。
+  - `ItemPlaced`（`Action<InventoryItem, int, int>`）：物品**占用了新格子**后触发，UI 据此新建一个 `ItemView`。
+  - `ItemAmountUpdated`（`Action<InventoryItem>`）：已有物品的**数量**发生变化后触发，UI 据此只更新数字。两个事件必须分开：堆叠不产生新物品、不占新格子，若沿用 `ItemPlaced`，屏幕上会多出一个数据层不存在的物品。均属 View ↔ Model 的局部同步，因此使用 C# `event Action` 而非 `GameEventBus`；后者用于「玩家获得物品」这类真正跨系统的事件。
 - 函数：
-  - `Awake()`：只创建 `InventoryGrid`。
-  - `TryAdd(ItemData data, int amount = 1)`：外部把物品放进背包的唯一入口。创建 `InventoryItem` → `TryFindFreeCell` → `Place` → 触发 `ItemPlaced`，返回是否成功（false 表示背包已满）。**UI 无需任何改动即可显示新物品**——`InventoryView` 早已订阅 `ItemPlaced`。尚未实现堆叠：同种物品目前各占一格。
+  - `TryAdd(ItemData data, int amount = 1)`：外部把物品放进背包的唯一入口。流程为**先堆叠、后开新格**：`FindStackable` 找到未满的同类堆 → `Add` → 触发 `ItemAmountUpdated`；否则本格装 `Math.Min(amount, MaxStack)` 个，`TryFindFreeCell` → `Place` → 触发 `ItemPlaced`。两条路都可能剩下一部分装不下，**统一用递归把剩余量交给下一轮**，因此「一次捡起一堆超过 MaxStack 的物品」会自动拆成多格。`Math.Min` 的夹断只属于开新格这条路：堆叠路上 `Add` 自己会算溢出，在外面先夹一刀会导致溢出被算两遍、丢失一部分。找不到空位时返回 false 且**一个都没放进去**（此时不存在「剩余」的概念）。**UI 无需任何改动即可显示新物品**——`InventoryView` 早已订阅这两个事件。
+  - 已知不足：返回 `bool` 无法表达「只放进去了一部分」。玩家捡起 2 株而背包只塞得下 1 株时，数据层已收下 1 株却返回 false，调用方（`WorldItem`）会因此不销毁世界物体，导致物品被复制。诚实的签名应与 `InventoryItem.Add` 一致，返回未能放入的剩余量。
   - `TryMove(InventoryItem item, int x, int y)`：把已在网格中的物品移到 `(x, y)`，返回是否成功。内部顺序为 `CanPlace(..., ignoreItem: true)` → `grid.Remove()` → `grid.Place()`。**校验必须写在这里而不是调用方**：`Remove` 一旦执行，物品就必须有地方落，否则它会从数据层彻底消失，而屏幕上的 `ItemView` 和 `itemViews` 字典仍在，玩家会看到一个抓得到、却已不存在于网格中的「鬼影」。把这条底线交给某个 UI 类去守，等于让其他调用方（拾取、容器转移）随时能绕过它。
-  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryAdd` / `TryMove` 直接改数据而跳过校验与事件通知。
+  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)` / `GetPlacedItems()`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryAdd` / `TryMove` 直接改数据而跳过校验与事件通知。
 - 关联：挂在 `GameScene` 的 `Player` 对象上。原先 `Start()` 里的调试放置与 `PrintGrid()` 已随拾取流程接通而移除。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/FirstGame.Inventory.asmdef`

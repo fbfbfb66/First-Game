@@ -34,7 +34,9 @@ public class InventoryView : MonoBehaviour
             Debug.LogError("Inventory is not assigned in InventoryView.");
             return;
         }
+        Rebuild();
         inventory.ItemPlaced += ShowItem;
+        inventory.ItemAmountUpdated += UpdateItemAmount;
     }
 
     private void OnDisable()
@@ -42,6 +44,35 @@ public class InventoryView : MonoBehaviour
         if (inventory == null)
             return;
         inventory.ItemPlaced -= ShowItem;
+        inventory.ItemAmountUpdated -= UpdateItemAmount;
+        
+        // dragItem 为 null 时不能进 TryGetValue —— Dictionary 对 null 键抛
+        // ArgumentNullException，而「没在拖东西时关闭背包」是最常见的路径。
+        if (dragItem != null && itemViews.TryGetValue(dragItem, out var itemView))
+        {
+            RectTransform rect = (RectTransform)itemView.transform;
+            rect.SetParent(itemLayer, true);
+            itemView.SetBackgroundTransparent(false);
+        }
+        HidePlacementPreview();
+        dragItem = null;
+        allowToHeighlight = true;
+    }
+
+    private void Rebuild()
+    {
+        foreach (var (item, x, y) in inventory.GetPlacedItems())
+        {
+            ShowItem(item, x, y);
+        }
+    }
+
+    public void UpdateItemAmount(InventoryItem item)
+    {
+        if (itemViews.TryGetValue(item, out ItemView view))
+        {
+            view.SetAmount(item.Amount);
+        }
     }
 
     public void BeginDrag(Vector2 screenPosition)
@@ -149,11 +180,18 @@ public class InventoryView : MonoBehaviour
     {
         if (item == null || itemLayer == null || itemViewPrefab == null) return;
 
-        ItemView view = Instantiate(itemViewPrefab, itemLayer);
+        if(!itemViews.TryGetValue(item, out ItemView view))
+            view = Instantiate(itemViewPrefab, itemLayer);
         RectTransform rect = (RectTransform)view.transform;
 
         view.SetIcon(item);
-        itemViews.Add(item, view);
+        view.SetAmount(item.Amount);
+        
+        if(!itemViews.ContainsKey(item))
+        {
+            itemViews.Add(item, view);
+        }
+
         rect.anchoredPosition = GetAnchorPositionForCell(x, y);
         rect.sizeDelta = GetRectSizeDelta(item);
     }

@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,6 +8,12 @@ public class ItemView : MonoBehaviour
     [SerializeField] private Image background;
     [SerializeField] private Transform highlightTransform;
     [SerializeField] private float highlightScale = 1.1f;
+    [SerializeField] private TMP_Text amountLabel;
+    
+    public void SetAmount(int amount)
+    {
+        amountLabel.text = amount.ToString();
+    }
 
     public void SetBackgroundTransparent(bool value) => background.color = value ? Color.clear : Color.white;
 

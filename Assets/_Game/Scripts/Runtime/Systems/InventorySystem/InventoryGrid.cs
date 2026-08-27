@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 public class InventoryGrid
 {
     private readonly InventoryItem[,] cells;
@@ -17,13 +18,46 @@ public class InventoryGrid
         cells = new InventoryItem[width, height];
     }
 
+    public InventoryItem FindStackable(ItemData data)
+    {
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                InventoryItem item = cells[x, y];
+                if (item != null && item.CanStackWith(data))
+                {
+                    return item;
+                }
+            }
+        }
+        return null;
+    }
+
+    public IEnumerable<(InventoryItem item, int x, int y)> GetPlacedItems()
+    {
+        HashSet<InventoryItem> seenItems = new HashSet<InventoryItem>();
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                InventoryItem item = cells[x, y];
+                if (item != null && !seenItems.Contains(item))
+                {
+                    seenItems.Add(item);
+                    yield return (item, x, y);
+                }
+            }
+        }
+    }
+
     public bool TryFindFreeCell(InventoryItem item, out int x, out int y)
     {
         x = -1;
         y = -1;
-        for(int j = 0; j < Height; j++)
+        for (int j = 0; j < Height; j++)
         {
-            for(int i = 0; i < Width; i++)
+            for (int i = 0; i < Width; i++)
             {
                 if (CanPlace(item, i, j))
                 {
@@ -66,7 +100,7 @@ public class InventoryGrid
 
     public bool Place(InventoryItem item, int x, int y, bool ignoreItem = false)
     {
-        if(CanPlace(item, x, y, ignoreItem) == false) return false;
+        if (CanPlace(item, x, y, ignoreItem) == false) return false;
 
         for (int i = 0; i < item.CurrentWidth; i++)
         {

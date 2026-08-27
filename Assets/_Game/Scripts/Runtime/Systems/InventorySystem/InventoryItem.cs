@@ -1,4 +1,6 @@
 using System;
+using UnityEngine;
+
 public class InventoryItem 
 {
     public ItemData Data { get; private set; }
@@ -16,6 +18,28 @@ public class InventoryItem
         
         Data = data;
         Amount = amount;
+    }
+
+    public bool CanStackWith(ItemData data)
+    {
+        if(data != Data) return false;
+        if(Amount >= Data.MaxStack) return false;
+        return true;
+    }
+
+    public int Add(int amount)
+    {
+        if(amount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Amount must be greater than 0");
+        Amount += amount;
+        Debug.Log($"Added {amount} to {Data.name}, new amount: {Amount}");
+        if (Amount > Data.MaxStack)
+        {
+            int overflow = Amount - Data.MaxStack;
+            Amount = Data.MaxStack;
+            return overflow;
+        }
+        return 0;
     }
 
     public void Rotate()
