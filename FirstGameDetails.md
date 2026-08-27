@@ -15,7 +15,8 @@
   - 游戏层管理：`GameLayerStack` + `GameLayerRuleDatabase` + `GameLayerRule` + `GameLayerType`。
   - 输入读取与路由：`GameInputReader` + `InputRouter`。
   - 玩家输入、移动与状态机：`PlayerInputReceiver` + `PlayerMovement` + `Player` + `StateMachine` + 玩家状态类。
-  - 世界交互：`IInteractable` + `InteractionContext` + `InteractionDetector`。
+  - 世界交互：`IInteractable` + `InteractionContext` + `InteractionDetector` + `InteractionPrompt`。
+  - 世界物品拾取：`WorldItem` → `PlayerInventory.TryAdd()` → `ItemPlaced` → `InventoryView`。
   - 对话系统：`DialogueManager` + `DialogueData` + `NPCDialogueProfile` + `ConditionalDialogueEntry` + `WorldDialogueView` + `WorldDialogueChoiceView`。
   - 事件总线：`GameEventBus` + `IGameEvent` + `GameSignalEvent` + `GameFlagChangedEvent` + `QuestStateChangedEvent`。
   - Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagData` + `GameCondition` + `FlagBoolCondition`。
@@ -321,26 +322,25 @@ Canvas_Inventory (Screen Space - Overlay)
   - `CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false)`：**纯查询，绝不修改网格**。校验 `item` 非空、区域在界内、区域为空。`ignoreItem` 为 true 时把 `item` 自己传给 `IsAreaEmpty` 当作「可忽略」——**移动已在网格中的物品时必须开启**，否则新旧区域一旦重叠，物品会被自己判定为障碍而永远挪不动一格（如 2×2 物品右移一格）。新物品入包则保持 false。
   - `Place(InventoryItem item, int x, int y, bool ignoreItem = false)`：先调 `CanPlace`，通过后把 `item` 写入覆盖到的每一格并返回 `true`；否则返回 `false` 且**不修改任何格子**（不留半填状态）。判断逻辑只存在于 `CanPlace` 一处，避免「预判」与「实际」两套规则分叉。物品尺寸取 `CurrentWidth` / `CurrentHeight`，因此自动支持旋转。
   - `Remove(InventoryItem item)`：**扫描整张表**，把所有等于该引用的格子置 `null`，返回是否至少清掉一格。刻意不用 `Remove(int x, int y)`——调用方手里通常只有「玩家点了哪一格」，那不一定是物品左上角，而网格并未记录任何物品的左上角坐标；按错误的原点往右下擦，会同时留下自己的残格并抹掉邻居的格子。用引用比较还顺带钉住一条规则：两株外观相同的草药是两件独立物品，移除一件不会波及另一件。
+  - `TryFindFreeCell(InventoryItem item, out int x, out int y)`：从左上角起**逐行**（`y` 外层、`x` 内层）扫描，返回第一个放得下该物品的位置。行优先是为了匹配玩家预期——连续拾取时物品一行行往下铺，而不是一列列往右铺。内部直接调用 `CanPlace`，不自己重写判断，规则只保留一份。
   - `GetItemAt(int x, int y)`：返回该格的物品；**越界返回 `null` 而不抛异常**，因为将来会由鼠标位置驱动调用，划出背包范围属于正常情况。
-- 关联：被 `PlayerInventory` 持有。尚未实现堆叠合并、旋转与网格的联动、查找空位。
+- 关联：被 `PlayerInventory` 持有。尚未实现堆叠合并、旋转与网格的联动。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/PlayerInventory.cs`
 
 - 脚本职责：把 `InventoryGrid` 接入游戏运行时。玩家身上的背包组件。
 - 关键字段：
   - `width`、`height`：网格尺寸，`[SerializeField]` 暴露给 Inspector，当前为 4 × 8（与 `GameScene` 中已有的 32 个 Slot 对应）。
-  - `debugItem`：调试用 `ItemData` 引用。
+  - `debugItem`：调试用 `ItemData` 引用，拾取接通后已无调用者，属于待清理的死字段。
   - `grid`：运行时创建的 `InventoryGrid` 实例，不对外暴露。
 - 事件：
   - `ItemPlaced`（`Action<InventoryItem, int, int>`）：物品成功放入网格后触发。为 UI 层提供的唯一通知入口。属于 View ↔ Model 的局部同步，因此使用 C# `event Action` 而非 `GameEventBus`；后者用于「玩家获得物品」这类真正跨系统的事件。
 - 函数：
   - `Awake()`：只创建 `InventoryGrid`。
-  - `Start()`：调用 `PlaceDebugItem` 放入调试物品并 `PrintGrid()`。**放置必须在 `Start()` 而非 `Awake()`**——Unity 保证所有 `OnEnable()` 执行完才开始执行任何 `Start()`，否则 `InventoryView` 可能尚未订阅 `ItemPlaced`，事件会白喊。
-  - `PlaceDebugItem(int x, int y)`：创建 `InventoryItem`，调用 `grid.Place()`；**仅在返回 true 时**才触发 `ItemPlaced`。保证屏幕上不会出现数据层中不存在的物品。
+  - `TryAdd(ItemData data, int amount = 1)`：外部把物品放进背包的唯一入口。创建 `InventoryItem` → `TryFindFreeCell` → `Place` → 触发 `ItemPlaced`，返回是否成功（false 表示背包已满）。**UI 无需任何改动即可显示新物品**——`InventoryView` 早已订阅 `ItemPlaced`。尚未实现堆叠：同种物品目前各占一格。
   - `TryMove(InventoryItem item, int x, int y)`：把已在网格中的物品移到 `(x, y)`，返回是否成功。内部顺序为 `CanPlace(..., ignoreItem: true)` → `grid.Remove()` → `grid.Place()`。**校验必须写在这里而不是调用方**：`Remove` 一旦执行，物品就必须有地方落，否则它会从数据层彻底消失，而屏幕上的 `ItemView` 和 `itemViews` 字典仍在，玩家会看到一个抓得到、却已不存在于网格中的「鬼影」。把这条底线交给某个 UI 类去守，等于让其他调用方（拾取、容器转移）随时能绕过它。
-  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryMove` / `PlaceDebugItem` 直接改数据而跳过校验与事件通知。
-  - `PrintGrid()`：临时调试工具，把网格逐行输出到 Console，空格显示 `.`，有物品显示其显示名首字。物品 `displayName` 为空时会抛 `IndexOutOfRangeException`。
-- 关联：挂在 `GameScene` 的 `Player` 对象上。`Start()` 里的放置与打印属于**临时调试代码**，接入拾取流程后应移除。
+  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryAdd` / `TryMove` 直接改数据而跳过校验与事件通知。
+- 关联：挂在 `GameScene` 的 `Player` 对象上。原先 `Start()` 里的调试放置与 `PrintGrid()` 已随拾取流程接通而移除。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/FirstGame.Inventory.asmdef`
 
@@ -769,9 +769,10 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：世界交互对象接口。
 - 成员：
-  - `InteractionTransform`：交互对象的位置。
+  - `InteractionTransform`：交互对象的位置。同时充当「从接口引用摸回 GameObject」的跳板，`InteractionDetector` 靠它拿到目标身上的 `InteractionPrompt`。
   - `CanInteract(InteractionContext context)`：判断当前上下文是否允许交互。
   - `Interact(InteractionContext context)`：执行交互。
+  - `GetInteractionPrompt(InteractionContext context)`：返回该对象的交互提示文案（`WorldItem` 返回按键提示，`NPCDialogueInteractable` 返回 `"Talk"`）。提示 UI 只问接口，因此新增宝箱、门等交互物时无需改动 UI。
 - 关联：`InteractionDetector` 只依赖该接口，不关心具体交互对象类型。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Interaction/InteractionContext.cs`
@@ -786,17 +787,43 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Interaction/InteractionDetector.cs`
 
-- 脚本职责：检测玩家范围内可交互对象，并选择最近目标交互。
+- 脚本职责：检测玩家范围内可交互对象，持续维护「当前目标」，并驱动其头顶提示。
 - 关键字段：
   - `interactor`：发起交互的对象，通常是玩家。
   - `interactions`：当前触发器范围内的交互接口列表。
+  - `current`：当前最近的可交互目标。**它是「谁会被交互」这个问题的唯一答案来源**——物品自己靠 `OnTriggerEnter2D` 判断要不要显示提示是错的，两个物品同时在范围内时会一起亮，而按键只会触发最近的那个。
+  - `currentPrompt`：当前目标身上的 `InteractionPrompt` 组件缓存。**必须缓存**：切换目标时要关闭上一个提示，而上一个目标很可能已经被销毁（刚被捡走的物品），回头访问它的 `InteractionTransform` 会抛 `MissingReferenceException`。
 - 函数：
   - `Awake()`：默认把自身对象作为 `interactor`。
-  - `TryInteract()`：创建上下文，查找最近可交互对象并调用 `Interact()`。
-  - `OnTriggerEnter2D(Collider2D collision)`：进入范围时收集 `IInteractable`。
-  - `OnTriggerExit2D(Collider2D collision)`：离开范围时移除 `IInteractable`。
-  - `FindClosetInteraction()`：按距离选择最近且 `CanInteract()` 为 true 的目标。
-- 关联：`PlayerGround` 在消费世界交互输入后调用它；`NPCDialogueInteractable` 是当前主要交互实现。
+  - `Update()`：先剔除列表中已销毁的引用，再求最近目标；目标变化时才刷新提示。
+  - `IsAlive(IInteractable)`：`interaction as UnityEngine.Object != null`。**Unity 给 `UnityEngine.Object` 重载的 `==`（「假 null」）按编译期类型分派，接口类型的引用不会走那个重载**，因此 `current == null` 挡不住已销毁的对象。先 `as` 回 `UnityEngine.Object` 才能恢复保护。同理，`?.` 与 `??` 是 C# 语法，同样绕过该重载，**对 Unity 对象不可用**。
+  - `RefreshPrompt(IInteractable)`：关闭缓存的旧提示，再从新目标的 `InteractionTransform` 上 `GetComponent<InteractionPrompt>()` 并显示 `GetInteractionPrompt()` 的返回值。`GetComponent` 只在目标切换时调用，不在每帧。
+  - `TryInteract()`：直接使用 `current`（用 `IsAlive` 挡住 null 与已销毁），创建上下文并调用 `Interact()`。
+  - `OnTriggerEnter2D(Collider2D collision)`：进入范围时收集 `IInteractable`。用的是 `collision.GetComponent`，因此**实现脚本必须与 `Collider2D` 挂在同一个 GameObject 上**，挂到父子物体上会静默失效。
+  - `OnTriggerExit2D(Collider2D collision)`：离开范围时移除 `IInteractable`。**不能依赖它清理被销毁的对象**：它跟随物理更新，而 `Update` 每帧都跑，中间至少隔一帧。
+  - `FindClosetInteraction()`：按距离选择最近的目标。
+- 关联：`PlayerGround` 在消费世界交互输入后调用它；实现方为 `NPCDialogueInteractable` 与 `WorldItem`。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Interaction/WorldItem.cs`
+
+- 脚本职责：世界中的一件物品实例。持有 `ItemData` 说明自己是什么，实现 `IInteractable` 响应拾取。
+- 存在原因：`ItemData` 是 ScriptableObject——它是「草药这种东西」的定义，全项目只有一份；而地上这株草药是场景中的**实例**，有位置、有碰撞体、会被捡走后销毁。把交互逻辑写进 `ItemData`，等于让物品定义知道自己被摆在世界的哪个角落，多个实例会互相打架。
+- 关键字段：
+  - `itemData`：这件物品是什么。
+  - `icon`：世界中显示用的 `SpriteRenderer`。
+- 函数：
+  - `OnValidate()`：编辑器中改动 `itemData` 后，自动同步 GameObject 名称与 `icon.sprite`，省去手工配置。
+  - `Interact(InteractionContext context)`：从 `context.Interactor` 上取 `PlayerInventory`，调 `TryAdd`，成功才 `Destroy(gameObject)`。**背包引用来自 context 而非 `[SerializeField]`**：写死引用不但要给每个物品实例手工拖一次，还锁死了「只有这一个玩家能捡」；交互的发起者本来就该由交互系统告知。
+- 关联：挂在 `GameScene` 的 `WorldItem_*` 对象上，需与 `Collider2D` 同处一个 GameObject。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Interaction/InteractionPrompt.cs`
+
+- 脚本职责：显示在交互对象头顶的提示文字。挂在对象本体（始终 active）上，内部开关一个子物体做显隐。
+- 关键字段：
+  - `text`：3D 版 `TextMeshPro`（`MeshRenderer`），**不是 World Space Canvas**。Canvas 的意义在于把整套 UI 布局系统搬进世界空间，为一个字付出 `Canvas` + `CanvasRenderer` + 重建开销并不划算；3D TMP 的字号直接是世界单位，`Scale` 保持 1，前后关系由 `MeshRenderer` 的 `Sorting Layer` / `Order in Layer` 控制。若日后需要背景板、按键图标或可点击元素，再换回 Canvas。
+- 函数：
+  - `ShowPrompt(string prompt)` / `HidePrompt()`：设置文本并显隐子物体。
+- 关联：由 `InteractionDetector.RefreshPrompt` 驱动。**挂在物品身上而非全场共用一个**：提示无需跟随代码（子物体天然跟着物体走），且不同高度的对象可各自调偏移；代价是「同时只有一个目标」必须由 `InteractionDetector` 主动维护。未挂此组件的交互对象（当前的 NPC）不会显示提示，也不会报错。
 
 ### Runtime/GamePlay/Dialogue
 

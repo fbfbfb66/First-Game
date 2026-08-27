@@ -17,6 +17,25 @@ public class InventoryGrid
         cells = new InventoryItem[width, height];
     }
 
+    public bool TryFindFreeCell(InventoryItem item, out int x, out int y)
+    {
+        x = -1;
+        y = -1;
+        for(int j = 0; j < Height; j++)
+        {
+            for(int i = 0; i < Width; i++)
+            {
+                if (CanPlace(item, i, j))
+                {
+                    x = i;
+                    y = j;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public bool IsInside(int x, int y)
     {
         if (x < 0 || x >= Width || y < 0 || y >= Height)
@@ -58,7 +77,7 @@ public class InventoryGrid
         }
         return true;
     }
-
+    //CanPlace 检查从（x,y）开始放置物品是否可行，考虑物品的宽度和高度，以及是否忽略当前物品
     public bool CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false)
     {
         if (item == null) return false;

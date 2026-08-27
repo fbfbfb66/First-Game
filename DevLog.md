@@ -5,6 +5,120 @@
 
 ---
 
+## 2026-08-27 — 打通第一条纵向链：世界里的草药 → 按 F → 进背包
+
+### 背景
+
+背包一直是个悬空系统：靠 `PlayerInventory.Start()` 里三个手写坐标的假物品撑着，
+玩家在游戏里根本碰不到它。这次把它和世界接上。
+
+交互系统本来就有（NPC 对话在用），草药只需要挂进去。
+
+### 做了什么
+
+- 新增 `WorldItem`（`MonoBehaviour, IInteractable`）：持有 `ItemData`，`Interact` 时从
+  `context.Interactor` 取 `PlayerInventory`，`TryAdd` 成功才 `Destroy(gameObject)`。
+- 新增 `InteractionPrompt`：物品头顶的 3D TextMeshPro 提示。
+- `InteractionDetector` 改为在 `Update` 里持续维护 `current`，目标变化时切换提示。
+- `InventoryGrid.TryFindFreeCell`：逐行扫描找第一个放得下的位置。
+- `PlayerInventory.TryAdd(ItemData, amount)`：造物品 → 找空位 → 放置 → 触发 `ItemPlaced`。
+- 删掉 `Start()` 里的调试放置与 `PrintGrid`。
+- 新增 `Item` 层与 Sorting Layer。
+
+**UI 一行没改** —— `InventoryView` 早就订阅了 `ItemPlaced`，数据层喊一声，草药自动出现在屏幕上。
+事件的成本花在写的时候，收益就在这种时候兑现。
+
+### 关键决策与理由
+
+| 决策 | 理由 |
+| --- | --- |
+| 新建 `WorldItem` 而不是把逻辑写进 `ItemData` | `ItemData` 是 SO，是「草药这种东西」的定义，全项目一份；地上这株是实例，有位置、会被销毁。混在一起，多个实例会互相打架 |
+| 背包引用从 `context.Interactor` 取，不用 `[SerializeField]` | 写死要给每个实例手工拖一次，还锁死「只有这一个玩家能捡」。交互发起者本来就该由交互系统告知 |
+| `TryFindFreeCell` 行优先（`y` 外层） | 连续拾取时物品一行行往下铺，符合玩家预期；列优先会一列列往右长 |
+| 提示挂在每个物品身上，不做全场共用一个 | 子物体天然跟着物体走，省掉每帧跟随代码；不同高度的对象能各自调偏移。代价是「同时只有一个目标」要由 Detector 维护 |
+| 提示用 3D TMP，不用 World Space Canvas | Canvas 的价值是整套 UI 布局系统，为一个字付这份开销不值；3D TMP 字号直接是世界单位，不需要 `Scale = 0.01` 这种阻抗匹配 |
+| `GetInteractionPrompt` 终于有了消费者 | 这个接口成员写下来之后一直零调用。提示 UI 只问接口，以后加宝箱、门，UI 一行都不用改 |
+
+### 踩的坑
+
+**Unity 的「假 null」对接口引用失效**
+
+草药被 `Destroy` 后，`MissingReferenceException`。
+
+Unity 给 `UnityEngine.Object` 重载了 `==`，让已销毁的对象与 null 比较返回 true。
+**但运算符重载按编译期类型分派** —— `IInteractable` 是自定义接口，编译器不会去用那个重载，
+于是 `current == null` 返回 false，代码大摇大摆往下走，访问成员时炸掉。
+
+```csharp
+private static bool IsAlive(IInteractable interaction) => interaction as Object != null;
+```
+
+`as` 回 `UnityEngine.Object`，重载才重新生效。
+
+连带的第二个坑：**`?.` 和 `??` 是 C# 语法，同样绕过这个重载**。
+`currentPrompt?.Hide()` 对已销毁对象照样会调用，然后抛异常。对 Unity 对象必须写
+`if (x != null)`。
+
+**不能依赖 `OnTriggerExit2D` 清理被销毁的对象**
+
+它跟着物理更新走，`Update` 每帧都跑，中间至少隔一帧。那一帧里列表还留着死引用。
+`Update` 开头自己 `RemoveAll` 清一遍，不指望回调顺序。
+
+**切换提示时不能回头问旧目标**
+
+旧目标可能已经销毁。改成在选中时就缓存 `InteractionPrompt` 组件引用，
+要关的时候直接用缓存，根本不碰旧目标。
+
+### 学到的东西
+
+**1. 「进入范围」≠「我是被选中的那个」**
+
+物品自己在 `OnTriggerEnter2D` 里显示提示，两株挨着的草药会同时亮，
+但按键只捡最近的一个 —— 屏幕在说谎。
+「谁会被交互」只有 `InteractionDetector` 能回答，显示的人必须问它。
+
+**2. 东西该归谁，看它描述的是谁的状态**
+
+`WorldDialogueView` 每个 NPC 各带一个是对的（显示的是那个 NPC 说的话）；
+交互提示显示的是「你现在瞄准了谁」，属于玩家的检测器。
+最后仍然选择挂在物品身上，是因为「不需要跟随代码 + 能按对象调偏移」的收益更实在——
+但那笔债（唯一性）必须由 Detector 来还。
+
+**3. `GetComponent` 家族**
+
+只在目标切换时调用，不在每帧。每帧调 `GetComponent` 是 Unity 最常见的性能问题之一。
+另外 `GetComponentInChildren` 默认跳过被禁用的物体，且不报错——本次靠「组件挂在
+始终 active 的本体上、只禁用子物体」绕开了这个坑。
+
+### 遗留问题
+
+- `PlayerInventory.debugItem` 字段已无调用者，是死字段，待清理
+- 同种物品目前各占一格，**堆叠还没做**（下一步）
+- 拾取失败（背包满）只有一行 Log，没有给玩家的反馈
+- `InteractionContext.IneractorTransform` 拼写错误，一直没改
+- 承接之前的遗留项（搬家无事件、旋转数据不一致、`itemViews` 只增不减）均未变
+
+### 下次从哪继续
+
+```
+世界里的草药  ✅
+    ↓ 按 F
+WorldItem.Interact  ✅
+    ↓
+PlayerInventory.TryAdd → TryFindFreeCell → Place  ✅
+    ↓ ItemPlaced
+InventoryView 自动显示  ✅
+    ↓
+拖拽换位置  ✅
+    ↓
+堆叠：同种物品合并、显示数量  ← 下一步
+```
+
+堆叠会立刻暴露一个问题：**合并不产生新物品，因此不会触发 `ItemPlaced`，屏幕上的数量不会变。**
+现有的事件粒度不够用了。
+
+---
+
 ## 2026-08-26 (2) — 拖动中的绿/红落点预览
 
 ### 背景
