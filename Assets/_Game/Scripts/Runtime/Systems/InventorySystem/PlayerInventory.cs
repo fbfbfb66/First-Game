@@ -46,11 +46,17 @@ public class PlayerInventory : MonoBehaviour
         return false;
     }
 
-    public bool TryMove(InventoryItem item, int x, int y)
+    public bool TryMove(InventoryItem item, int x, int y,bool rotated)
     {
         if (item == null) return false;
-        if (CanPlace(item, x, y, true))
+
+        int width = rotated ? item.Data.Height : item.Data.Width;
+        int height = rotated ? item.Data.Width : item.Data.Height;
+
+        if (CanPlace(x,y,width,height,item))
         {
+            if(item.IsRotated != rotated)
+                item.Rotate();
             Grid.Remove(item);
             Grid.Place(item, x, y);
             return true;
@@ -60,5 +66,6 @@ public class PlayerInventory : MonoBehaviour
     public IEnumerable<(InventoryItem item, int x, int y)> GetPlacedItems() => Grid.GetPlacedItems();
     public bool IsInside(int x, int y) => Grid.IsInside(x, y);
     public bool CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false) => Grid.CanPlace(item, x, y, ignoreItem);
+    public bool CanPlace(int x,int y,int areaWidth,int areaHeight,InventoryItem ignoreItem = null) => Grid.CanPlace(x, y, areaWidth, areaHeight, ignoreItem);
     public InventoryItem GetItemAt(int x, int y) => Grid.GetItemAt(x, y);
 }

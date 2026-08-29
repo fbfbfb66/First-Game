@@ -6,6 +6,7 @@ public class InputRouter : MonoBehaviour
     [SerializeField] private GameLayerStack gameLayerStack;
     [SerializeField] private PlayerControlArbitration playerControlArbitration;
     [SerializeField] private PlayerInputReceiver playerInputReceiver;
+    [SerializeField] private InventoryView inventoryView;
     [SerializeField] private DialogueManager dialogueManager;
 
     private void Awake()
@@ -31,6 +32,10 @@ public class InputRouter : MonoBehaviour
         if(dialogueManager == null)
         {
             dialogueManager = GetComponent<DialogueManager>();
+        }
+        if(inventoryView == null)
+        {
+            inventoryView = FindAnyObjectByType<InventoryView>(FindObjectsInactive.Include);
         }
     }
 
@@ -58,6 +63,7 @@ public class InputRouter : MonoBehaviour
         inputReader.UINavigateChanged += OnUINavigateChanged;
         inputReader.UISubmitPressed += OnUISubmitPressed;
         inputReader.UICancelPressed += OnUICancelPressed;
+        inputReader.UIRotateItemPressed += OnUIRotateItemPressed;
     }
 
     private void OnDisable()
@@ -79,6 +85,7 @@ public class InputRouter : MonoBehaviour
         inputReader.UINavigateChanged -= OnUINavigateChanged;
         inputReader.UISubmitPressed -= OnUISubmitPressed;
         inputReader.UICancelPressed -= OnUICancelPressed;
+        inputReader.UIRotateItemPressed -= OnUIRotateItemPressed;
     }
 
     private void OnCurrentLayerChanged(GameLayerType previousLayer, GameLayerType currentLayer)
@@ -194,14 +201,14 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (gameLayerStack.IsCurrentLayer(GameLayerType.Gameplay))
+        if (IsCurrentLayer(GameLayerType.Gameplay))
         {
             gameLayerStack.PushLayer(GameLayerType.Pause);
             Debug.Log("Pause opened.");
             return;
         }
 
-        if (gameLayerStack.IsCurrentLayer(GameLayerType.Pause))
+        if (IsCurrentLayer(GameLayerType.Pause))
         {
             gameLayerStack.PopLayer(GameLayerType.Pause);
             Debug.Log("Pause closed.");
@@ -215,14 +222,14 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (gameLayerStack.IsCurrentLayer(GameLayerType.Gameplay))
+        if (IsCurrentLayer(GameLayerType.Gameplay))
         {
             gameLayerStack.PushLayer(GameLayerType.Inventory);
             Debug.Log("Inventory opened.");
             return;
         }
 
-        if (gameLayerStack.IsCurrentLayer(GameLayerType.Inventory))
+        if (IsCurrentLayer(GameLayerType.Inventory))
         {
             gameLayerStack.PopLayer(GameLayerType.Inventory);
             Debug.Log("Inventory closed.");
@@ -236,14 +243,14 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (gameLayerStack.IsCurrentLayer(GameLayerType.Gameplay))
+        if (IsCurrentLayer(GameLayerType.Gameplay))
         {
             gameLayerStack.PushLayer(GameLayerType.Map);
             Debug.Log("Map opened.");
             return;
         }
 
-        if (gameLayerStack.IsCurrentLayer(GameLayerType.Map))
+        if (IsCurrentLayer(GameLayerType.Map))
         {
             gameLayerStack.PopLayer(GameLayerType.Map);
             Debug.Log("Map closed.");
@@ -343,6 +350,17 @@ public class InputRouter : MonoBehaviour
             case GameLayerType.DialogueChoice:
                 Debug.Log("Cancel dialogue choice.");
                 break;
+        }
+    }
+
+    private void OnUIRotateItemPressed()
+    {
+        if (gameLayerStack == null) return;
+
+        if (IsCurrentLayer(GameLayerType.Inventory))
+        {
+            if(inventoryView != null)
+                inventoryView.RotateDragItem();
         }
     }
 

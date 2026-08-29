@@ -22,7 +22,7 @@
   - Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagData` + `GameCondition` + `FlagBoolCondition`。
   - Quest 系统：`QuestManager` + `QuestDatabase` + `QuestData` + `QuestState` + `QuestStateCondition`。
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
-  - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView`。已打通「显示 → 悬停高亮 → 拖拽 → 落格改数据」。
+  - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView`。已打通「显示 → 悬停高亮 → 拖拽 → 旋转 → 落格改数据」。
   - 其他 UI：`UI_HPBarView`。
 
 ## 2. Unity Git 提交规则
@@ -140,7 +140,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - `Player` Action Map：移动、跳跃、攻击、冲刺、交互、使用物品。
 - `Game` Action Map：暂停、打开背包、打开地图。
-- `UI` Action Map：导航、确认、取消。
+- `UI` Action Map：导航、确认、取消、旋转物品（`RotateItem`，绑定 <Keyboard>/r）。`RotateItem` 放在 `UI` 而非 `Player` Map，因为背包打开时 `SetInputMode` 只启用 `UI`，放在别处这个键在背包里就是死的。
 
 `GameInputReader.SetInputMode(GameLayerType layerType)` 会按当前游戏层启用对应 Action Map：
 
@@ -156,6 +156,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 玩家地面状态中消费交互请求，并调用 `InteractionDetector.TryInteract()`。
 - `Dialogue` 的交互输入调用 `DialogueManager.RequestAdvance()`。
 - `DialogueChoice` 的导航与确认输入调用 `DialogueManager.HandleChoiceSelectedNavigate()` 和 `DialogueManager.HandleChoiceConfirmed()`。
+- `Inventory` 的旋转输入调用 `InventoryView.RotateDragItem()`。Router 只判断「当前是不是背包层」，**不判断玩家有没有在拖东西**——`dragItem` 是 `InventoryView` 的私有状态，Router 不该知道；它是分发器，不是决策者。`inventoryView` 字段在 `Awake` 用 `FindAnyObjectByType<InventoryView>(FindObjectsInactive.Include)` 兜底，`Include` 不可省——背包 Canvas 默认是关闭的。
 
 ## 7. 全脚本与函数详解
 
@@ -227,24 +228,31 @@ Canvas_Inventory (Screen Space - Overlay)
   - `validPlacementColor` / `invalidPlacementColor`：合法 / 非法落点的颜色，含透明度。做成字段而非常量，因为这属于要反复试的手感参数，Inspector 取色器底部可直接粘 Hex。
   - `offsetPos` / `offsetDelta`：预览框相对格子的位置与尺寸微调，用于做出"内缩一圈"的边框观感。
   - `previewFollowSpeed`：预览框追向目标格的速度。
+  - `dragRotated`：**本次拖拽中相对拿起那一刻是否又转过**，属于「拖拽会话状态」，和 `dragItem` / `grabOffset` / `dragItemOriginalPosition` 同类，松手即作废。旋转期间**刻意不改数据层**：`InventoryItem.IsRotated` 描述的是「物品在背包里躺着的朝向」，是既成事实，格子占用由它算出；而拖拽中的旋转是随时可撤销的**意图**（再按一次 R、松手时位置非法、拖着关背包），把意图直接写成事实必然需要回滚，且会立刻造成「`IsRotated` 变了但 `Grid` 里的格子仍按旧尺寸占着」。
+  - `DragIsRotated` / `DragWidth` / `DragHeight`：由 `dragRotated` 推出的只读属性。`DragIsRotated = dragItem.IsRotated ^ dragRotated`（异或：转两次等于没转）是**绝对朝向**；`DragWidth` / `DragHeight` 必须配 `Data.Width` / `Data.Height` 这套**原始尺寸**，**不能用 `CurrentWidth` / `CurrentHeight`**——后者自身已含 `IsRotated`，两边各算一次会重复计算，症状是「本来就竖着躺在包里的物品，第二次拖拽时尺寸判断全错」。同一个概念只能有一个来源：要么全程 `Current*`（自带朝向），要么全程 `Data.*` + 显式朝向。
   - `itemViews`：`Dictionary<InventoryItem, ItemView>`，从数据对象反查其显示对象。刻意放在 UI 层——`InventoryItem` 不该知道自己有没有被显示，且它在 asmdef 内也引用不到 `ItemView`。
   - `hoveredCell` / `hoveredItem`：鼠标当前所在格子 / 当前悬停的物品。高亮以 `hoveredItem` 为判断依据，因此在同一多格物品的不同格之间移动不会触发重复的高亮切换。
   - `dragItem` / `dragItemOriginalPosition` / `grabOffset`：拖拽中的物品、它在 `itemLayer` 下的原始 `anchoredPosition`、按下瞬间「鼠标 → 物品」的偏移。
   - `allowToHeighlight`：拖拽期间抑制悬停高亮。
 - 函数：
   - `OnEnable()`：**先 `Rebuild()` 全量同步，再订阅** `ItemPlaced` / `ItemAmountUpdated`。背包关闭期间本组件随 Canvas 一起被禁用，`OnDisable` 已退订，那段时间捡到的物品事件**没有任何人听见**——事件是广播不是留言，错过一次，UI 与数据就永久错位。所以 UI 的标准形状是「打开时全量同步一次 + 打开期间靠事件增量更新」。
-  - `OnDisable()`：退订，并清理拖拽状态——把拖拽中的 `ItemView` `SetParent` 回 `itemLayer`（否则它会一直留在 `DragLayer` 下，坐标系不对且不随背包滚动）、恢复其底板、隐藏预览框（否则下次打开会看到僵在原地的绿框），最后清空 `dragItem` 与 `allowToHeighlight`。取 `itemViews` 前必须先判 `dragItem != null`：**`Dictionary.TryGetValue` 对 null 键会抛 `ArgumentNullException`**，而「没在拖东西时关闭背包」恰恰是最常见的路径。
+  - `OnDisable()`：退订，并清理拖拽状态——把拖拽中的 `ItemView` `SetParent` 回 `itemLayer`（否则它会一直留在 `DragLayer` 下，坐标系不对且不随背包滚动）、恢复其底板、隐藏预览框（否则下次打开会看到僵在原地的绿框），最后清空 `dragItem` 与 `allowToHeighlight`，并调 `SetItemView(dragItem, itemView, dragItem.IsRotated)` **把朝向恢复成数据层的真相**——「拖着转了 90° 后直接关背包」是丢弃意图的三个出口之一（另两个是松手成功、松手非法），三处都必须收尾。取 `itemViews` 前必须先判 `dragItem != null`：**`Dictionary.TryGetValue` 对 null 键会抛 `ArgumentNullException`**，而「没在拖东西时关闭背包」恰恰是最常见的路径。
   - `Rebuild()`：遍历 `inventory.GetPlacedItems()` 逐个 `ShowItem`。`ShowItem` 已做成幂等（同一 `InventoryItem` 复用已有的 `ItemView`），因此重复调用不会产生重复对象。**目前只补不删**：数据层已移除、屏幕上仍在的 `ItemView` 不会被清理——尚无「物品离开背包」的功能，做丢弃/使用时必须补上。
   - `UpdateItemAmount(InventoryItem)`：`ItemAmountUpdated` 的回调，从 `itemViews` 反查显示对象并刷新数字。
   - `ShowItem(InventoryItem, int x, int y)`：`ItemPlaced` 的回调，同时被 `Rebuild` 复用。**幂等**：`itemViews` 中已有该物品则复用其 `ItemView`，否则实例化并登记，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
   - `TryGetCellAt(Vector2 screenPosition, out int x, out int y)`：`ShowItem` 的反函数。经 `RectTransformUtility.ScreenPointToLocalPointInRectangle` 把屏幕坐标转为 `itemLayer` 局部坐标（Canvas 为 Screen Space - Overlay，摄像机参数传 `null`），再除以步长并 `FloorToInt` 得到格子坐标，最后用 `inventory.IsInside` 校验。用 `FloorToInt` 而非 `CeilToInt`：格子 n 覆盖 `[n, n+1)` 区间，且出界时结果为负数便于识别。
   - `UpdateHover(Vector2 screenPosition)` / `ClearHover()`：由 `InventoryPointerHandler` 调用。仅在悬停物品发生变化时切换 `ItemView` 的高亮。
-  - `BeginDrag(Vector2 screenPosition)`：以 `eventData.pressPosition` 为输入。查出按下格子里的物品，记下原位置，**先** `SetParent(dragLayer, true)` **再**计算 `grabOffset`（两者必须在同一坐标系内），并抑制高亮。最后调 `ShowPlacementPreview`，其格子**必须由 `dragItemOriginalPosition` 反算**，不能用 `TryGetCellAt` 得到的按下格——玩家抓多格物品的右下角时两者相差一整格，预览框会先摆错位置、再滑向正确格子，表现为"刚开始拖动时框会飘一下"。
-  - `Drag(Vector2 screenPosition)`：`anchoredPosition = 鼠标在 dragLayer 局部坐标 - grabOffset`，保持抓取时的相对位置不变。随后用 `itemLayer.InverseTransformPoint(rect.position)` 把物品左上角换算到 `itemLayer` 空间，求出落点格并调 `UpdatePlacementPreview`。**拖拽期间物品必须留在 `dragLayer`**（否则会被 Mask 裁掉），所以不能用 `EndDrag` 那种 `SetParent` 换算法；此处经由世界坐标中转：`rect.position` 已是世界坐标，`InverseTransformPoint` 再转入 `itemLayer` 局部空间，`ScrollRect` 滚动、缩放都自动成立。函数体用早退（guard clause）写法，主线逻辑保持零缩进。
+  - `BeginDrag(Vector2 screenPosition)`：以 `eventData.pressPosition` 为输入。查出按下格子里的物品，记下原位置，**先** `SetParent(dragLayer, true)` **再**计算 `grabOffset`（两者必须在同一坐标系内），并抑制高亮（先 `SetHighlighted(false)` 并清空 `hoveredItem` 再置 `allowToHeighlight = false`，否则被抓起的那件正好是当前 hover 项，会带着 1.1 倍缩放拖一路），同时 `dragRotated = false` 开启新一轮意图。最后调 `ShowPlacementPreview`，其格子**必须由 `dragItemOriginalPosition` 反算**，不能用 `TryGetCellAt` 得到的按下格——玩家抓多格物品的右下角时两者相差一整格，预览框会先摆错位置、再滑向正确格子，表现为"刚开始拖动时框会飘一下"。
+  - `Drag(Vector2 screenPosition)`：`anchoredPosition = 鼠标在 dragLayer 局部坐标 - grabOffset`，保持抓取时的相对位置不变。随后用 `itemLayer.InverseTransformPoint(rect.position)` 把物品左上角换算到 `itemLayer` 空间，求出落点格并调 `UpdatePlacementPreview`，合法性判断走**尺寸版** `CanPlace(x, y, DragWidth, DragHeight, dragItem)`——`Drag` 是鼠标一动就触发的高频入口，若这里仍读物品自身尺寸，旋转后只要鼠标一动，判断就会被旧尺寸覆盖回去。**拖拽期间物品必须留在 `dragLayer`**（否则会被 Mask 裁掉），所以不能用 `EndDrag` 那种 `SetParent` 换算法；此处经由世界坐标中转：`rect.position` 已是世界坐标，`InverseTransformPoint` 再转入 `itemLayer` 局部空间，`ScrollRect` 滚动、缩放都自动成立。函数体用早退（guard clause）写法，主线逻辑保持零缩进。
+  - **`grabOffset` 的语义**：定义为「鼠标位置 − 物品左上角位置」，即**鼠标该待在物品身上的哪个点**。它成立的前提是三个原点对齐——`DragLayer` 的 pivot 在 (0, 1)、`ItemView` 的 anchor 在 (0, 1)、`ItemView` 的 pivot 也在 (0, 1)，于是 `ScreenPointToLocalPointInRectangle` 的返回值与 `anchoredPosition` 共用同一个原点，可以直接加减。`Drag` 每帧维持等式 `anchoredPosition = 鼠标 − grabOffset`，所以**鼠标位置隐含在这两个字段里**，`RotateDragItem` 无需另存字段即可用 `anchoredPosition + grabOffset` 反推。
+    更重要的是：`grabOffset` 不是一次性的测量值，而是**一条可改写的策略**。`BeginDrag` 时的策略是「待在你点的那个点」；旋转时改写成 `(boxSize.x / 2, -boxSize.y / 2)`（从左上角向右半宽、向下半高，UI 中 y 向上为正故取负），即宣布「从现在起鼠标待在物品正中心」，下一帧 `Drag` 会自动照办。之所以选中心而不是保留原抓取点，是因为转 90° 后「原来抓的那个点」在新形状里没有唯一对应位置，而中心永远存在、永远在物品内部。若不同步改写 `grabOffset`，左上角会原地不动、外框朝右下重新展开，表现为「按 R 后物品从鼠标底下跳开」。
   - `ShowPlacementPreview(Vector2Int cell, InventoryItem item)` / `UpdatePlacementPreview(Vector2Int cell, bool valid)` / `HidePlacementPreview()`：拖放预览框的三段生命周期，刻意拆成三个方法而不是一个带 `enable` / `valid` 参数的方法——「出现」「每帧刷新」「消失」需要做的事并不相同，捏在一起会让每个调用点都要反推参数含义。`Show` 负责显示、置顶、设尺寸并**瞬间**就位（走缓动会让框从上一次拖拽的残留位置飞过来）；`Update` 每帧只刷颜色并用 `Vector2.Lerp` 朝目标格逼近，`t` 取 `previewFollowSpeed * Time.unscaledDeltaTime`——**用 unscaled 是因为背包若在 `timeScale = 0` 时打开，`Time.deltaTime` 恒为 0，动画会整个停住**；`Hide` 只负责隐藏。
   - `GetPreviewPosition(Vector2Int cell)`：格子坐标 → 预览框 `anchoredPosition`（叠加 `offsetPos`）。
-  - `GetRectSizeDelta(InventoryItem item)`：物品格数 → 像素尺寸，`n * cellSize + (n - 1) * spacing`。`ShowItem` 与预览框共用。
-  - `EndDrag()`：**第一步必须是** `SetParent(itemLayer, true)`。`worldPositionStays: true` 会让 Unity 在换父节点时保持画面位置不变并重算 `anchoredPosition`，因此这一行执行完，`rect.anchoredPosition` 就已从 `dragLayer` 空间变成 `itemLayer` 空间——即与 `ShowItem` 同一套坐标系，可以直接换算格子。随后 `GetDropItemAt` 求出落点，交给 `inventory.TryMove`，**按其返回值决定画面**：成功则吸附到目标格，失败则退回 `dragItemOriginalPosition`。最后清理 `dragItem` 与高亮抑制。
+  - `GetRectSizeDelta(int width, int height)`：格数 → 像素尺寸，`n * cellSize + (n - 1) * spacing`。刻意只留这一个「格数 → 像素」的换算，`ShowItem`、预览框、拖拽中的临时尺寸全部转发到它。
+  - `SetItemView(InventoryItem item, ItemView view, bool rotated)`：按**显式传入的朝向**算出外框尺寸与图标尺寸，转发给 `ItemView.SetFootprint`。朝向作为参数而非从 `item` 读，是因为两条调用路各有各的真相：`ShowItem` 传 `item.IsRotated`（数据事实），`RotateDragItem` 传 `DragIsRotated`（拖拽意图）。图标尺寸**永远是 `Data.Width` × `Data.Height` 的原始尺寸**，靠旋转 90° 去填满外框，而不是把图塞进新框里拉伸。
+  - `RotateDragItem()`：`InputRouter` 在背包层按下 R 时调用。翻转 `dragRotated` → `SetItemView` 换新外框 → 重算 `grabOffset` 与 `anchoredPosition` → 求落点格 → 尺寸版 `CanPlace` → `RotatePlacementView`。**顺序不可调换**：重摆位置会改变落点格，若先求格子再挪物品，红绿判断和预览框位置都会错一格。
+  - `RotatePlacementView(Vector2Int cell, bool valid)`：旋转时刷新预览框的尺寸、颜色与位置。位置**直接赋值不走 Lerp**——玩家可以鼠标不动只按 R，此时 `Drag` 根本不会被调用，靠 `UpdatePlacementPreview` 的缓动去追会让预览框僵在原格。
+  - `EndDrag()`：**第一步必须是** `SetParent(itemLayer, true)`。`worldPositionStays: true` 会让 Unity 在换父节点时保持画面位置不变并重算 `anchoredPosition`，因此这一行执行完，`rect.anchoredPosition` 就已从 `dragLayer` 空间变成 `itemLayer` 空间——即与 `ShowItem` 同一套坐标系，可以直接换算格子。随后 `GetDropItemAt` 求出落点，交给 `inventory.TryMove(dragItem, x, y, DragIsRotated)`，**按其返回值决定画面**：成功则吸附到目标格（画面无需再动——按 R 那一刻就已画成新朝向，此刻是数据追上了画面）；失败则退回 `dragItemOriginalPosition` 并 `SetItemView(dragItem, itemView, dragItem.IsRotated)` 把朝向复原，**此处传数据层的 `IsRotated` 而非 `DragIsRotated`：失败时以数据为准，画面服从数据**。最后清理 `dragItem`、`dragRotated` 与高亮抑制。
   - `GetDropItemAt(Vector2 itemPosition, out int x, out int y)`：把物品**左上角**的 `anchoredPosition` 换算成格子坐标。与 `TryGetCellAt` 的两点区别：其一，落点必须由物品左上角决定而非鼠标位置，否则玩家抓着物品右下角拖动时，放置结果会整体偏移一整个抓取偏移量；其二，用 `RoundToInt` 而非 `FloorToInt`——`Floor` 只认「左上角落在哪格」，差几像素没对齐就会判到左边一格甚至负数，`Round` 才是「吸附到最近的格子」的手感。不做合法性判断，合法与否由 `TryMove` 回答。
   - `GetAnchorPositionForCell(int x, int y)`：格子坐标 → `anchoredPosition`，即 `(x * step, -y * step)`。`ShowItem` 与 `EndDrag` 共用，避免 `cellSize` / `spacing` 在 Inspector 改动后两处结果不一致。
 - 依赖方向：View 只能**请求**数据层改动（`TryMove`），不能直接操作网格；改动成功与否一律以数据层的返回值为准，画面不按 UI 自己的预判摆放。当前两者结果必然一致，但数据层将来一旦加入重量上限、容器类别限制、堆叠合并等规则，UI 预判就会与真实结果分叉，表现为「画面搬过去了、数据还在原位」这类极难定位的问题。
@@ -255,7 +263,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：单个物品在屏幕上的表现。预制体为多层结构——底板 `Image` 表达「这块区域被占用」，`Icon` 表达「这是什么」，另有一个专用于缩放的 `highlightTransform` 层。
 - 关键字段：
-  - `icon`：物品图标的 `Image`。勾选 `Preserve Aspect`，使图标宽高比与格子宽高比不一致时不被拉伸。
+  - `icon`：物品图标的 `Image`。勾选 `Preserve Aspect`。其 `RectTransform` 的 anchor 与 pivot **均为 (0.5, 0.5)**，尺寸由代码显式指定，**不能用四角拉伸**——拉伸的前提是「我的形状 = 父级的形状」，而旋转要求图标形状与外框**反着来**（外框 1×2 时图标必须是 2×1 的图，转 90° 后才正好填满）；且 anchor 处于拉伸状态时 `sizeDelta` 的含义会从「尺寸」变成「相对父级的增量」，直接赋值会把图标撑成父级尺寸加自身尺寸那么大。pivot 居中则是因为 `localRotation` 绕 pivot 旋转，留在左上角图标会绕角甩出去。
   - `amountLabel`：堆叠数量文字（`TMP_Text`，UI 版 `TextMeshProUGUI`），锚定在格子右下角，同样关闭 `Raycast Target`。
   - `background`：底板 `Image`。拖拽期间置为 `Color.clear`，让原位置视觉上「空出来」。
   - `highlightTransform`：**专门用于缩放的中间层**。缩放绕自身 pivot 进行，而根物体的 pivot 必须留在 (0, 1) 以服务 `anchoredPosition` 的定位公式；把缩放交给一个居中 pivot 的子物体，可让两个需求互不干扰（根物体负责「在哪一格」，子物体负责「什么表现」）。
@@ -265,6 +273,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `SetIcon(InventoryItem item, bool value = true)`：设置图标 sprite；`item`、其 `Data` 为空或 `value` 为 false 时禁用 `icon`，避免留下白色方块。
   - `SetBackgroundTransparent(bool)`：切换底板透明。
   - `SetHighlighted(bool)`：缩放 `highlightTransform`；高亮时调用 `SetAsLastSibling()` 让放大后的物品画在邻居之上。
+  - `SetFootprint(Vector2 boxSize, Vector2 iconSize, bool rotated)`：一次性设定根物体外框尺寸、图标尺寸与图标旋转（`rotated` 时 Z 轴 -90°）。**写在 `ItemView` 而非 `InventoryView`**：`icon` 是它的私有序列化字段，`InventoryView` 既拿不到也不该知道预制体内部有哪些子物体。`iconSize` 由调用方传入原始尺寸，`boxSize` 传旋转后尺寸，两者故意分开——外框决定「占几格」，图标决定「画多大」，旋转后二者必然不同。
 - 关联：预制体位于 `Assets/_Game/Prefabs/`，由 `InventoryView.ShowItem` 实例化。底板与 `Icon` 的 `Raycast Target` 均关闭，以免遮挡 `ItemLayer` 的鼠标射线——物品「是谁」一律由 `grid.GetItemAt()` 回答，不靠显示对象自报。
 
 #### `Assets/_Game/Scripts/Runtime/UI/InventoryScreen.cs`
@@ -336,6 +345,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `IsInside(int x, int y, int areaWidth, int areaHeight)`：判断一个左上角在 `(x, y)` 的矩形区域是否完整落在网格内。只检查左上角和右下角两点，为 O(1)。
   - `IsAreaEmpty(int x, int y, int areaWidth, int areaHeight, InventoryItem ignoreItem = null)`：判断区域内每一格是否都为 `null`。命中 `ignoreItem` 的格子按「空」处理。**约定不做边界检查**，调用者需先用 `IsInside` 保证区域合法。
   - `CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false)`：**纯查询，绝不修改网格**。校验 `item` 非空、区域在界内、区域为空。`ignoreItem` 为 true 时把 `item` 自己传给 `IsAreaEmpty` 当作「可忽略」——**移动已在网格中的物品时必须开启**，否则新旧区域一旦重叠，物品会被自己判定为障碍而永远挪不动一格（如 2×2 物品右移一格）。新物品入包则保持 false。
+  - `CanPlace(int x, int y, int areaWidth, int areaHeight, InventoryItem ignoreItem = null)`：**按给定尺寸**判断，与物品自身的 `CurrentWidth` / `CurrentHeight` 无关。存在原因是拖拽期间的旋转只是「意图」，尚未写进 `InventoryItem.IsRotated`，此时需要回答的是**假设性问题**：「假如这件物品是 1×2，放这里行吗？」上面那个 item 版读的是物品当前的真实朝向，回答不了。`IsAreaEmpty` 本就是按 `(x, y, w, h, ignore)` 写的，把尺寸写死的只是 `CanPlace` 这一层，因此只需加重载，item 版沦为薄封装，既有调用方与单元测试零改动。
   - `Place(InventoryItem item, int x, int y, bool ignoreItem = false)`：先调 `CanPlace`，通过后把 `item` 写入覆盖到的每一格并返回 `true`；否则返回 `false` 且**不修改任何格子**（不留半填状态）。判断逻辑只存在于 `CanPlace` 一处，避免「预判」与「实际」两套规则分叉。物品尺寸取 `CurrentWidth` / `CurrentHeight`，因此自动支持旋转。
   - `Remove(InventoryItem item)`：**扫描整张表**，把所有等于该引用的格子置 `null`，返回是否至少清掉一格。刻意不用 `Remove(int x, int y)`——调用方手里通常只有「玩家点了哪一格」，那不一定是物品左上角，而网格并未记录任何物品的左上角坐标；按错误的原点往右下擦，会同时留下自己的残格并抹掉邻居的格子。用引用比较还顺带钉住一条规则：两株外观相同的草药是两件独立物品，移除一件不会波及另一件。
   - `TryFindFreeCell(InventoryItem item, out int x, out int y)`：从左上角起**逐行**（`y` 外层、`x` 内层）扫描，返回第一个放得下该物品的位置。行优先是为了匹配玩家预期——连续拾取时物品一行行往下铺，而不是一列列往右铺。内部直接调用 `CanPlace`，不自己重写判断，规则只保留一份。
@@ -356,8 +366,9 @@ Canvas_Inventory (Screen Space - Overlay)
 - 函数：
   - `TryAdd(ItemData data, int amount = 1)`：外部把物品放进背包的唯一入口。流程为**先堆叠、后开新格**：`FindStackable` 找到未满的同类堆 → `Add` → 触发 `ItemAmountUpdated`；否则本格装 `Math.Min(amount, MaxStack)` 个，`TryFindFreeCell` → `Place` → 触发 `ItemPlaced`。两条路都可能剩下一部分装不下，**统一用递归把剩余量交给下一轮**，因此「一次捡起一堆超过 MaxStack 的物品」会自动拆成多格。`Math.Min` 的夹断只属于开新格这条路：堆叠路上 `Add` 自己会算溢出，在外面先夹一刀会导致溢出被算两遍、丢失一部分。找不到空位时返回 false 且**一个都没放进去**（此时不存在「剩余」的概念）。**UI 无需任何改动即可显示新物品**——`InventoryView` 早已订阅这两个事件。
   - 已知不足：返回 `bool` 无法表达「只放进去了一部分」。玩家捡起 2 株而背包只塞得下 1 株时，数据层已收下 1 株却返回 false，调用方（`WorldItem`）会因此不销毁世界物体，导致物品被复制。诚实的签名应与 `InventoryItem.Add` 一致，返回未能放入的剩余量。
-  - `TryMove(InventoryItem item, int x, int y)`：把已在网格中的物品移到 `(x, y)`，返回是否成功。内部顺序为 `CanPlace(..., ignoreItem: true)` → `grid.Remove()` → `grid.Place()`。**校验必须写在这里而不是调用方**：`Remove` 一旦执行，物品就必须有地方落，否则它会从数据层彻底消失，而屏幕上的 `ItemView` 和 `itemViews` 字典仍在，玩家会看到一个抓得到、却已不存在于网格中的「鬼影」。把这条底线交给某个 UI 类去守，等于让其他调用方（拾取、容器转移）随时能绕过它。
-  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)` / `GetPlacedItems()`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryAdd` / `TryMove` 直接改数据而跳过校验与事件通知。
+  - `TryMove(InventoryItem item, int x, int y, bool rotated)`：把已在网格中的物品移到 `(x, y)` 并落实为 `rotated` 指定的朝向，返回是否成功。内部顺序为**尺寸版** `CanPlace(x, y, w, h, ignoreItem: item)` → `grid.Remove()` → 朝向不一致才 `item.Rotate()` → `grid.Place()`。`Rotate()` **必须在 `Place()` 之前**：`Place` 是按 `item.CurrentWidth` / `CurrentHeight` 铺格子的，转晚了就按旧尺寸占格，导致「物品尺寸与格子占用不一致」。`Remove` 按引用扫全表清除，与尺寸无关，放前放后皆可。校验用尺寸版而非 item 版，因为此刻 `IsRotated` 还是旧值。
+    **这是一个事务**：校验不通过就 `return false` 且一个字节都不改，不存在「转了一半失败要回滚」的中间态。另一种写法是让 UI 先 `item.Rotate()` 再 `TryMove`、失败了再 `Rotate()` 回去——回滚代码是 bug 温床（漏分支、中途异常、后来者新增失败条件忘了补），而且坏掉的是玩家存档不是画面。**校验必须写在这里而不是调用方**：`Remove` 一旦执行，物品就必须有地方落，否则它会从数据层彻底消失，而屏幕上的 `ItemView` 和 `itemViews` 字典仍在，玩家会看到一个抓得到、却已不存在于网格中的「鬼影」。把这条底线交给某个 UI 类去守，等于让其他调用方（拾取、容器转移）随时能绕过它。
+  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)` / `CanPlace(int, int, int, int, InventoryItem)` / `GetPlacedItems()`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryAdd` / `TryMove` 直接改数据而跳过校验与事件通知。
 - 关联：挂在 `GameScene` 的 `Player` 对象上。原先 `Start()` 里的调试放置与 `PrintGrid()` 已随拾取流程接通而移除。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/FirstGame.Inventory.asmdef`

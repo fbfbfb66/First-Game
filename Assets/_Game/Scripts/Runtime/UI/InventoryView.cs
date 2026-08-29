@@ -25,6 +25,10 @@ public class InventoryView : MonoBehaviour
     private Vector2 dragItemOriginalPosition;
     private Vector2 grabOffset;
     private bool allowToHeighlight = true;
+    private bool dragRotated;
+    private bool DragIsRotated => dragItem.IsRotated ^ dragRotated;
+    private int DragWidth => DragIsRotated ? dragItem.Data.Height : dragItem.Data.Width;
+    private int DragHeight => DragIsRotated ? dragItem.Data.Width : dragItem.Data.Height;
 
 
     private void OnEnable()
@@ -45,7 +49,7 @@ public class InventoryView : MonoBehaviour
             return;
         inventory.ItemPlaced -= ShowItem;
         inventory.ItemAmountUpdated -= UpdateItemAmount;
-        
+
         // dragItem 为 null 时不能进 TryGetValue —— Dictionary 对 null 键抛
         // ArgumentNullException，而「没在拖东西时关闭背包」是最常见的路径。
         if (dragItem != null && itemViews.TryGetValue(dragItem, out var itemView))
@@ -53,6 +57,7 @@ public class InventoryView : MonoBehaviour
             RectTransform rect = (RectTransform)itemView.transform;
             rect.SetParent(itemLayer, true);
             itemView.SetBackgroundTransparent(false);
+            SetItemView(dragItem, itemView, dragItem.IsRotated);
         }
         HidePlacementPreview();
         dragItem = null;
@@ -75,6 +80,28 @@ public class InventoryView : MonoBehaviour
         }
     }
 
+    public void RotateDragItem()
+    {
+        if (dragItem == null) return;
+        if (dragItem.Data.CanRotate == false) return;
+
+        dragRotated = !dragRotated;
+
+        if (itemViews.TryGetValue(dragItem, out var view))
+        {
+            SetItemView(dragItem, view, DragIsRotated);
+            RectTransform rect = (RectTransform)view.transform;
+            Vector2 pointerLocal = rect.anchoredPosition + grabOffset;
+            Vector2 boxSize = GetRectSizeDelta(DragWidth, DragHeight);
+            grabOffset = new Vector2(boxSize.x * .5f, -boxSize.y * .5f);
+            rect.anchoredPosition = pointerLocal - grabOffset;
+
+            GetDragTargetCell(rect, out int x, out int y);
+            bool canPlace = inventory.CanPlace(x, y, DragWidth, DragHeight, dragItem);
+            RotatePlacementView(new Vector2Int(x, y), canPlace);
+        }
+    }
+
     public void BeginDrag(Vector2 screenPosition)
     {
         if (TryGetCellAt(screenPosition, out int x, out int y))
@@ -93,9 +120,13 @@ public class InventoryView : MonoBehaviour
                         rect.anchoredPosition = localPosition - grabOffset;
                     }
                     itemView.SetBackgroundTransparent(true);
+                    itemView.SetHighlighted(false);
+                    hoveredItem = null;
                     allowToHeighlight = false;
+                    dragRotated = false;
+
                     GetDropItemAt(dragItemOriginalPosition, out int originalX, out int originalY);
-                    ShowPlacementPreview(new Vector2Int(originalX,originalY), dragItem);
+                    ShowPlacementPreview(new Vector2Int(originalX, originalY), dragItem);
                 }
                 Debug.Log($"Begin dragging item: {dragItem.Data.DisplayName} from cell ({x}, {y})");
             }
@@ -111,9 +142,8 @@ public class InventoryView : MonoBehaviour
         RectTransform rect = (RectTransform)itemView.transform;
         rect.anchoredPosition = localPosition - grabOffset;
 
-        Vector2 itemLayerPosition = itemLayer.InverseTransformPoint(rect.position);
-        GetDropItemAt(itemLayerPosition, out int x, out int y);
-        UpdatePlacementPreview(new Vector2Int(x, y), inventory.CanPlace(dragItem, x, y, true));
+        GetDragTargetCell(rect, out int x, out int y);
+        UpdatePlacementPreview(new Vector2Int(x, y), inventory.CanPlace(x, y, DragWidth, DragHeight, dragItem));
     }
     public void EndDrag()
     {
@@ -123,16 +153,21 @@ public class InventoryView : MonoBehaviour
             rect.SetParent(itemLayer, true);
 
             GetDropItemAt(rect.anchoredPosition, out int x, out int y);
-            if (inventory.TryMove(dragItem, x, y))
+            if (inventory.TryMove(dragItem, x, y, DragIsRotated))
             {
                 rect.anchoredPosition = GetAnchorPositionForCell(x, y);
                 Debug.Log($"Dropped item: {dragItem.Data.DisplayName} to cell ({x}, {y})");
 
             }
             else
+            {
                 rect.anchoredPosition = dragItemOriginalPosition;
+                SetItemView(dragItem, itemView, dragItem.IsRotated);
+            }
 
             itemView.SetBackgroundTransparent(false);
+            itemView.SetHighlighted(true);
+            hoveredItem = dragItem;
             HidePlacementPreview();
         }
         allowToHeighlight = true;
@@ -180,20 +215,20 @@ public class InventoryView : MonoBehaviour
     {
         if (item == null || itemLayer == null || itemViewPrefab == null) return;
 
-        if(!itemViews.TryGetValue(item, out ItemView view))
+        if (!itemViews.TryGetValue(item, out ItemView view))
             view = Instantiate(itemViewPrefab, itemLayer);
         RectTransform rect = (RectTransform)view.transform;
 
         view.SetIcon(item);
         view.SetAmount(item.Amount);
-        
-        if(!itemViews.ContainsKey(item))
+
+        if (!itemViews.ContainsKey(item))
         {
             itemViews.Add(item, view);
         }
 
         rect.anchoredPosition = GetAnchorPositionForCell(x, y);
-        rect.sizeDelta = GetRectSizeDelta(item);
+        SetItemView(item, view, item.IsRotated);
     }
 
     public bool TryGetCellAt(Vector2 screenPosition, out int x, out int y)
@@ -213,21 +248,46 @@ public class InventoryView : MonoBehaviour
         return false;
     }
 
-    public Vector2 GetAnchorPositionForCell(int x, int y)
+    private void SetItemView(InventoryItem item, ItemView view, bool rotated)
+    {
+        int boxWidth = rotated ? item.Data.Height : item.Data.Width;
+        int boxHeight = rotated ? item.Data.Width : item.Data.Height;
+
+        Vector2 boxSize = GetRectSizeDelta(boxWidth, boxHeight);
+        Vector2 iconSize = GetRectSizeDelta(item.Data.Width, item.Data.Height);
+        view.SetFootprint(boxSize, iconSize, rotated);
+    }
+
+    private Vector2 GetAnchorPositionForCell(int x, int y)
     {
         float step = cellSize + spacing;
         return new Vector2(x * step, -y * step);
     }
 
-    public Vector2 GetRectSizeDelta(InventoryItem item)
+
+    private Vector2 GetRectSizeDelta(int width, int height)
     {
-        return new Vector2(cellSize * item.CurrentWidth + (item.CurrentWidth - 1) * spacing, cellSize * item.CurrentHeight + (item.CurrentHeight - 1) * spacing);
+        return new Vector2(cellSize * width + (width - 1) * spacing, cellSize * height + (height - 1) * spacing);
+    }
+
+    private void GetDragTargetCell(RectTransform rect, out int x, out int y)
+    {
+        Vector2 itemLayerPosition = itemLayer.InverseTransformPoint(rect.position);
+        GetDropItemAt(itemLayerPosition, out x, out y);
     }
 
     private void GetDropItemAt(Vector2 itemPosition, out int x, out int y)
     {
         x = Mathf.RoundToInt(itemPosition.x / (cellSize + spacing));
         y = Mathf.RoundToInt(-itemPosition.y / (cellSize + spacing));
+    }
+
+    private void RotatePlacementView(Vector2Int cell, bool valid)
+    {
+        RectTransform rect = PlacementPreview.rectTransform;
+        rect.anchoredPosition = GetAnchorPositionForCell(cell.x, cell.y);
+        rect.sizeDelta = GetRectSizeDelta(DragWidth, DragHeight) + offsetDelta;
+        PlacementPreview.color = valid ? validPlacementColor : invalidPlacementColor;
     }
 
     /// <summary>
@@ -239,7 +299,7 @@ public class InventoryView : MonoBehaviour
         RectTransform rect = PlacementPreview.rectTransform;
         PlacementPreview.gameObject.SetActive(true);
         rect.SetAsLastSibling();
-        rect.sizeDelta = GetRectSizeDelta(item) + offsetDelta;
+        rect.sizeDelta = GetRectSizeDelta(item.CurrentWidth, item.CurrentHeight) + offsetDelta;
         rect.anchoredPosition = GetPreviewPosition(cell);
         PlacementPreview.color = validPlacementColor;
     }

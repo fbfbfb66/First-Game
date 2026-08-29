@@ -120,6 +120,13 @@ public class InventoryGrid
         return true;
     }
 
+    public bool CanPlace(int x, int y, int areaWidth, int areaHeight, InventoryItem ignoreItem = null)
+    {
+        if (IsInside(x, y, areaWidth, areaHeight) == false) return false;
+        if (IsAreaEmpty(x, y, areaWidth, areaHeight, ignoreItem) == false) return false;
+        return true;
+    }
+
     public bool Remove(InventoryItem item)
     {
         if (item == null) return false;

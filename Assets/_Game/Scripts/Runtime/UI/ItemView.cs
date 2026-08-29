@@ -9,7 +9,7 @@ public class ItemView : MonoBehaviour
     [SerializeField] private Transform highlightTransform;
     [SerializeField] private float highlightScale = 1.1f;
     [SerializeField] private TMP_Text amountLabel;
-    
+
     public void SetAmount(int amount)
     {
         amountLabel.text = amount.ToString();
@@ -33,6 +33,14 @@ public class ItemView : MonoBehaviour
         highlightTransform.localScale = value ? Vector3.one * highlightScale : Vector3.one;
         if (value)
             transform.SetAsLastSibling();
+    }
+
+    public void SetFootprint(Vector2 boxSize, Vector2 iconSize, bool rotated)
+    {
+        RectTransform rect = (RectTransform)transform;
+        rect.sizeDelta = boxSize;
+        icon.rectTransform.sizeDelta = iconSize;
+        icon.rectTransform.localRotation = Quaternion.Euler(0f, 0f, rotated ? -90f : 0f);
     }
 }
 

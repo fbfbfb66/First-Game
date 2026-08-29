@@ -5,7 +5,7 @@ public class InventoryItem
 {
     public ItemData Data { get; private set; }
     public int Amount { get; private set; }
-    public bool IsRotated { get; private set; }
+    public bool IsRotated { get; private set; } = false;
     public int CurrentWidth => IsRotated ? Data.Height : Data.Width;
     public int CurrentHeight => IsRotated ? Data.Width : Data.Height;
 
@@ -44,7 +44,7 @@ public class InventoryItem
 
     public void Rotate()
     {
-        if(!Data.CanRotate) return;
+        if (Data.CanRotate == false) return;
         IsRotated = !IsRotated;
     }
 }

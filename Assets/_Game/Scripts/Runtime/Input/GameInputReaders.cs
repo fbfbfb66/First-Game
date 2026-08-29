@@ -23,6 +23,7 @@ public class GameInputReader : MonoBehaviour
     public event Action<Vector2> UINavigateChanged;
     public event Action UISubmitPressed;
     public event Action UICancelPressed;
+    public event Action UIRotateItemPressed;
 
 
     private void Awake()
@@ -127,6 +128,7 @@ public class GameInputReader : MonoBehaviour
 
         inputActions.UI.Submit.performed += ctx => UISubmitPressed?.Invoke();
         inputActions.UI.Cancel.performed += ctx => UICancelPressed?.Invoke();
+        inputActions.UI.RotateItem.performed += ctx => UIRotateItemPressed?.Invoke();
     }
 }
 
