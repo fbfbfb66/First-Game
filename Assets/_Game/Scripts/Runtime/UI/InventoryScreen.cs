@@ -9,6 +9,8 @@ public class InventoryScreen : MonoBehaviour
     {
         if(layerStack == null)
             layerStack = FindAnyObjectByType<GameLayerStack>();
+
+        root.SetActive(false);
     }
 
     private void OnEnable()

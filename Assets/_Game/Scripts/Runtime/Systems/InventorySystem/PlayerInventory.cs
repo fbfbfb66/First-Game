@@ -10,6 +10,7 @@ public class PlayerInventory : MonoBehaviour
 
     public event Action<InventoryItem, int, int> ItemPlaced;
     public event Action<InventoryItem> ItemAmountUpdated;
+    public event Action<InventoryItem> ItemRemoved;
 
     private InventoryGrid grid;
 
@@ -37,10 +38,30 @@ public class PlayerInventory : MonoBehaviour
         }
         if (Grid.TryFindFreeCell(item, out int x, out int y))
         {
-            grid.Place(item, x, y);
+            Grid.Place(item, x, y);
             ItemPlaced?.Invoke(item, x, y);
             if(over > 0)
                 return TryAdd(data, over);
+            return true;
+        }
+        return false;
+    }
+
+    public bool TryRemove(InventoryItem item, int amount)
+    {
+        if (item == null || amount <= 0) return false;
+        if(amount >= item.Amount)
+        {
+            if (Grid.Remove(item))
+            {
+                ItemRemoved?.Invoke(item);
+                return true;
+            }
+        }
+        else
+        {
+            item.Reduce(amount);
+            ItemAmountUpdated?.Invoke(item);
             return true;
         }
         return false;

@@ -11,12 +11,15 @@ public class InventoryView : MonoBehaviour
     [SerializeField] private Vector2 offsetPos = new Vector2(10.5f, 0f);
     [SerializeField] private float previewFollowSpeed = 15f;
     [Space]
+    [SerializeField] private ItemContextMenu menu;
     [SerializeField] private RectTransform itemLayer;
     [SerializeField] private RectTransform dragLayer;
     [SerializeField] private PlayerInventory inventory;
     [SerializeField] private ItemView itemViewPrefab;
     [SerializeField] private float cellSize = 240f;
     [SerializeField] private float spacing = 5f;
+
+    public InventoryItem DragItem => dragItem;
 
     private readonly Dictionary<InventoryItem, ItemView> itemViews = new();
     private Vector2Int hoveredCell = new Vector2Int(-1, -1);
@@ -41,6 +44,8 @@ public class InventoryView : MonoBehaviour
         Rebuild();
         inventory.ItemPlaced += ShowItem;
         inventory.ItemAmountUpdated += UpdateItemAmount;
+        inventory.ItemRemoved += OnItemRemoved;
+        menu.DropRequested += DropItem;
     }
 
     private void OnDisable()
@@ -49,6 +54,8 @@ public class InventoryView : MonoBehaviour
             return;
         inventory.ItemPlaced -= ShowItem;
         inventory.ItemAmountUpdated -= UpdateItemAmount;
+        inventory.ItemRemoved -= OnItemRemoved;
+        menu.DropRequested -= DropItem;
 
         // dragItem 为 null 时不能进 TryGetValue —— Dictionary 对 null 键抛
         // ArgumentNullException，而「没在拖东西时关闭背包」是最常见的路径。
@@ -64,6 +71,33 @@ public class InventoryView : MonoBehaviour
         allowToHeighlight = true;
     }
 
+    private void DropItem(InventoryItem item, int amount)
+    {
+        inventory.TryRemove(item, amount);
+    }
+
+    private void OnItemRemoved(InventoryItem item)
+    {
+        if(itemViews.TryGetValue(item, out var view))
+            Destroy(view.gameObject);
+
+        itemViews.Remove(item);
+        menu.Close();
+        if (hoveredItem == item) hoveredItem = null;
+        if(dragItem == item) dragItem = null;
+    }
+
+    public void RequestItemMenu(Vector2 screenPosition)
+    {
+        if (dragItem != null) return;
+
+        if (TryGetCellAt(screenPosition, out int x, out int y))
+        {
+            InventoryItem item = inventory.GetItemAt(x, y);
+            if (item == null) return;
+            menu.Open(item,screenPosition);
+        }
+    }
     private void Rebuild()
     {
         foreach (var (item, x, y) in inventory.GetPlacedItems())
@@ -102,7 +136,7 @@ public class InventoryView : MonoBehaviour
         }
     }
 
-    public void BeginDrag(Vector2 screenPosition)
+    public bool BeginDrag(Vector2 screenPosition)
     {
         if (TryGetCellAt(screenPosition, out int x, out int y))
         {
@@ -129,8 +163,11 @@ public class InventoryView : MonoBehaviour
                     ShowPlacementPreview(new Vector2Int(originalX, originalY), dragItem);
                 }
                 Debug.Log($"Begin dragging item: {dragItem.Data.DisplayName} from cell ({x}, {y})");
+                return true;
             }
+            return false;
         }
+        return false;
     }
     public void Drag(Vector2 screenPosition)
     {
@@ -168,8 +205,8 @@ public class InventoryView : MonoBehaviour
             itemView.SetBackgroundTransparent(false);
             itemView.SetHighlighted(true);
             hoveredItem = dragItem;
-            HidePlacementPreview();
         }
+        HidePlacementPreview();
         allowToHeighlight = true;
         dragItem = null;
     }

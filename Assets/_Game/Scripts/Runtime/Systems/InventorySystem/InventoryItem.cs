@@ -27,6 +27,16 @@ public class InventoryItem
         return true;
     }
 
+    public void Reduce(int amount)
+    {
+        if(amount <= 0 || amount > Amount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Amnount must be greater than 0 and less Amount");
+        }
+        Amount -= amount;
+        Debug.Log($"Reduced {amount} to {Data.name}, new amount: {Amount}");
+    }
+
     public int Add(int amount)
     {
         if(amount <= 0)
