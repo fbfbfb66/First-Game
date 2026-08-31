@@ -84,6 +84,7 @@ public class PlayerInventory : MonoBehaviour
         }
         return false;
     }
+    public bool TryGetItemPosition(InventoryItem item, out int x, out int y) => Grid.TryGetItemPosition(item, out x, out y);
     public IEnumerable<(InventoryItem item, int x, int y)> GetPlacedItems() => Grid.GetPlacedItems();
     public bool IsInside(int x, int y) => Grid.IsInside(x, y);
     public bool CanPlace(InventoryItem item, int x, int y, bool ignoreItem = false) => Grid.CanPlace(item, x, y, ignoreItem);

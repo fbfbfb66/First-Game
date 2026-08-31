@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 public class InventoryView : MonoBehaviour
 {
+    [SerializeField] private Image selectedBoard;
     [SerializeField] private Image PlacementPreview;
     [SerializeField] private Color validPlacementColor;
     [SerializeField] private Color invalidPlacementColor;
@@ -11,7 +12,7 @@ public class InventoryView : MonoBehaviour
     [SerializeField] private Vector2 offsetPos = new Vector2(10.5f, 0f);
     [SerializeField] private float previewFollowSpeed = 15f;
     [Space]
-    [SerializeField] private ItemContextMenu menu;
+    [SerializeField] private ItemDetailPanel detailPanel;
     [SerializeField] private RectTransform itemLayer;
     [SerializeField] private RectTransform dragLayer;
     [SerializeField] private PlayerInventory inventory;
@@ -25,6 +26,7 @@ public class InventoryView : MonoBehaviour
     private Vector2Int hoveredCell = new Vector2Int(-1, -1);
     private InventoryItem hoveredItem = null;
     private InventoryItem dragItem;
+    private InventoryItem selectedItem;
     private Vector2 dragItemOriginalPosition;
     private Vector2 grabOffset;
     private bool allowToHeighlight = true;
@@ -45,7 +47,7 @@ public class InventoryView : MonoBehaviour
         inventory.ItemPlaced += ShowItem;
         inventory.ItemAmountUpdated += UpdateItemAmount;
         inventory.ItemRemoved += OnItemRemoved;
-        menu.DropRequested += DropItem;
+        detailPanel.DropRequested += DropItem;
     }
 
     private void OnDisable()
@@ -55,7 +57,7 @@ public class InventoryView : MonoBehaviour
         inventory.ItemPlaced -= ShowItem;
         inventory.ItemAmountUpdated -= UpdateItemAmount;
         inventory.ItemRemoved -= OnItemRemoved;
-        menu.DropRequested -= DropItem;
+        detailPanel.DropRequested -= DropItem;
 
         // dragItem 为 null 时不能进 TryGetValue —— Dictionary 对 null 键抛
         // ArgumentNullException，而「没在拖东西时关闭背包」是最常见的路径。
@@ -67,8 +69,51 @@ public class InventoryView : MonoBehaviour
             SetItemView(dragItem, itemView, dragItem.IsRotated);
         }
         HidePlacementPreview();
+        SetSelectedItem(null);
         dragItem = null;
         allowToHeighlight = true;
+    }
+
+    private void SetSelectedItem(InventoryItem item)
+    {
+        selectedItem = item;
+        if(selectedItem == null)
+        {
+            detailPanel.Hide();
+            HideSelectedBoard();
+            return;
+        }
+        detailPanel.Show(selectedItem);
+        ShowSelectedBoard();
+    }
+
+    private void ShowSelectedBoard()
+    {
+        if (selectedItem == null) return;
+        if (dragItem != null) return;
+        if (inventory.TryGetItemPosition(selectedItem, out int x, out int y) == false) return;
+        selectedBoard.gameObject.SetActive(true);
+        selectedBoard.rectTransform.SetAsLastSibling();
+        selectedBoard.rectTransform.anchoredPosition = GetAnchorPositionForCell(x, y);
+        selectedBoard.rectTransform.sizeDelta = GetRectSizeDelta(selectedItem.CurrentWidth, selectedItem.CurrentHeight);
+    }
+
+    private void HideSelectedBoard()
+    {
+        selectedBoard.gameObject.SetActive(false);
+    }
+
+    public void SelectItem(Vector2 screenPosition)
+    {
+        if (dragItem != null) return;
+        if(TryGetCellAt(screenPosition,out int x,out int y))
+        {
+            SetSelectedItem(inventory.GetItemAt(x,y));
+        }
+        else
+        {
+            SetSelectedItem(null);
+        }
     }
 
     private void DropItem(InventoryItem item, int amount)
@@ -82,22 +127,11 @@ public class InventoryView : MonoBehaviour
             Destroy(view.gameObject);
 
         itemViews.Remove(item);
-        menu.Close();
         if (hoveredItem == item) hoveredItem = null;
         if(dragItem == item) dragItem = null;
+        if (selectedItem == item) SetSelectedItem(null);
     }
 
-    public void RequestItemMenu(Vector2 screenPosition)
-    {
-        if (dragItem != null) return;
-
-        if (TryGetCellAt(screenPosition, out int x, out int y))
-        {
-            InventoryItem item = inventory.GetItemAt(x, y);
-            if (item == null) return;
-            menu.Open(item,screenPosition);
-        }
-    }
     private void Rebuild()
     {
         foreach (var (item, x, y) in inventory.GetPlacedItems())
@@ -112,6 +146,7 @@ public class InventoryView : MonoBehaviour
         {
             view.SetAmount(item.Amount);
         }
+        if (item == selectedItem) SetSelectedItem(item);
     }
 
     public void RotateDragItem()
@@ -161,6 +196,8 @@ public class InventoryView : MonoBehaviour
 
                     GetDropItemAt(dragItemOriginalPosition, out int originalX, out int originalY);
                     ShowPlacementPreview(new Vector2Int(originalX, originalY), dragItem);
+                    if(selectedItem == dragItem)
+                        HideSelectedBoard();
                 }
                 Debug.Log($"Begin dragging item: {dragItem.Data.DisplayName} from cell ({x}, {y})");
                 return true;
@@ -209,6 +246,7 @@ public class InventoryView : MonoBehaviour
         HidePlacementPreview();
         allowToHeighlight = true;
         dragItem = null;
+        ShowSelectedBoard();
     }
 
     public void UpdateHover(Vector2 screenPosition)

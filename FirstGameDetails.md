@@ -22,7 +22,7 @@
   - Flag 与条件：`GameFlagCenter` + `GameFlagDatabase` + `GameFlagData` + `GameCondition` + `FlagBoolCondition`。
   - Quest 系统：`QuestManager` + `QuestDatabase` + `QuestData` + `QuestState` + `QuestStateCondition`。
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
-  - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView`。已打通「显示 → 悬停高亮 → 拖拽 → 旋转 → 落格改数据」与「右键上下文菜单 → 按数量丢弃 → 移除数据并销毁显示对象」。
+  - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView` + `ItemDetailPanel`。已打通「显示 → 悬停高亮 → 拖拽 → 旋转 → 落格改数据」与「左键选中 → 选中框 + 常驻详情面板 → 按数量丢弃 → 移除数据并销毁显示对象」。
   - 其他 UI：`UI_HPBarView`。
 
 ## 2. Unity Git 提交规则
@@ -113,20 +113,28 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 ```text
 Canvas_Inventory (Screen Space - Overlay)
 |-- BackGround
-|-- Inventory                            <- InventoryView
-|   `-- InventoryArea (ScrollRect)
-|       `-- Viewport (Mask)              <- 裁剪来源
-|           `-- Content                  <- GridLayoutGroup (Cell 240, Spacing 5) + ContentSizeFitter
-|               |-- Slot .. Slot (31)    <- 32 个静态格子底图
-|               `-- ItemLayer            <- InventoryPointerHandler
-|                   |-- PlacementPreview  <- 拖放预览框（默认隐藏）
-|                   `-- ItemView(Clone) ...
-|-- DragLayer                            <- 拖拽期间物品的临时父节点
-|-- Blocker                              <- 全屏透明遮罩（默认隐藏）
-`-- ItemContextMenu                      <- 右键菜单（默认隐藏）
-    |-- ItemNameLabel
-    |-- AmountRow (− / AmountLabel / ＋)
-    `-- DropButton
+|-- InventoryPart
+|   |-- InventoryBG
+|   |-- Inventory                        <- InventoryView
+|   |   `-- InventoryArea (ScrollRect)
+|   |       `-- Viewport (Mask)          <- 裁剪来源
+|   |           `-- Content              <- GridLayoutGroup (Cell 240, Spacing 5) + ContentSizeFitter
+|   |               |-- Slot .. Slot (31) <- 32 个静态格子底图
+|   |               `-- ItemLayer        <- InventoryPointerHandler
+|   |                   |-- PlacementPreview <- 拖放预览框（默认隐藏）
+|   |                   |-- SelectedBoard     <- 选中框（默认隐藏）
+|   |                   `-- ItemView(Clone) ...
+|   `-- ItemDetailPanel                  <- ItemDetailPanel（常驻，不隐藏自身）
+|       |-- Basic                        <- 有选中项时显示
+|       |   |-- Icon
+|       |   |-- NameLabel
+|       |   |-- CategoryLabel
+|       |   |-- DescriptionLabel
+|       |   `-- ActionRow
+|       |       |-- DropButton
+|       |       `-- AmountRow (＋ / − / AmountLabel)
+|       `-- FallBackLabel                <- 无选中项时显示
+`-- DragLayer                            <- 拖拽期间物品的临时父节点
 ```
 
 要点：
@@ -137,8 +145,10 @@ Canvas_Inventory (Screen Space - Overlay)
 - 物品显示对象不是 Slot 的子物体——多格物品无法塞进单个 Slot，只能由 `ItemLayer` 统一按坐标摆放。
 - `Canvas_Inventory` 默认**未启用**，由 `InventoryScreen` 根据 `GameLayerType.Inventory` 开关。
 - `PlacementPreview` 是一张半透明 `Image`，anchor/pivot 同为 (0, 1)，**关闭 `Raycast Target`**（否则会挡住 `ItemLayer` 的鼠标射线，拖动直接失灵），默认 `SetActive(false)`。它必须是 `ItemLayer` 的子物体：预览框要吸附到格子，就得和格子共用同一套坐标系，且背包滚动时会跟着内容一起走。拖拽开始时 `SetAsLastSibling()` 把它排到所有 `ItemView` **之后**——同一 Canvas 下渲染顺序即 Hierarchy 顺序，排在后面才画在上面。若排在前面（`SetAsFirstSibling`），红色预览恰好会被"挡路的那件物品"的底板完全盖住，而那正是它唯一需要被看见的时刻。
-- `Blocker` 与 `ItemContextMenu` 都是 `Canvas_Inventory` 的直接子物体，且 **`Blocker` 必须紧排在 `ItemContextMenu` 之前**。同一 Canvas 下渲染与射线顺序即 Hierarchy 顺序，排在后面的画在上面、也先被射线击中：点菜单面板时射线打到菜单，`Blocker` 摸不着；点其他任何位置则打到 `Blocker`，触发关闭。`Blocker` 是 stretch/stretch 铺满全屏、`Alpha = 0` 但**开启 `Raycast Target`** 的 `Image`——与 `ItemLayer` 的隐形热区同一个技巧（Unity 自带的 `Dropdown` 展开时也是动态创建一个 `Blocker`）。副作用是菜单开启期间格子的悬停、拖拽、右键全部被挡住，第一次点击只关菜单、不会顺手抓起物品，这正是右键菜单应有的行为。
-- `ItemContextMenu` **不能**把 `Blocker` 做成自己的子物体：UGUI 中子物体画在父物体**之上**，全屏的子物体会把菜单本身糊住。
+- `SelectedBoard` 是选中框，与 `PlacementPreview` 同为 `ItemLayer` 的子物体、同样 anchor/pivot 为 (0, 1) 且**关闭 `Raycast Target`**，默认 `SetActive(false)`。放在 `ItemLayer` 下的理由与预览框一致：要吸附到格子就得共用同一套坐标系，且背包滚动时跟着内容一起走。`ShowSelectedBoard` 里 `SetAsLastSibling()` 让它画在物品之上——框是空心描边，压在图标上不会遮挡内容，反倒能盖过 `ItemView.SetHighlighted` 里同样调 `SetAsLastSibling()` 抢到最前的悬停项。
+- `ItemDetailPanel` 是 `InventoryPart` 的子物体，与 `Inventory` 左右并列，**它自身永不隐藏**——「常驻」正是这次改版的核心，空态由内部的 `Basic` / `FallBackLabel` 两组子物体互斥切换来表达，而不是关掉整块面板。
+- `ActionRow`（丢弃按钮与数量行）**必须放在 `Basic` 里面**：没有选中项时整个 `Basic` 关闭，按钮随之消失。放到 `Basic` 外面会出现「没选任何物品却有一个可点的丢弃按钮」。
+- 旧的 `Blocker` 与 `ItemContextMenu` 已随右键菜单一并删除。全屏透明遮罩是**弹出式**菜单才需要的东西（用来接住「点在了菜单以外」那一下），常驻面板没有「关闭」这个动作，也就不需要遮罩；顺带消除了遮罩期间格子悬停与拖拽被吞掉的副作用。
 - `DragLayer` 是 `Canvas_Inventory` 的**直接子物体且排在最后**，因此位于 `Viewport` 上 `Mask` 的作用范围之外，拖出背包的物品不会被裁掉；排最后保证它画在其余 UI 之上。锚点 stretch/stretch、offset 全 0、**pivot 同样为 (0, 1)**（必须与 `ItemLayer` 一致，否则拖拽定位会整体偏移）。**刻意不挂 `Image`**——挂了会变成覆盖全屏的射线目标，吞掉所有 UI 鼠标事件；也不挂 `Mask`。
 
 ## 6. 输入与游戏层
@@ -241,14 +251,18 @@ Canvas_Inventory (Screen Space - Overlay)
   - `hoveredCell` / `hoveredItem`：鼠标当前所在格子 / 当前悬停的物品。高亮以 `hoveredItem` 为判断依据，因此在同一多格物品的不同格之间移动不会触发重复的高亮切换。
   - `dragItem` / `dragItemOriginalPosition` / `grabOffset`：拖拽中的物品、它在 `itemLayer` 下的原始 `anchoredPosition`、按下瞬间「鼠标 → 物品」的偏移。
   - `allowToHeighlight`：拖拽期间抑制悬停高亮。
+  - `selectedItem`：**当前选中的物品**，与 `hoveredItem`、`dragItem` 并列的第三种物品状态，三者语义互不重叠：`hoveredItem` 鼠标一移开就没了，`dragItem` 只在拖拽过程中存在，`selectedItem` 由玩家主动点击产生并**一直保持**，直到玩家点了别处或它本身消失。详情面板与选中框都以它为唯一依据。
+  - `selectedBoard` / `detailPanel`：选中框的 `Image`、右侧常驻详情面板。
 - 函数：
   - `OnEnable()`：**先 `Rebuild()` 全量同步，再订阅** `ItemPlaced` / `ItemAmountUpdated`。背包关闭期间本组件随 Canvas 一起被禁用，`OnDisable` 已退订，那段时间捡到的物品事件**没有任何人听见**——事件是广播不是留言，错过一次，UI 与数据就永久错位。所以 UI 的标准形状是「打开时全量同步一次 + 打开期间靠事件增量更新」。
-  - `OnDisable()`：退订，并清理拖拽状态——把拖拽中的 `ItemView` `SetParent` 回 `itemLayer`（否则它会一直留在 `DragLayer` 下，坐标系不对且不随背包滚动）、恢复其底板、隐藏预览框（否则下次打开会看到僵在原地的绿框），最后清空 `dragItem` 与 `allowToHeighlight`，并调 `SetItemView(dragItem, itemView, dragItem.IsRotated)` **把朝向恢复成数据层的真相**——「拖着转了 90° 后直接关背包」是丢弃意图的三个出口之一（另两个是松手成功、松手非法），三处都必须收尾。取 `itemViews` 前必须先判 `dragItem != null`：**`Dictionary.TryGetValue` 对 null 键会抛 `ArgumentNullException`**，而「没在拖东西时关闭背包」恰恰是最常见的路径。
-  - `RequestItemMenu(Vector2 screenPosition)`：右键入口。拖拽中直接早退，查到物品才 `ItemContextMenu.Open`。
-  - `DropItem(InventoryItem item, int amount)`：`ItemContextMenu.DropRequested` 的回调，转成 `inventory.TryRemove`。**订阅方是 `InventoryView` 而不是让菜单直接持有 `PlayerInventory`**：菜单是纯 UI，只知道「用户点了丢弃」，不该知道背包数据长什么样；以后同一个菜单要对不同容器的物品操作时，硬连 `PlayerInventory` 那天就得推倒重来。
-  - `OnItemRemoved(InventoryItem item)`：`ItemRemoved` 的回调。`Destroy` 掉 `ItemView` 的 `GameObject`、**从 `itemViews` 字典移除该条映射**、关闭菜单，并把 `hoveredItem` / `dragItem` 中指向它的引用置空。字典必须删——`Destroy` 只销毁场景对象，留着映射会让后续 `TryGetValue` 成功返回一个已销毁的 `ItemView`，访问其 `transform` 即撞上 Unity 的假 null（`MissingReferenceException`）。`Destroy` 是帧末延迟的，而 `itemViews.Remove` 立即生效，两者互不依赖。
-  - `Rebuild()`：遍历 `inventory.GetPlacedItems()` 逐个 `ShowItem`。`ShowItem` 已做成幂等（同一 `InventoryItem` 复用已有的 `ItemView`），因此重复调用不会产生重复对象。**目前只补不删**。背包**打开期间**不成问题：`ItemRemoved` 会实时销毁对应的 `ItemView`，字典与数据层保持同步。真正的洞在于 `OnDisable` 会退订 `ItemRemoved`——若将来出现「背包关闭时也会改数据」的路径（世界里丢弃、仓库转移、任务脚本扣道具），这期间的移除通知收不到，再打开时 `Rebuild` 只补不删，已经没了的物品会留在屏幕上。当前唯一的移除入口是右键菜单，而菜单必须背包开着才点得到，故暂不处理；第一个这类功能出现时，`Rebuild` 要从「补齐」改成「对齐」：先扫一遍 `itemViews` 销毁掉数据层已不存在的，再补新的。
-  - `UpdateItemAmount(InventoryItem)`：`ItemAmountUpdated` 的回调，从 `itemViews` 反查显示对象并刷新数字。
+  - `OnDisable()`：退订，并清理拖拽状态——把拖拽中的 `ItemView` `SetParent` 回 `itemLayer`（否则它会一直留在 `DragLayer` 下，坐标系不对且不随背包滚动）、恢复其底板、隐藏预览框（否则下次打开会看到僵在原地的绿框），最后 `SetSelectedItem(null)` 清空选中（否则下次打开背包，面板会残留上一次的内容，而那件物品可能早已不在包里）并清空 `dragItem` 与 `allowToHeighlight`，并调 `SetItemView(dragItem, itemView, dragItem.IsRotated)` **把朝向恢复成数据层的真相**——「拖着转了 90° 后直接关背包」是丢弃意图的三个出口之一（另两个是松手成功、松手非法），三处都必须收尾。取 `itemViews` 前必须先判 `dragItem != null`：**`Dictionary.TryGetValue` 对 null 键会抛 `ArgumentNullException`**，而「没在拖东西时关闭背包」恰恰是最常见的路径。
+  - `SelectItem(Vector2 screenPosition)`：**左键选中入口**。拖拽中早退，否则把命中格里的物品（可能为 `null`）交给 `SetSelectedItem`。它只负责回答「玩家点中了谁」，不碰任何表现。
+  - `SetSelectedItem(InventoryItem item)`：**`selectedItem` 的唯一赋值入口**，赋值后同步刷新详情面板与选中框，`item` 为 `null` 走空态。选中的来源有四个——点击格子、选中项被移除、背包关闭、拖拽结束——若让每个来源各自手抄「改字段 + 刷面板 + 刷选中框」，漏掉一处的表现就是「UI 显示了一个已经不存在的东西」，且不会报任何错。**状态与它的表现必须在同一处更新**，这条规则比省下的几行代码重要得多。
+  - `ShowSelectedBoard()` / `HideSelectedBoard()`：按 `inventory.TryGetItemPosition` 求出选中物品的**原点格**摆放选中框。**不能用玩家点击的那一格**——点 2×1 物品的右半格时，点击格与原点格差一整格，框会歪出去一格。`dragItem != null` 时早退：拖拽中物品不在网格原位，此时算出的位置没有意义。
+  - `DropItem(InventoryItem item, int amount)`：`ItemDetailPanel.DropRequested` 的回调，转成 `inventory.TryRemove`。**订阅方是 `InventoryView` 而不是让面板直接持有 `PlayerInventory`**：面板是纯 UI，只知道「用户点了丢弃」，不该知道背包数据长什么样；以后同一个面板要对不同容器的物品操作时，硬连 `PlayerInventory` 那天就得推倒重来。这条连线在「右键菜单 → 常驻面板」的改版中**一个字都没改**——请求方换了个前端，执行方完全不受影响，正是当初把「发出请求」与「执行操作」分开的收益。
+  - `OnItemRemoved(InventoryItem item)`：`ItemRemoved` 的回调。`Destroy` 掉 `ItemView` 的 `GameObject`、**从 `itemViews` 字典移除该条映射**，并把 `hoveredItem` / `dragItem` 中指向它的引用置空；`selectedItem` 指向它时走 `SetSelectedItem(null)`。**三处都必须先判等于被移除的那件**——无脑清空会让「丢掉 A 时 B 的选中状态也跟着消失」。字典必须删——`Destroy` 只销毁场景对象，留着映射会让后续 `TryGetValue` 成功返回一个已销毁的 `ItemView`，访问其 `transform` 即撞上 Unity 的假 null（`MissingReferenceException`）。`Destroy` 是帧末延迟的，而 `itemViews.Remove` 立即生效，两者互不依赖。
+  - `Rebuild()`：遍历 `inventory.GetPlacedItems()` 逐个 `ShowItem`。`ShowItem` 已做成幂等（同一 `InventoryItem` 复用已有的 `ItemView`），因此重复调用不会产生重复对象。**目前只补不删**。背包**打开期间**不成问题：`ItemRemoved` 会实时销毁对应的 `ItemView`，字典与数据层保持同步。真正的洞在于 `OnDisable` 会退订 `ItemRemoved`——若将来出现「背包关闭时也会改数据」的路径（世界里丢弃、仓库转移、任务脚本扣道具），这期间的移除通知收不到，再打开时 `Rebuild` 只补不删，已经没了的物品会留在屏幕上。当前唯一的移除入口是详情面板的丢弃按钮，而面板必须背包开着才点得到，故暂不处理；第一个这类功能出现时，`Rebuild` 要从「补齐」改成「对齐」：先扫一遍 `itemViews` 销毁掉数据层已不存在的，再补新的。
+  - `UpdateItemAmount(InventoryItem)`：`ItemAmountUpdated` 的回调，从 `itemViews` 反查显示对象并刷新格子上的数字；若变化的正是 `selectedItem`，再走一次 `SetSelectedItem(item)` 让详情面板重算数量选择器的上限。**走事件而不是让面板在丢弃后自己刷新**：数量还会因堆叠合并、使用消耗、任务扣除等别的原因变化，手动刷新每多一条路径就要多补一次，而事件是所有路径的共同出口。
   - `ShowItem(InventoryItem, int x, int y)`：`ItemPlaced` 的回调，同时被 `Rebuild` 复用。**幂等**：`itemViews` 中已有该物品则复用其 `ItemView`，否则实例化并登记，按 `(x * step, -y * step)` 设置 `anchoredPosition`，按 `n * cellSize + (n - 1) * spacing` 设置 `sizeDelta`，使多格物品在视觉上跨越对应格数。
   - `TryGetCellAt(Vector2 screenPosition, out int x, out int y)`：`ShowItem` 的反函数。经 `RectTransformUtility.ScreenPointToLocalPointInRectangle` 把屏幕坐标转为 `itemLayer` 局部坐标（Canvas 为 Screen Space - Overlay，摄像机参数传 `null`），再除以步长并 `FloorToInt` 得到格子坐标，最后用 `inventory.IsInside` 校验。用 `FloorToInt` 而非 `CeilToInt`：格子 n 覆盖 `[n, n+1)` 区间，且出界时结果为负数便于识别。
   - `UpdateHover(Vector2 screenPosition)` / `ClearHover()`：由 `InventoryPointerHandler` 调用。仅在悬停物品发生变化时切换 `ItemView` 的高亮。
@@ -262,7 +276,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `SetItemView(InventoryItem item, ItemView view, bool rotated)`：按**显式传入的朝向**算出外框尺寸与图标尺寸，转发给 `ItemView.SetFootprint`。朝向作为参数而非从 `item` 读，是因为两条调用路各有各的真相：`ShowItem` 传 `item.IsRotated`（数据事实），`RotateDragItem` 传 `DragIsRotated`（拖拽意图）。图标尺寸**永远是 `Data.Width` × `Data.Height` 的原始尺寸**，靠旋转 90° 去填满外框，而不是把图塞进新框里拉伸。
   - `RotateDragItem()`：`InputRouter` 在背包层按下 R 时调用。翻转 `dragRotated` → `SetItemView` 换新外框 → 重算 `grabOffset` 与 `anchoredPosition` → 求落点格 → 尺寸版 `CanPlace` → `RotatePlacementView`。**顺序不可调换**：重摆位置会改变落点格，若先求格子再挪物品，红绿判断和预览框位置都会错一格。
   - `RotatePlacementView(Vector2Int cell, bool valid)`：旋转时刷新预览框的尺寸、颜色与位置。位置**直接赋值不走 Lerp**——玩家可以鼠标不动只按 R，此时 `Drag` 根本不会被调用，靠 `UpdatePlacementPreview` 的缓动去追会让预览框僵在原格。
-  - `EndDrag()`：**第一步必须是** `SetParent(itemLayer, true)`。`worldPositionStays: true` 会让 Unity 在换父节点时保持画面位置不变并重算 `anchoredPosition`，因此这一行执行完，`rect.anchoredPosition` 就已从 `dragLayer` 空间变成 `itemLayer` 空间——即与 `ShowItem` 同一套坐标系，可以直接换算格子。随后 `GetDropItemAt` 求出落点，交给 `inventory.TryMove(dragItem, x, y, DragIsRotated)`，**按其返回值决定画面**：成功则吸附到目标格（画面无需再动——按 R 那一刻就已画成新朝向，此刻是数据追上了画面）；失败则退回 `dragItemOriginalPosition` 并 `SetItemView(dragItem, itemView, dragItem.IsRotated)` 把朝向复原，**此处传数据层的 `IsRotated` 而非 `DragIsRotated`：失败时以数据为准，画面服从数据**。最后清理 `dragItem`、`dragRotated` 与高亮抑制。**`HidePlacementPreview()` 与这些清理一样放在 `if` 之外**——「无论如何都该做」的收尾不能依赖 `dragItem` 是否有效，恰恰是它出错时最需要收尾。
+  - `EndDrag()`：**第一步必须是** `SetParent(itemLayer, true)`。`worldPositionStays: true` 会让 Unity 在换父节点时保持画面位置不变并重算 `anchoredPosition`，因此这一行执行完，`rect.anchoredPosition` 就已从 `dragLayer` 空间变成 `itemLayer` 空间——即与 `ShowItem` 同一套坐标系，可以直接换算格子。随后 `GetDropItemAt` 求出落点，交给 `inventory.TryMove(dragItem, x, y, DragIsRotated)`，**按其返回值决定画面**：成功则吸附到目标格（画面无需再动——按 R 那一刻就已画成新朝向，此刻是数据追上了画面）；失败则退回 `dragItemOriginalPosition` 并 `SetItemView(dragItem, itemView, dragItem.IsRotated)` 把朝向复原，**此处传数据层的 `IsRotated` 而非 `DragIsRotated`：失败时以数据为准，画面服从数据**。最后清理 `dragItem`、`dragRotated` 与高亮抑制，并调 `ShowSelectedBoard()` 把选中框挪到新位置。**这一句必须排在 `dragItem = null` 之后**——`ShowSelectedBoard` 开头有 `dragItem != null` 早退，放前面会被静默吞掉，症状是「拖完选中框不动」且没有任何报错。**`HidePlacementPreview()` 与这些清理一样放在 `if` 之外**——「无论如何都该做」的收尾不能依赖 `dragItem` 是否有效，恰恰是它出错时最需要收尾。
   - `GetDropItemAt(Vector2 itemPosition, out int x, out int y)`：把物品**左上角**的 `anchoredPosition` 换算成格子坐标。与 `TryGetCellAt` 的两点区别：其一，落点必须由物品左上角决定而非鼠标位置，否则玩家抓着物品右下角拖动时，放置结果会整体偏移一整个抓取偏移量；其二，用 `RoundToInt` 而非 `FloorToInt`——`Floor` 只认「左上角落在哪格」，差几像素没对齐就会判到左边一格甚至负数，`Round` 才是「吸附到最近的格子」的手感。不做合法性判断，合法与否由 `TryMove` 回答。
   - `GetAnchorPositionForCell(int x, int y)`：格子坐标 → `anchoredPosition`，即 `(x * step, -y * step)`。`ShowItem` 与 `EndDrag` 共用，避免 `cellSize` / `spacing` 在 Inspector 改动后两处结果不一致。
 - 依赖方向：View 只能**请求**数据层改动（`TryMove`），不能直接操作网格；改动成功与否一律以数据层的返回值为准，画面不按 UI 自己的预判摆放。当前两者结果必然一致，但数据层将来一旦加入重量上限、容器类别限制、堆叠合并等规则，UI 预判就会与真实结果分叉，表现为「画面搬过去了、数据还在原位」这类极难定位的问题。
@@ -307,32 +321,28 @@ Canvas_Inventory (Screen Space - Overlay)
   - `OnPointerExit(PointerEventData)`：调用 `InventoryView.ClearHover`。
   - `OnBeginDrag(PointerEventData)`：传 **`eventData.pressPosition`**（按下瞬间的屏幕坐标）而非 `position`。`OnBeginDrag` 要等鼠标越过拖拽阈值才触发，此时 `position` 已偏离按下点几个像素，会同时影响抓取偏移与「按在哪一格」的判断。
   - `OnDrag(PointerEventData)` / `OnEndDrag(PointerEventData)`：转达当前位置 / 结束拖拽。`OnEndDrag` 不传坐标——落点由 `InventoryView` 用物品自身的位置算，与松手瞬间鼠标在哪无关。
-  - `OnPointerClick(PointerEventData)`：仅右键进入，调用 `InventoryView.RequestItemMenu`。
+  - `OnPointerClick(PointerEventData)`：仅左键进入，调用 `InventoryView.SelectItem`。用点击选中与拖拽不冲突——`EventSystem` 在一次按下里只要越过拖拽阈值就会清掉 `eligibleForClick`，松手时不再派发 `OnPointerClick`，因此「拖完松手」不会被误判成一次选中。
 - **`ScrollRect` 转发**：`EventSystem` 沿层级向上只把事件交给**第一个**实现了该接口的物体，不广播。`ItemLayer` 实现了拖拽三件套，于是祖先 `InventoryArea` 上的 `ScrollRect` 永远收不到拖拽（滚轮走的是 `IScrollHandler`，本脚本没实现，所以能正常上浮）。解决办法是按下瞬间定归属：`BeginDrag` 抓到物品则本次拖拽归自己，抓空则置 `routingToScroll` 并把三个回调手动转发给 `scrollRect`。**归属必须在按下那一刻定死并用字段记住**——玩家滑动列表时鼠标会扫过一堆物品，在 `OnDrag` 里现判「当前位置有没有物品」是错的。
 - 关联：挂在 `GameScene` 的 `ItemLayer` 上。
 
-#### `Assets/_Game/Scripts/Runtime/UI/ItemContextMenu.cs`
+#### `Assets/_Game/Scripts/Runtime/UI/ItemDetailPanel.cs`
 
-- 脚本职责：右键上下文菜单的显示、定位、数量选择，以及把玩家的点击翻译成一次「丢弃请求」。**纯 UI，不认识网格也不认识 `PlayerInventory`**。
-- 存在原因：菜单的生命周期与格子无关——由右键唤起、由点击别处关闭、由背包关闭而消失，还要管按钮回调。塞进 `InventoryView`（已背着拖拽、旋转、悬停三套状态）只会让它继续膨胀。命名刻意不叫 `ItemTooltip`：tooltip 是悬停出现的**不可交互**信息浮层，本类是右键唤出、**可点击**、需显式关闭的 context menu。
-- 关键字段：`blocker`、`itemName`、`amountLabel`、`dropButton` / `minusButton` / `plusButton`、`parent`（定位用的父 `RectTransform`）、`currentItem`、`currentAmount`。
+- 脚本职责：把「当前选中的物品」显示成右侧那块**常驻**详情面板（图标 / 名字 / 类别 / 描述 / 数量选择 / 丢弃），并把玩家的点击翻译成一次「丢弃请求」。**纯 UI，不认识网格也不认识 `PlayerInventory`**。
+- 存在原因：`InventoryView` 的职责是「格子与物品在网格里的表现」——坐标换算、拖拽、放置预览、高亮，已背着三套状态；详情文字排版与它毫无关系，塞进去只会让它继续膨胀。面板的职责边界是**被动的**：它不决定谁被选中（那是 `InventoryView` 的事），也不负责自己的显隐（面板随 `Canvas_Inventory` 一起开关）；它可以**发出请求**（`DropRequested`），但不执行。
+- 前身是 `ItemContextMenu`（右键唤起、跟随鼠标定位、`Close()` + 全屏 `Blocker` 关闭）。改成常驻后，**定位与开关两块逻辑整个作废**，只有「显示物品信息 + 数量选择 + 丢弃」被保留下来，`DropRequested` 与 `InventoryView.DropItem` 的连线原样沿用。
+- 关键字段：`icon` / `nameLabel` / `categoryLabel` / `descriptionLabel`、`basic` / `fallBack`（有无选中项的两组互斥子物体）、`dropButton` / `minusButton` / `plusButton` / `amountRow` / `amountLabel`、`currentItem`、`currentAmount`。
 - 函数：
-  - `Awake()`：`gameObject.SetActive(false)`。菜单在场景里保持激活以便编辑，运行时自己关掉。脚本挂在默认关闭的物体上是安全的——**Unity 的生命周期回调（`Awake` / `OnEnable` / `Update`）不会跑，但外部持有引用手动调用的方法照常执行，`[SerializeField]` 字段也早已反序列化完毕**。代价是不能把任何东西缓存在 `Awake` 里，否则第一次调用就是 null。
-  - `Open(InventoryItem item, Vector2 screenPosition)`：记下物品、**把 `currentAmount` 重置为 1**、设名字、定位、激活自身与 `blocker`。重置是必须的——`currentAmount` 的字段初始化器只在对象创建时执行一次，不重置会把上一次的选择带到下一次（在「3 个草药选到 3 → 关闭 → 右键只有 1 把的刀」这条路径上，会直接把刀整个删掉）。这与 `InventoryView.BeginDrag` 里的 `dragRotated = false` 是同一条规则：**会话开始时必须清干净上一轮的会话状态**。
-  - 定位用 `ScreenPointToWorldPointInRectangle` + `transform.position`，**不用 `anchoredPosition`**。父级 `Canvas_Inventory` 的 pivot 是 (0, 0)、菜单的 anchor 是 (0, 1)，两个原点差了整整一个屏幕高度，直接把局部坐标赋给 `anchoredPosition` 会偏掉一屏。世界坐标不存在「从哪个角量起」的问题，与 anchor / 父级 pivot 的配置无关；菜单 pivot 为 (0, 1)，于是效果就是左上角贴住鼠标、向右下展开。（拖拽那边能直接用 `anchoredPosition`，是因为 `DragLayer` 的 pivot 与 `ItemView` 的 anchor 同在 (0, 1)，两个原点恰好重合。）
-  - `Close()`：关闭自身与 `blocker`。**忘记关 `blocker` 会让整个背包点不动，而且因为它是透明的，看不出是什么挡着。**
-  - `OnPlusButton()` / `OnMinusButton()`：上限**每次直接读 `currentItem.Amount`**，不缓存副本——上限的唯一真相在物品身上，抄一份就是制造第二个来源。
-  - `RefreshAmount()`：先 `currentAmount = Mathf.Min(currentAmount, currentItem.Amount)` 重新夹紧，再刷新文字与两个按钮的 `interactable`。夹紧不能只写在加号里：丢弃后菜单不关闭（可以接着丢），而物品数量已经变小了，不重新夹紧就会出现「显示 2，实际只剩 1，再点一次全没了」。
-  - 按钮一律**在 `OnEnable` / `OnDisable` 里 `AddListener` / `RemoveListener`**，不在 Inspector 连 `OnClick`：Inspector 连线是隐形依赖，代码里搜不到调用关系；且面板会反复开关，写在 `Awake` 里会重复订阅或丢失订阅。
+  - `Awake()`：`basic` 关、`fallBack` 开。**刻意不像 `ItemContextMenu` 那样 `gameObject.SetActive(false)`**——面板本体是常驻的，隐藏的只是内容。
+  - `Show(InventoryItem item)`：切到 `basic`、填四项信息、记下 `currentItem`、**把 `currentAmount` 重置为 1** 并 `RefreshAmount()`；`item.Amount <= 1` 时整行隐藏 `amountRow`（只有 1 个时没有「选多少」可言）。
+    **重置是这次改版最容易翻车的地方**：弹出式菜单每次 `Open` 天然就是一次重新初始化，而常驻面板从头到尾只有一个实例、永远不会重新初始化，上一件物品的选择量会原样带到下一件。在「选中 10 个的药水 → 数量调到 5 → 直接点旁边只有 2 个的物品」这条路径上，不重置就会拿着 5 去丢一个只有 2 个的堆。这与 `InventoryView.BeginDrag` 里的 `dragRotated = false` 是同一条规则：**会话开始时必须清干净上一轮的会话状态**。
+  - `Hide()`：切回 `fallBack`，并把 `currentItem` 置 `null`，不留悬空引用（面板空态时那件物品可能已被丢光并从网格删除）。
+  - `OnPlusButton()` / `OnMinusButton()`：改 `currentAmount` 后**都必须调 `RefreshAmount()`**。上限每次直接读 `currentItem.Amount`，不缓存副本——上限的唯一真相在物品身上，抄一份就是制造第二个来源。
+    曾漏写加号里的 `RefreshAmount()`，症状是**两个按钮看起来都失灵**：加号那边 `currentAmount` 其实加对了、只是标签没重画；而减号的 `interactable` 也只在 `RefreshAmount` 里重算，于是它从 `Show` 时的 `false` 再没被解锁过，形成死锁。排查这类问题先分清「数据错了」还是「数据对但没画出来」，能省一半时间。
+  - `RefreshAmount()`：刷新数字文本与加减按钮的 `interactable`。**读了 `currentItem.Amount`，因此调用前必须保证 `currentItem` 非空。**
+  - 按钮一律**在 `OnEnable` / `OnDisable` 里 `AddListener` / `RemoveListener`**，不在 Inspector 连 `OnClick`：Inspector 连线是隐形依赖，代码里搜不到调用关系；且面板随背包反复开关，写在 `Awake` 里会重复订阅或丢失订阅。
 - 对外事件：`DropRequested`（`Action<InventoryItem, int>`），由 `InventoryView` 订阅并转成 `PlayerInventory.TryRemove`。
-- 关联：挂在 `Canvas_Inventory/ItemContextMenu` 上。
-
-#### `Assets/_Game/Scripts/Runtime/UI/ContextMenuBlocker.cs`
-
-- 脚本职责：接住「点在了菜单以外」的那一下，转成一次关闭请求。实现 `IPointerClickHandler`。
-- 存在原因：关闭逻辑原本挂在 `ItemLayer` 的 `InventoryPointerHandler` 上，而 `EventSystem` 只把事件交给射线击中的物体及其祖先——点在格子区域之外时 `ItemLayer` 根本收不到，菜单就关不掉。需要一个铺满全屏的接收者。
-- 用 `IPointerClickHandler` 而非 `Button`：`Button` 只响应左键，而菜单开着时右键点别处也应关闭。
-- 关联：挂在 `Canvas_Inventory/Blocker` 上，层级要求见「`GameScene` 背包 UI 结构」。
+- 关联：挂在 `Canvas_Inventory/InventoryPart/ItemDetailPanel` 上，由 `InventoryView.SetSelectedItem` 驱动。
+- 待办：图中的 `F 使用` 尚未实现——「使用一件物品」要回答「用了会发生什么」（回血多少、装备到哪、触发什么），`ItemData` 当前没有任何这类信息，属于独立的物品效果系统，不在本次改版范围内。`categoryLabel` 目前直接输出 `ItemCategory` 的英文枚举名，中文显示留待本地化。
 
 ### Runtime/Systems/InventorySystem
 
@@ -391,6 +401,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `FindStackable(ItemData data)`：行优先扫描，返回第一个 `CanStackWith(data)` 为 true 的物品，没有则返回 `null`。
   - `GetPlacedItems()`：返回 `IEnumerable<(InventoryItem item, int x, int y)>`，供 UI 全量重建使用。返回 `IEnumerable` 而非 `List`，是只给调用方「遍历」这一项能力。**用 `HashSet` 去重**——多格物品在 `cells` 里出现多次；按行优先扫描，**第一次遇到它的那一格必然是它的左上角**（占用区域是矩形），因此无需额外记录原点坐标。
   - `GetItemAt(int x, int y)`：返回该格的物品；**越界返回 `null` 而不抛异常**，因为将来会由鼠标位置驱动调用，划出背包范围属于正常情况。
+  - `TryGetItemPosition(InventoryItem item, out int x, out int y)`：`GetItemAt` 的**反方向**查询——由物品反查它的原点格。行优先扫描，**第一次撞到该引用的那一格必然是它的左上角**（占用区域是矩形），与 `GetPlacedItems` 依赖的是同一个前提，因此无需额外取最小值。存在原因：位置这本账属于 `InventoryGrid`，`InventoryItem` 自身**不知道也不该知道**它在网格的哪里；而 UI 要把选中框画在物品所占的整个矩形上，只有点击格是不够的（点 2×1 物品的右半格时，点击格与原点格差一整格）。
 - 关联：被 `PlayerInventory` 持有。尚未实现堆叠合并、旋转与网格的联动。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/PlayerInventory.cs`
@@ -410,7 +421,7 @@ Canvas_Inventory (Screen Space - Overlay)
     「减少」分支目前**未校验物品是否真的属于本背包**（移除分支靠 `Grid.Remove` 的返回值免费拿到了这个校验）。当前没有调用方能构造出该情况，等物品需要在多个容器间流动时再补。
   - `TryMove(InventoryItem item, int x, int y, bool rotated)`：把已在网格中的物品移到 `(x, y)` 并落实为 `rotated` 指定的朝向，返回是否成功。内部顺序为**尺寸版** `CanPlace(x, y, w, h, ignoreItem: item)` → `grid.Remove()` → 朝向不一致才 `item.Rotate()` → `grid.Place()`。`Rotate()` **必须在 `Place()` 之前**：`Place` 是按 `item.CurrentWidth` / `CurrentHeight` 铺格子的，转晚了就按旧尺寸占格，导致「物品尺寸与格子占用不一致」。`Remove` 按引用扫全表清除，与尺寸无关，放前放后皆可。校验用尺寸版而非 item 版，因为此刻 `IsRotated` 还是旧值。
     **这是一个事务**：校验不通过就 `return false` 且一个字节都不改，不存在「转了一半失败要回滚」的中间态。另一种写法是让 UI 先 `item.Rotate()` 再 `TryMove`、失败了再 `Rotate()` 回去——回滚代码是 bug 温床（漏分支、中途异常、后来者新增失败条件忘了补），而且坏掉的是玩家存档不是画面。**校验必须写在这里而不是调用方**：`Remove` 一旦执行，物品就必须有地方落，否则它会从数据层彻底消失，而屏幕上的 `ItemView` 和 `itemViews` 字典仍在，玩家会看到一个抓得到、却已不存在于网格中的「鬼影」。把这条底线交给某个 UI 类去守，等于让其他调用方（拾取、容器转移）随时能绕过它。
-  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `CanPlace(InventoryItem, int, int, bool)` / `CanPlace(int, int, int, int, InventoryItem)` / `GetPlacedItems()`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryAdd` / `TryMove` 直接改数据而跳过校验与事件通知。
+  - `IsInside(int x, int y)` / `GetItemAt(int x, int y)` / `TryGetItemPosition(InventoryItem, out int, out int)` / `CanPlace(InventoryItem, int, int, bool)` / `CanPlace(int, int, int, int, InventoryItem)` / `GetPlacedItems()`：向 `InventoryGrid` 的转发方法，供 UI 层查询。刻意不暴露 `grid` 本身，以免外部绕过 `TryAdd` / `TryMove` 直接改数据而跳过校验与事件通知。
 - 关联：挂在 `GameScene` 的 `Player` 对象上。原先 `Start()` 里的调试放置与 `PrintGrid()` 已随拾取流程接通而移除。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/FirstGame.Inventory.asmdef`
@@ -1772,6 +1783,9 @@ Canvas_Inventory (Screen Space - Overlay)
 - 老人对话资源已调整为“村庄救下后介绍”“苔藓区域说明”“苔藓区域兜底”三组数据。
 - `BootScene.unity` 已接入 Quest 管理相关运行时对象引用。
 - `InputRouter` 删除了确认对话选项时的调试日志输出。
+- 背包详情由右键弹出菜单改为常驻面板：新增 `Assets/_Game/Scripts/Runtime/UI/ItemDetailPanel.cs`，删除 `ItemContextMenu.cs` 与 `ContextMenuBlocker.cs`；`GameScene.unity` 中删除 `Blocker` 与 `ItemContextMenu` 两个对象，新增 `InventoryPart`（含 `InventoryBG` / `Inventory` / `ItemDetailPanel`）与 `ItemLayer/SelectedBoard` 选中框。
+- `InventoryGrid` 新增 `TryGetItemPosition`，`PlayerInventory` 同步新增转发方法。
+- `Assets/_Game/Art/UI/` 新增背包与面板用图：`Slot.png`（32 个格子底图共用）、`Inventory Slots and Selection Frame Set.png`（选中框来源）以及四张 `ChatGPT Image Aug 30, 2026, *.png` 面板底板，均连同 `.meta` 一起提交。同目录的 `Icy Fantasy RPG UI Asset Sheet.png` 是尚未被任何场景引用的素材原图，暂未纳入版本库。
 
 ## 12. 已处理事项与仍需留意
 

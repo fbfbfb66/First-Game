@@ -18,6 +18,26 @@ public class InventoryGrid
         cells = new InventoryItem[width, height];
     }
 
+    public bool TryGetItemPosition(InventoryItem item, out int x, out int y)
+    {
+        x = -1;
+        y = -1;
+
+        for(int j = 0; j < Height; j++)
+        {
+            for(int i = 0; i < Width; i++)
+            {
+                InventoryItem current = cells[i, j];
+                if (current == null) continue;
+                if(current != item) continue;
+                x = i;
+                y = j;
+                return true;
+            }
+        }
+        return false;
+    }
+
     public InventoryItem FindStackable(ItemData data)
     {
         for (int y = 0; y < Height; y++)

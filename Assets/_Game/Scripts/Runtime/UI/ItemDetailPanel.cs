@@ -3,23 +3,29 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ItemContextMenu : MonoBehaviour
+public class ItemDetailPanel : MonoBehaviour
 {
-    [SerializeField] private ContextMenuBlocker blocker;
-    [SerializeField] private TMP_Text itemName;
+    [SerializeField] private Image icon;
+    [SerializeField] private TMP_Text nameLabel;
+    [SerializeField] private TMP_Text categoryLabel;
+    [SerializeField] private TMP_Text descriptionLabel;
+    [SerializeField] private GameObject basic;
+    [SerializeField] private GameObject fallBack;
+    [Space]
     [SerializeField] private Button dropButton;
-    [SerializeField] private RectTransform parent;
     [SerializeField] private Button minusButton;
     [SerializeField] private Button plusButton;
+    [SerializeField] private GameObject amountRow;
     [SerializeField] private TMP_Text amountLabel;
 
     public event Action<InventoryItem, int> DropRequested;
     private InventoryItem currentItem;
-    private int currentAmount = 1;
+    private int currentAmount;
 
     private void Awake()
     {
-        gameObject.SetActive(false);
+        basic.SetActive(false);
+        fallBack.SetActive(true);
     }
 
     private void OnEnable()
@@ -38,29 +44,37 @@ public class ItemContextMenu : MonoBehaviour
         plusButton.onClick.RemoveListener(OnPlusButton);
     }
 
-    public void Open(InventoryItem item, Vector2 screenPosition)
+    public void Show(InventoryItem item)
     {
-        if (RectTransformUtility.ScreenPointToWorldPointInRectangle(parent, screenPosition, null, out Vector3 worldPosition) == false) return;
-        gameObject.SetActive(true);
-        blocker.gameObject.SetActive(true);
+        basic.SetActive(true);
+        fallBack.SetActive(false);
+        icon.sprite = item.Data.Icon;
+        nameLabel.text = item.Data.DisplayName;
+        categoryLabel.text = item.Data.Category.ToString();
+        descriptionLabel.text = item.Data.Description;
+
         currentItem = item;
         currentAmount = 1;
-        itemName.text = item.Data.DisplayName;
-        transform.position = worldPosition;
-
         RefreshAmount();
+        if (item.Amount <= 1) SetAmountRow(false);
+        else SetAmountRow(true);
     }
 
-    public void Close()
+    public void Hide()
     {
-        gameObject.SetActive(false);
-        blocker.gameObject.SetActive(false);
+        currentItem = null;
+        basic.SetActive(false);
+        fallBack.SetActive(true);
+    }
+
+    private void SetAmountRow(bool enable)
+    {
+        amountRow.SetActive(enable);
     }
 
     private void OnDropButton()
     {
         DropRequested?.Invoke(currentItem, currentAmount);
-        RefreshAmount();
     }
 
     private void OnPlusButton()
@@ -76,10 +90,8 @@ public class ItemContextMenu : MonoBehaviour
 
     private void RefreshAmount()
     {
-        currentAmount = Mathf.Min(currentAmount, currentItem.Amount);
         amountLabel.text = currentAmount.ToString();
         minusButton.interactable = currentAmount > 1;
         plusButton.interactable = currentAmount < currentItem.Amount;
     }
-
 }

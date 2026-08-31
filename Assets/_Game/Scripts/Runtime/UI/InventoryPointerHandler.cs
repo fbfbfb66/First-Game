@@ -53,7 +53,7 @@ public class InventoryPointerHandler : MonoBehaviour, IPointerMoveHandler, IPoin
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData.button != PointerEventData.InputButton.Right) return;
-        view.RequestItemMenu(eventData.position);
+        if (eventData.button != PointerEventData.InputButton.Left) return;
+        view.SelectItem(eventData.position);
     }
 }
