@@ -5,6 +5,176 @@
 
 ---
 
+## 2026-08-30 — 右键菜单改为常驻详情面板
+
+### 背景
+
+物品详情原本是右键弹出的 `ItemContextMenu`：跟着鼠标定位，靠一块全屏透明 `Blocker`
+接住"点在菜单外面"那一下来关闭。
+
+想要的是主流 RPG 那种布局——左边网格、右边一块**永远在**的详情区，点中哪件就显示哪件，
+并且被点中的物品在网格里有选中框。
+
+表面上像是"把菜单钉住不动"，实际上生命周期整个变了，这是这次所有坑的来源。
+
+### 做了什么
+
+分六个阶段推进，每阶段一个 Checkpoint 才往下走。
+
+**1. 选中状态**
+
+`InventoryView` 新增 `selectedItem`，左键点击格子写入。这是第三种物品状态：
+
+| 状态 | 生命周期 |
+| --- | --- |
+| `hoveredItem` | 鼠标移开就没 |
+| `dragItem` | 只在拖拽过程中存在 |
+| `selectedItem` | 玩家主动点击产生，**一直保持**到点别处或它本身消失 |
+
+之前不需要它，是因为"菜单开着"本身就是隐式的选中状态。
+
+**2. `ItemDetailPanel`**
+
+新脚本，图标 / 名字 / 类别 / 描述。`Basic` 与 `FallBackLabel` 两组子物体互斥切换表达空态，
+**面板本体永不隐藏**。
+
+**3. 选中框**
+
+`InventoryGrid.TryGetItemPosition` —— `GetItemAt` 的反方向查询，
+`PlayerInventory` 加一行转发。`SelectedBoard` 复用 `PlacementPreview` 的那套摆放代码。
+
+**4. 单一入口 `SetSelectedItem`**
+
+把散在三个分支里的"改字段 + 刷面板 + 刷选中框"合并，并接上另外三个来源。
+
+**5. 迁移操作区**
+
+丢弃按钮与数量选择器从菜单搬进面板的 `ActionRow`（放在 `Basic` 里面，空态时随之消失）。
+
+**6. 清理**
+
+删除 `ItemContextMenu.cs`、`ContextMenuBlocker.cs` 与场景里的两个对象，
+`InventoryPointerHandler.OnPointerClick` 从右键改为左键。
+
+### 关键决策与理由
+
+| 决策 | 理由 |
+| --- | --- |
+| `selectedItem` 只在 `SetSelectedItem` 里赋值 | 选中的来源有 4 个。让每个来源各自手抄"改字段 + 刷两处 UI"，漏一处就是"UI 显示了不存在的东西"，且不报错 |
+| 选中框位置用 `TryGetItemPosition` 而非点击格 | 点 2×1 物品的右半格时，两者差一整格，框会歪出去 |
+| 反查方法写在 `InventoryGrid` 而不是 `InventoryItem` | 位置这本账属于网格。物品不知道、也不该知道自己在哪 |
+| 面板发 `DropRequested`，不自己调 `TryRemove` | 沿用旧菜单的边界。结果是这条连线整次改版一行没改 |
+| `ActionRow` 放进 `Basic` 内部 | 否则会出现"没选任何物品，却有一个可点的丢弃按钮" |
+| 数量刷新走 `ItemAmountUpdated` 事件，不在丢弃后手动刷 | 数量还会因堆叠合并、使用消耗、任务扣除而变。事件是所有路径的共同出口 |
+| `ItemContextMenu` 直接删除，不留着当"备用方案" | 两者共用同一批按钮对象，不可能并存；留下的会是永远不会被执行的死代码 |
+
+### 学到的东西
+
+**1. 弹出式改常驻式，丢掉的是"免费重置"**
+
+这是本次最核心的一课。
+
+`Open()` 每次都是一轮**新会话**，所以旧菜单从来不用操心 `currentAmount` 残留 ——
+它每次弹出都天然重新初始化了一遍。
+
+常驻面板从头到尾**只有一个实例、永不重新初始化**，上一件物品的选择量会原样带到下一件。
+触发路径：选中 10 个的药水 → 数量调到 5 → 直接点旁边只有 2 个的物品 → 拿着 5 去丢一个只有 2 个的堆。
+
+所以 `Show()` 里必须手写 `currentAmount = 1`。这和 `BeginDrag` 里的 `dragRotated = false`
+是同一条规则：**会话开始时必须清干净上一轮的会话状态**。
+
+**2. 状态和它的表现被拆开维护，就一定会不同步**
+
+阶段 4 一次性暴露了三个 bug，来源不同、根因相同：
+
+| 现象 | 漏掉的来源 |
+| --- | --- |
+| 丢光选中的物品后，面板和框还在 | `OnItemRemoved` |
+| 关背包再开，面板残留上次内容 | `OnDisable` |
+| 拖动选中的物品后，框留在原地 | `EndDrag` |
+
+三处都不报错，因为数据全是对的，错的只有表现。
+
+**3. NullReferenceException 分两种，看一眼就能分**
+
+跳到出错那一行，问：这个引用是**运行时算出来的**，还是 **Inspector 拖进来的**？
+
+- 运行时算出来的 → 逻辑 bug，改代码
+- `[SerializeField]` 字段 → 99% 是忘了拖引用，改代码没用
+
+这次是后者（`detailPanel` 没拖）。**加一个 `[SerializeField]` 字段 = 欠一次拖拽。**
+
+**4. 一处遗漏可以伪装成两个 bug**
+
+`OnPlusButton` 漏了 `RefreshAmount()`，现象却是"加减按钮**都**没反应"：
+
+```
+加号：currentAmount 其实加对了，只是标签没重画
+减号：interactable 只在 RefreshAmount 里重算，
+      从 Show 时的 false 再没被解锁过 —— 死锁
+```
+
+排查时先分清是**数据错了**还是**数据对但没画出来**，能省一半时间。
+
+**5. 早退守卫会静默吞掉调用**
+
+`ShowSelectedBoard` 开头有 `if (dragItem != null) return;`，
+而 `EndDrag` 里 `dragItem = null;` 是最后一行。
+刷新选中框那句放在它前面就会被吞掉，症状是"拖完框不动"且没有任何报错。
+
+**顺序敏感的调用，不报错才是最难查的。**
+
+### 遗留问题
+
+- 图中的 `F 使用` 未做。"使用一件物品"要回答"用了会发生什么"，`ItemData` 没有任何这类信息，属于独立的物品效果系统
+- `categoryLabel` 直接输出 `ItemCategory` 的英文枚举名（`Consumable`），中文显示待本地化
+- 场景里 `CategoryLabel` 这个 GameObject 名字末尾有两个多余空格
+- 7 个 TMP 字体资源（`m_AtlasPopulationMode: 1`，Dynamic）是运行时烘焙中文字形后回写的图集缓存，不是手动改动，未提交
+- `Assets/_Game/Art/UI/Icy Fantasy RPG UI Asset Sheet.png` 尚未被任何场景引用，未提交
+- 本文件缺 2026-08-28（拖拽旋转）与 2026-08-30（右键菜单丢弃）两条记录，待补
+
+### 下次从哪继续
+
+**下一个目标：完善角色动画系统，并接入攻击。**
+
+现有的动画基础：
+
+```
+PlayerState 状态机  ✅
+    ↓
+PlayerAnimationHash  ✅  Idle / Walk / Run / RunTurn / RunEnd
+    ↓                    JumpStart / JumpUp / Apex / Fall / BaseLand / RollingLand
+Animator  ✅
+```
+
+移动与跳跃这条链是通的，**攻击这条链一根都没有**。
+
+第一个断点已经找到了，就在 `PlayerInputReceiver`：
+
+```csharp
+public void RequestAttack()
+{
+    Debug.Log("Player received attack request.");   // 只打日志
+}                                                    // 从没置位 attackPressed
+
+public bool ConsumeAttack()
+{
+    if (attackPressed) { ... }    // 于是永远返回 false
+    return false;
+}
+```
+
+`RequestDash()` 同样。这两条从 2026-08-17 就记在遗留问题里，现在轮到它们了。
+
+按纵向链的做法，第一个 Checkpoint 应该小到这种程度：
+
+> 按下攻击键 → Console 打出一行 → 玩家进入一个新的 `Player_AttackState`
+
+先不管伤害、判定框、连段、取消窗口。
+链路通了再往上加，`PlayerAnimationHash` 里也还没有任何 Attack 相关的哈希。
+
+---
+
 ## 2026-08-27 — 堆叠、数量显示、背包开关
 
 ### 背景
