@@ -8,6 +8,7 @@ public class Player_Apex : PlayerAir
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+        if (groundSensor.IsGrounded) return;
         float y = movement.GetCurrentVelocity().y;
         if(!groundSensor.IsGrounded && player.playerAnimationTrigger.IsAnimationFinished && y <= -player.playerBaseConfig.ApexThreshold)
         {

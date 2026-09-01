@@ -32,7 +32,7 @@ public class PlayerState : EntityState
         {
             stateMachine.ChangeState(player.idleState);
         }
-        else
+        else if(isSameDirctionForWallandFacingDir() == false)
         {
             if(movement.playerMoveType == PlayerMoveType.Run)
             {
@@ -43,5 +43,25 @@ public class PlayerState : EntityState
                 stateMachine.ChangeState(player.walkState);
             }
         }
+        else
+        {
+            stateMachine.ChangeState(player.idleState);
+        }
+    }
+
+    protected bool isSameDirctionForWallandFacingDir()
+    {
+        if (wallSensor.IsTouchingWall == false) return false;
+        Vector2 move = input.MoveInput;
+        bool isSameDir = false;
+        if (move.x > 0 && movement.facingRight)
+        {
+            isSameDir = true;
+        }
+        if (move.x < 0 && movement.facingRight == false)
+        {
+            isSameDir = true;
+        }
+        return isSameDir;
     }
 }

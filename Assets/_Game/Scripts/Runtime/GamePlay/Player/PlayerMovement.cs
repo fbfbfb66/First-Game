@@ -30,6 +30,14 @@ public class PlayerMovement : Movement
         return playerMoveType == PlayerMoveType.Run ? runVelocity : walkVelocity;
     }
 
+    public void HandleWallJump()
+    {
+        Vector2 dir = facingRight ? Vector2.left : Vector2.right;
+        HandleFlip(dir);
+        float jumpX = facingRight ? player.playerBaseConfig.WallJumpForce.x : -player.playerBaseConfig.WallJumpForce.x;
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x + jumpX, player.playerBaseConfig.WallJumpForce.y);
+    }
+
     public void HandleJump()
     {
         float jumpX = facingRight ? jumpForce.x : -jumpForce.x;

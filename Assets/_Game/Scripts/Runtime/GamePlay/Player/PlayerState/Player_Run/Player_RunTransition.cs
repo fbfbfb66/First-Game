@@ -6,9 +6,17 @@ public class Player_RunTransition : PlayerState
     {
     }
 
+    public override void Enter()
+    {
+        base.Enter();
+        input.ConsumeJump();
+    }
+
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+
+
         if(groundSensor.IsGrounded == false && movement.GetCurrentVelocity().y < 0)
         {
             stateMachine.ChangeState(player.fallState);

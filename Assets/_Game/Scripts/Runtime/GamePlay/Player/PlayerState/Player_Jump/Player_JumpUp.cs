@@ -8,10 +8,18 @@ public class Player_JumpUp : PlayerAir
 
     public override void LogicalUpdate()
     {
+        base.LogicalUpdate();
+        if (groundSensor.IsGrounded) return;
         float y = movement.GetCurrentVelocity().y;
         if(y <= player.playerBaseConfig.ApexThreshold && !groundSensor.IsGrounded)
         {
             stateMachine.ChangeState(player.apexState);
         }
+    }
+
+    public override void PhysicalUpdate()
+    {
+        base.PhysicalUpdate();
+        movement.HandleMoveAndFlip(input.MoveInput);
     }
 }

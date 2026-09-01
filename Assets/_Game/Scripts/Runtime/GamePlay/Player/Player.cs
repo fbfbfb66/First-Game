@@ -28,6 +28,7 @@ public class Player : Entity
     public Player_Fall fallState {get;private set;}
 
     public Player_WallSlide wallSlideState {get;private set;}
+    public Player_WallJump wallJumpState {get;private set;}
     #endregion
 
     protected override void Awake()
@@ -59,6 +60,7 @@ public class Player : Entity
         apexState = new Player_Apex(this,stateMachine,PlayerAnimationHash.Apex,anim);
         fallState = new Player_Fall(this,stateMachine,PlayerAnimationHash.Fall,anim);
         wallSlideState = new Player_WallSlide(this,stateMachine,PlayerAnimationHash.wallSlide,anim);
+        wallJumpState = new Player_WallJump(this, stateMachine, PlayerAnimationHash.JumpUp, anim);
     }
 
     private void Start()

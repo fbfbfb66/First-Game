@@ -15,9 +15,12 @@ MonoBehaviour:
   runVelocity: 13
   walkVelocity: 4
   jumpForce: {x: 2, y: 19}
+  wallJumpForce: {x: 5, y: 23}
+  fallGravity: 5
   apexThreshold: 0.2
   canEndRunEarlyDuration: 1.5
   runBufferDuration: 0.05
-  gravityScale: 3.5
-  wallSlideGS: 0.05
+  gravityScale: 4
+  wallSlideSlowSpeed: -3
+  wallSlideFastSpeed: -8
   coastingDuration: 0.8

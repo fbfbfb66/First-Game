@@ -18,6 +18,13 @@ public class Player_RunState : Player_RunTransition
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+
+        if (isSameDirctionForWallandFacingDir())
+        {
+            stateMachine.ChangeState(player.idleState);
+            return;
+        }
+
         if(movement.playerMoveType == PlayerMoveType.Walk)
         {
             stateMachine.ChangeState(player.walkState);

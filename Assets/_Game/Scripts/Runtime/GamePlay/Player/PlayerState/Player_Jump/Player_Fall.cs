@@ -6,10 +6,16 @@ public class Player_Fall : PlayerAir
     {
     }
 
+    public override void Enter()
+    {
+        base.Enter();
+        movement.Rb.gravityScale = player.playerBaseConfig.FallGravity;
+    }
+
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
-        if(wallSensor.IsTouchingWall)
+        if (isSameDirctionForWallandFacingDir())
             stateMachine.ChangeState(player.wallSlideState);
     }
 
@@ -17,5 +23,11 @@ public class Player_Fall : PlayerAir
     {
         base.PhysicalUpdate();
         movement.HandleMoveAndFlip(input.MoveInput);
+    }
+
+    public override void Exit()
+    {
+        base.Exit();
+        movement.Rb.gravityScale = player.playerBaseConfig.GravityScale;
     }
 }

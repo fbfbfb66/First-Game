@@ -7,7 +7,10 @@ public  class PlayerBaseConfig : ScriptableObject
     [SerializeField] private float walkVelocity;
     [Header("Jump")]
     [SerializeField] private Vector2 jumpForce;
+    [SerializeField] private Vector2 wallJumpForce;
+    [SerializeField] private float fallGravity;
     [SerializeField] private float apexThreshold = 0.5f;
+
     [Header("Run Conditions")]
     [SerializeField] private float canEndRunEarlyDuration = 3f;
     [SerializeField] private float runBufferDuration = 0.05f;
@@ -17,11 +20,13 @@ public  class PlayerBaseConfig : ScriptableObject
     [SerializeField] private float wallSlideFastSpeed = -3f;
     [SerializeField] private float coastingDuration = 0.2f;
 
+    public float FallGravity => fallGravity;
     public float WallSlideFastSpeed => wallSlideFastSpeed;
     public float WallSlideSlowSpeed => wallSlideSlowSpeed;
     public float RunVelocity => runVelocity;
     public float WalkVelocity => walkVelocity;
     public Vector2 JumpForce => jumpForce;
+    public Vector2 WallJumpForce => wallJumpForce;
     public float GravityScale => gravityScale;
     public float CoastingDuration => coastingDuration;
     public float CanEndRunEarlyDuration => canEndRunEarlyDuration;

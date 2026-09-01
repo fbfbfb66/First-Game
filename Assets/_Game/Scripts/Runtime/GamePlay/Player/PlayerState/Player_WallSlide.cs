@@ -11,6 +11,7 @@ public class Player_WallSlide : PlayerAir
     public override void Enter()
     {
         base.Enter();
+        input.ConsumeJump();
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
         movement.SetRigibodyVelocity(new Vector2(0,player.playerBaseConfig.WallSlideSlowSpeed));
@@ -20,6 +21,19 @@ public class Player_WallSlide : PlayerAir
     {
         base.LogicalUpdate();
         if(groundSensor.IsGrounded) return;
+        if(isSameDirctionForWallandFacingDir() == false)
+        {
+            stateMachine.ChangeState(player.fallState);
+            movement.HandleFlip(input.MoveInput);
+            return;
+        }
+
+        if (input.ConsumeJump())
+        {
+            stateMachine.ChangeState(player.wallJumpState);
+            return;
+        }
+
         Vector2 move = player.playerInputReceiver.MoveInput;
         if(move.y < 0)
         {
