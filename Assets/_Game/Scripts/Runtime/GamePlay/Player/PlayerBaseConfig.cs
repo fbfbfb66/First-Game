@@ -13,9 +13,12 @@ public  class PlayerBaseConfig : ScriptableObject
     [SerializeField] private float runBufferDuration = 0.05f;
     [Header("Physics")]
     [SerializeField] private float gravityScale;
+    [SerializeField] private float wallSlideSlowSpeed = -1f;
+    [SerializeField] private float wallSlideFastSpeed = -3f;
     [SerializeField] private float coastingDuration = 0.2f;
 
-
+    public float WallSlideFastSpeed => wallSlideFastSpeed;
+    public float WallSlideSlowSpeed => wallSlideSlowSpeed;
     public float RunVelocity => runVelocity;
     public float WalkVelocity => walkVelocity;
     public Vector2 JumpForce => jumpForce;

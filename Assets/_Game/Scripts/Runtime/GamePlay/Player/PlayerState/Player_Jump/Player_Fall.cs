@@ -6,6 +6,13 @@ public class Player_Fall : PlayerAir
     {
     }
 
+    public override void LogicalUpdate()
+    {
+        base.LogicalUpdate();
+        if(wallSensor.IsTouchingWall)
+            stateMachine.ChangeState(player.wallSlideState);
+    }
+
     public override void PhysicalUpdate()
     {
         base.PhysicalUpdate();

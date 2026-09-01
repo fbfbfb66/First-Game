@@ -19,4 +19,5 @@ MonoBehaviour:
   canEndRunEarlyDuration: 1.5
   runBufferDuration: 0.05
   gravityScale: 3.5
+  wallSlideGS: 0.05
   coastingDuration: 0.8

@@ -11,6 +11,7 @@ public class Player : Entity
     public InteractionDetector interaction;
     public TimeTool timeTool;
     public GroundSensor groundSensor;
+    public WallSensor wallSensor;
 
     #region 
     public Player_IdleState idleState {get;private set;}
@@ -25,6 +26,8 @@ public class Player : Entity
     public Player_JumpUp jumpUpState {get;private set;}
     public Player_Apex apexState {get;private set;}
     public Player_Fall fallState {get;private set;}
+
+    public Player_WallSlide wallSlideState {get;private set;}
     #endregion
 
     protected override void Awake()
@@ -42,6 +45,8 @@ public class Player : Entity
             timeTool = GetComponent<TimeTool>();
         if(groundSensor == null)
             groundSensor = GetComponentInChildren<GroundSensor>();
+        if(wallSensor == null)
+            wallSensor = GetComponentInChildren<WallSensor>();
 
         
         idleState = new Player_IdleState(this,stateMachine,PlayerAnimationHash.Idle,anim);
@@ -53,6 +58,7 @@ public class Player : Entity
         jumpUpState = new Player_JumpUp(this,stateMachine,PlayerAnimationHash.JumpUp,anim);
         apexState = new Player_Apex(this,stateMachine,PlayerAnimationHash.Apex,anim);
         fallState = new Player_Fall(this,stateMachine,PlayerAnimationHash.Fall,anim);
+        wallSlideState = new Player_WallSlide(this,stateMachine,PlayerAnimationHash.wallSlide,anim);
     }
 
     private void Start()

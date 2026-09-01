@@ -13,6 +13,8 @@
 
 # Unity crash reports
 sysinfo.txt
+/Assets/_Recovery/
+/Assets/_Recovery.meta
 
 # Visual Studio / Rider / IDE files
 .vs/

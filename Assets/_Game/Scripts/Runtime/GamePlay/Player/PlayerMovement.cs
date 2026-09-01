@@ -9,6 +9,7 @@ public class PlayerMovement : Movement
     private float walkVelocity;
     private Vector2 jumpForce;
     public PlayerMoveType playerMoveType{get;private set;}
+    public Rigidbody2D Rb => rb;
     protected override void Awake()
     {
         base.Awake();

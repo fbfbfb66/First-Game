@@ -204,6 +204,19 @@ Canvas_Inventory (Screen Space - Overlay)
   - `OnDrawGizmos()`：在 Scene 视图中绘制检测射线，方便调试检测距离。
 - 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；`PlayerGround`、`PlayerAir`、`Player_Fall` 等玩家状态通过 `groundSensor.IsGrounded` 决定落地、起跳、下落转换。
 
+#### `Assets/_Game/Scripts/Tool/WallSensor.cs`
+
+- 脚本职责：用水平 2D 射线检测玩家朝向一侧是否接触墙面。
+- 关键字段：
+  - `point`：射线发射点。
+  - `whatIsWall`：墙面 LayerMask。
+  - `distance`：检测距离。
+  - `IsTouchingWall`、`WallDirection`：对外只读的贴墙状态与检测方向。
+- 函数：
+  - `UpdateWallState(bool facingRight)`：根据玩家朝向决定射线方向，命中墙层时更新 `IsTouchingWall`。
+  - `OnDrawGizmos()`：在 Scene 视图中绘制红色检测射线，方便校准发射点和距离。
+- 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；`Player_Fall` 命中墙面时进入 `Player_WallSlide`。
+
 ### Runtime/UI
 
 #### `Assets/_Game/Scripts/Runtime/UI/MainMenuController.cs`
@@ -1380,6 +1393,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `RunVelocity`、`WalkVelocity`：跑步和步行速度。
   - `JumpForce`：跳跃施加速度。
   - `GravityScale`：重力缩放。
+  - `WallSlideSlowSpeed`、`WallSlideFastSpeed`：贴墙时的普通滑落速度与按下方向时的快速滑落速度。
   - `CoastingDuration`：跑步结束滑行时间。
   - `CanEndRunEarlyDuration`：进入跑步后允许进入 RunEnd 的延迟窗口。
   - `RunBufferDuration`：跑步松手缓冲时间。
@@ -1452,8 +1466,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：玩家实体入口，创建和驱动所有玩家状态。
 - 关键字段/属性：
   - `playerBaseConfig`：玩家参数。
-  - `playerMovement`、`playerInputReceiver`、`playerAnimationTrigger`、`interaction`、`timeTool`、`groundSensor`：玩家子系统引用。
-  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`：所有玩家状态实例。
+  - `playerMovement`、`playerInputReceiver`、`playerAnimationTrigger`、`interaction`、`timeTool`、`groundSensor`、`wallSensor`：玩家子系统引用。
+  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`wallSlideState`：所有玩家状态实例。
 - 函数：
   - `Awake()`：调用 `Entity.Awake()` 创建状态机，并实例化所有状态。
   - `Start()`：初始化默认状态。
@@ -1467,7 +1481,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：集中保存 Animator 参数 hash。
 - 字段：
-  - `Idle`、`Run`、`RunTurn`、`RunEnd`、`Walk`、`JumpStart`、`JumpUp`、`Apex`、`Fall`、`BaseLand`、`RollingLand`。
+  - `Idle`、`Run`、`RunTurn`、`RunEnd`、`Walk`、`JumpStart`、`JumpUp`、`Apex`、`Fall`、`BaseLand`、`RollingLand`、`wallSlide`。
 - 关联：`Player` 创建状态时传入对应 hash，`EntityState.Enter/Exit()` 控制 Animator bool。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerState.cs`
@@ -1478,10 +1492,11 @@ Canvas_Inventory (Screen Space - Overlay)
   - `movement`：玩家移动组件。
   - `input`：输入缓存。
   - `groundSensor`：地面检测。
+  - `wallSensor`：墙面检测。
   - `animationTrigger`：动画事件状态。
 - 函数：
   - `PlayerState(...)`：缓存玩家相关子系统。
-  - `LogicalUpdate()`：统一刷新 `GroundSensor` 的落地状态。
+  - `LogicalUpdate()`：统一刷新 `GroundSensor` 的落地状态和 `WallSensor` 的贴墙状态。
   - `ChangeStateToMoveState()`：根据移动输入和当前 `PlayerMoveType` 切换到待机、步行或跑步。
 - 关联：所有玩家具体状态继承它，避免重复拿组件。
 
@@ -1490,6 +1505,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：地面状态公共逻辑。
 - 函数：
   - `PlayerGround(...)`：调用玩家状态基类构造。
+  - `Enter()`：进入地面状态时消费遗留的跳跃请求，避免旧输入在落地后再次触发。
   - `LogicalUpdate()`：处理跳跃、世界交互；确认仍在地面时才执行移动/待机/跑步转换。
 - 关联：`Player_IdleState`、`Player_WalkState`、跑步相关状态继承或间接使用地面逻辑。
 
@@ -1498,8 +1514,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：空中状态公共逻辑。
 - 函数：
   - `PlayerAir(...)`：调用玩家状态基类构造。
-  - `LogicalUpdate()`：空中仍允许水平移动；落地后切回移动状态。
-- 关联：`Player_JumpUp`、`Player_Apex`、`Player_Fall` 继承它。
+  - `LogicalUpdate()`：落地后切回移动状态。
+- 关联：`Player_JumpUp`、`Player_Apex`、`Player_Fall`、`Player_WallSlide` 继承它。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_IdleState.cs`
 
@@ -1598,8 +1614,20 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：下落状态。
 - 函数：
   - `Player_Fall(...)`：调用空中状态构造。
+  - `LogicalUpdate()`：执行空中公共逻辑；接触朝向一侧的墙面时进入 `Player_WallSlide`。
   - `PhysicalUpdate()`：处理空中水平移动。
 - 关联：从离地、跳跃上升结束或 Apex 进入；落地后通过 `PlayerAir.LogicalUpdate()` 回到地面移动状态。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_WallSlide.cs`
+
+- 脚本职责：控制玩家贴墙时的竖直滑落速度。
+- 关键字段：
+  - `originalGravity`：进入贴墙状态前的重力缩放，用于退出时恢复。
+- 函数：
+  - `Enter()`：保存并临时关闭刚体重力，把速度设为配置中的普通滑落速度。
+  - `LogicalUpdate()`：向下输入时使用快速滑落速度，否则保持普通滑落速度；落地转换由 `PlayerAir` 处理。
+  - `Exit()`：恢复进入状态前的重力缩放。
+- 关联：`Player_Fall` 检测到墙面后进入；当前尚未实现离开墙面时返回 `Player_Fall` 的转换。
 
 ## 8. 脚本之间的主要关联流程
 
@@ -1768,6 +1796,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 新增基础移动组件 `Movement`，玩家移动组件继承它。
 - 新增玩家 `Walk` 动画状态与 `Player_WalkState` 实际移动逻辑，`PlayerBaseConfig.asset` 中 `walkVelocity` 当前为 4。
 - 玩家跳跃状态拆分为 `Player_JumpStart`、`Player_JumpUp`、`Player_Apex`、`Player_Fall`。
+- 玩家下落状态已接入 `WallSensor` 与初版 `Player_WallSlide`：接触墙面后按配置速度滑落，向下输入可加速，并新增 `Player_WallSlide.anim` 与 Animator 状态。
 - 跑步过渡状态移动到 `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Run/`。
 - `GameScene.unity` 已加入 `StorySceneBindings`、`StoryCameraDirector`、`StoryCanvas`、剧情文本视图、剧情相机绑定和 Input System UI EventSystem。
 - `GameScene.unity` 已加入 `HPBar` 血条 UI，挂载 `UI_HPBarView` 并绑定 `FillClip` 裁剪节点。
@@ -1808,6 +1837,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - `InteractionContext.IneractorTransform` 当前属性名存在拼写问题；若改名会影响引用处，需要统一重构。
 - `Player_RunState` 中 `isFirstTimeRelese` 存在拼写问题；若改名需要同步所有引用。
 - `Movement.SetRigibodyVelocity` 方法名存在拼写问题；若改名需要同步所有调用。
+- `Player_WallSlide` 当前只处理落地退出，尚未处理离开墙面后回到 `Player_Fall`，因此这是可继续开发的中间检查点，不是完整墙滑行为。
 - `QuestData` 中 `descrition` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `StoryCameraDirector` 中 `lowerPreviousCameera` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `StopPlayerStoryStepAction` 中 `playerkey` 字段命名大小写不一致；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
