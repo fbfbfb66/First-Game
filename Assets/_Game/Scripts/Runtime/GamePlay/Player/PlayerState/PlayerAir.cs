@@ -12,6 +12,12 @@ public class PlayerAir : PlayerState
         if (groundSensor.IsGrounded)
         {
             ChangeStateToMoveState();
+            return;
+        }
+        if (wallSensor.ReachedLedgeThisFrame)
+        {
+            stateMachine.ChangeState(player.hangIdleState);
+            return;
         }
     }
 

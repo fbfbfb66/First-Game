@@ -20,8 +20,8 @@ public class Player_WallSlide : PlayerAir
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
-        if(groundSensor.IsGrounded) return;
-        if(isSameDirctionForWallandFacingDir() == false)
+        if (stateMachine.currentState != this) return;
+        if (isSameDirctionForWallandFacingDir() == false)
         {
             stateMachine.ChangeState(player.fallState);
             movement.HandleFlip(input.MoveInput);

@@ -29,6 +29,9 @@ public class Player : Entity
 
     public Player_WallSlide wallSlideState {get;private set;}
     public Player_WallJump wallJumpState {get;private set;}
+
+    public Player_HangIdle hangIdleState { get;private set; }
+    public Player_ClimbUp climbUpState { get; private set; }
     #endregion
 
     protected override void Awake()
@@ -61,6 +64,8 @@ public class Player : Entity
         fallState = new Player_Fall(this,stateMachine,PlayerAnimationHash.Fall,anim);
         wallSlideState = new Player_WallSlide(this,stateMachine,PlayerAnimationHash.wallSlide,anim);
         wallJumpState = new Player_WallJump(this, stateMachine, PlayerAnimationHash.JumpUp, anim);
+        hangIdleState = new Player_HangIdle(this, stateMachine, PlayerAnimationHash.HangIdle, anim);
+        climbUpState = new Player_ClimbUp(this, stateMachine, PlayerAnimationHash.ClimbUp, anim);
     }
 
     private void Start()

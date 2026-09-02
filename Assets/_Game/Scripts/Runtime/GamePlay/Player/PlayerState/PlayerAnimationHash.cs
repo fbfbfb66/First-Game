@@ -19,4 +19,6 @@ public static class PlayerAnimationHash
     public static readonly int BaseLand = Animator.StringToHash("BaseLand");
     public static readonly int RollingLand = Animator.StringToHash("RollingLand");
     public static readonly int wallSlide = Animator.StringToHash("WallSlide");
+    public static readonly int HangIdle = Animator.StringToHash("HangIdle");
+    public static readonly int ClimbUp = Animator.StringToHash("ClimbUp");
 }

@@ -49,7 +49,7 @@ public class PlayerState : EntityState
         }
     }
 
-    protected bool isSameDirctionForWallandFacingDir()
+    protected bool isSameDirctionForWallandFacingDir(bool needToHandleKey = true)
     {
         if (wallSensor.IsTouchingWall == false) return false;
         Vector2 move = input.MoveInput;
@@ -62,6 +62,7 @@ public class PlayerState : EntityState
         {
             isSameDir = true;
         }
+        if (needToHandleKey == false && move.x == 0) return true;
         return isSameDir;
     }
 }

@@ -208,16 +208,20 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Tool/WallSensor.cs`
 
-- 脚本职责：用水平 2D 射线检测玩家朝向一侧是否接触墙面。
+- 脚本职责：用身体与头顶两条水平 2D 射线检测贴墙及跨越墙边的瞬间，并在候选边缘通过向下射线确认墙顶，生成进入挂边状态所需的绝对世界 Y。
 - 关键字段：
-  - `point`：射线发射点。
+  - `point`、`bodyDistance`：身体贴墙射线的发射点与距离。
+  - `ledgeCheckPoint`、`ledgeCheckDistance`：头顶边缘射线的发射点与距离。
+  - `ledgeVerticalSearchDistance`：候选边缘处向下寻找墙顶的上下搜索范围。
   - `whatIsWall`：墙面 LayerMask。
-  - `distance`：检测距离。
   - `IsTouchingWall`、`WallDirection`：对外只读的贴墙状态与检测方向。
+  - `ReachedLedgeThisFrame`：只有头顶射线状态发生变化、身体连续贴墙且成功找到墙顶时才在当前帧为 true。
+  - `HangBodyTargetY`：按插值后的 Player Transform 与检测点误差计算出的 Rigidbody2D 绝对目标 Y，避免把 Transform 坐标产生的相对误差错误叠加到不同步的物理位置。
 - 函数：
-  - `UpdateWallState(bool facingRight)`：根据玩家朝向决定射线方向，命中墙层时更新 `IsTouchingWall`。
-  - `OnDrawGizmos()`：在 Scene 视图中绘制红色检测射线，方便校准发射点和距离。
-- 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；`Player_Fall` 命中墙面时进入 `Player_WallSlide`。
+  - `UpdateWallState(bool facingRight)`：刷新两条水平射线；先形成边缘候选，再调用墙顶验证，成功计算目标位置后才发布 `ReachedLedgeThisFrame`；最后保存本帧状态供下一帧比较。
+  - `TryFindLedgeTop(Vector2 ledgeRayEnd, out float ledgeY)`：从边缘检测射线末端上方向下发射 2D 射线，成功时通过 `out` 返回墙顶世界 Y。
+  - `OnDrawGizmos()`：在 Scene 视图中绘制身体、头顶和墙顶搜索射线，方便校准检测范围。
+- 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；墙面检测供墙滑使用，确认边缘后由 `PlayerAir` 进入 `Player_HangIdle`。
 
 ### Runtime/UI
 
@@ -1462,6 +1466,8 @@ Canvas_Inventory (Screen Space - Overlay)
   - `GetMoveVelocity()`：按 `playerMoveType` 返回步行或跑步速度。
   - `HandleJump()`：设置普通跳跃速度。
   - `HandleWallJump()`：翻转到远离墙面的朝向，并设置墙跳速度。
+  - `Teleport(Vector2 targetPosition)`：用于离散位置提交，同时设置 Rigidbody2D 物理位置与 Player Transform 显示位置，避免 Interpolate 下出现一帧视觉回闪。
+  - `ClearPlayerVelocity()`：把刚体线速度清零，供挂边和攀爬等冻结状态使用。
   - `ClearYVelocity()`：保留水平速度并清除竖直速度，供地面状态进入时稳定落地速度。
   - `HandleMoveAndFlip(Vector2 inputMove)`：移动并根据输入翻转。
   - `HandleMove(Vector2 inputMove)`：按当前速度设置水平速度，保留当前 Y 速度。
@@ -1489,7 +1495,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：集中保存 Animator 参数 hash。
 - 字段：
-  - `Idle`、`Run`、`RunTurn`、`RunEnd`、`Walk`、`JumpStart`、`JumpUp`、`Apex`、`Fall`、`BaseLand`、`RollingLand`、`wallSlide`。
+  - `Idle`、`Run`、`RunTurn`、`RunEnd`、`Walk`、`JumpStart`、`JumpUp`、`Apex`、`Fall`、`BaseLand`、`RollingLand`、`wallSlide`、`HangIdle`、`ClimbUp`。
 - 关联：`Player` 创建状态时传入对应 hash，`EntityState.Enter/Exit()` 控制 Animator bool。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerState.cs`
@@ -1523,8 +1529,27 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：空中状态公共逻辑。
 - 函数：
   - `PlayerAir(...)`：调用玩家状态基类构造。
-  - `LogicalUpdate()`：落地后切回移动状态。
+  - `LogicalUpdate()`：落地后切回移动状态；未落地且 `WallSensor` 已确认当前帧到达有效边缘时进入 `Player_HangIdle`。
 - 关联：`Player_JumpUp`、`Player_Apex`、`Player_Fall`、`Player_WallSlide` 继承它，`Player_WallJump` 通过继承 `Player_JumpUp` 间接使用它。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_HangIdle.cs`
+
+- 脚本职责：让玩家稳定悬挂在已确认的墙边，冻结物理下落，并处理离墙后的坠落转换。
+- 函数：
+  - `Enter()`：清除跳跃请求与速度，把 Rigidbody2D 的 Y 直接设置为 `WallSensor.HangBodyTargetY`，随后暂时把重力缩放设为 0。
+  - `LogicalUpdate()`：持续刷新传感器；角色不再面向并贴住墙面时进入下落状态并转身；挂稳后消费有效跳跃请求并进入 `Player_ClimbUp`。
+  - `Exit()`：恢复进入挂边前的重力缩放。
+- 关联：由 `PlayerAir` 在边缘确认帧进入；使用绝对目标而非相对修正，以兼容 Rigidbody2D Interpolate 下 Transform 与物理位置的时间差。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_ClimbUp.cs`
+
+- 脚本职责：播放一次爬上墙沿动画，冻结攀爬期间的物理运动，并在动画结束时把 Animator 的视觉位移提交给真实 Player。
+- 函数：
+  - `Enter()`：清空速度、重置动画完成标记、保存并关闭重力。
+  - `LogicalUpdate()`：收到动画末尾 `EndAnimation` 事件后提交位移，并根据输入切回地面移动状态。
+  - `CommitAnimationPosition()`：先读取 Animator 最后一帧的世界位置，通过 `PlayerMovement.Teleport` 同步 Rigidbody2D 与 Player Transform，再把 Animator 局部位置清零，避免双重位移和插值回闪。
+  - `Exit()`：恢复进入攀爬前的重力缩放。
+- 关联：由 `Player_HangIdle` 消费跳跃请求后进入；依赖 `Player_ClimbUp.anim` 的 `StartAnimation` / `EndAnimation` Animation Event。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_IdleState.cs`
 

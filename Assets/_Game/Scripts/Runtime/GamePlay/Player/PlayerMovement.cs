@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 
 public class PlayerMovement : Movement
@@ -23,6 +22,17 @@ public class PlayerMovement : Movement
         {
             InitializePlayerMovement(player.playerBaseConfig);
         }
+    }
+
+    public void Teleport(Vector2 targetPosition)
+    {
+        rb.position = targetPosition;
+        player.transform.position = targetPosition;
+    }
+
+    public void ClearPlayerVelocity()
+    {
+        rb.linearVelocity = Vector2.zero;
     }
 
     public void ClearYVelocity()

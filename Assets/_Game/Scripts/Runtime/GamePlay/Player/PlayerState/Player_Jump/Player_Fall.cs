@@ -15,7 +15,7 @@ public class Player_Fall : PlayerAir
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
-        if (groundSensor.IsGrounded) return;
+        if (stateMachine.currentState != this) return;
         if (groundSensor.WasGroundedWithin(player.playerBaseConfig.CoyoteTimeDuration) && input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
         {
             stateMachine.ChangeState(player.jumpStartState);
