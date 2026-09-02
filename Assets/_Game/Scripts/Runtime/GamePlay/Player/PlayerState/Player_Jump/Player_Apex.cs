@@ -9,6 +9,13 @@ public class Player_Apex : PlayerAir
     {
         base.LogicalUpdate();
         if (stateMachine.currentState != this) return;
+
+        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration) && player.TryConsumeDoubleJump())
+        {
+            stateMachine.ChangeState(player.doubleJumpState);
+            return;
+        }
+
         float y = movement.GetCurrentVelocity().y;
         if(!groundSensor.IsGrounded && player.playerAnimationTrigger.IsAnimationFinished && y <= -player.playerBaseConfig.ApexThreshold)
         {

@@ -10,6 +10,13 @@ public class Player_JumpUp : PlayerAir
     {
         base.LogicalUpdate();
         if (stateMachine.currentState != this) return;
+
+        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration) && player.TryConsumeDoubleJump())
+        {
+            stateMachine.ChangeState(player.doubleJumpState);
+            return;
+        }
+
         float y = movement.GetCurrentVelocity().y;
         if(y <= player.playerBaseConfig.ApexThreshold && !groundSensor.IsGrounded)
         {

@@ -5,6 +5,125 @@
 
 ---
 
+## 2026-09-02 — 二段跳、翻滚落地与空中状态边界修复
+
+### 背景
+
+本阶段补全玩家跳跃纵向切片：空中再次按跳跃触发二段跳，有水平输入播放
+`DoubleForwardJump`，没有水平输入播放 `DoubleVerticalJump`；下落速度达到阈值后，
+落地进入 `RollingLand`。
+
+动画资源已经准备好，真正的难点不是播放动画，而是让一次滞空中的输入额度、物理速度、
+地面检测和多个状态之间保持同一份事实。开发中连续遇到数个只在边界帧出现的状态机 Bug，
+因此本条日志重点记录排查过程。
+
+### 做了什么
+
+**1. 二段跳行为**
+
+- 新增 `Player_DoubleJump`，进入时读取当下的 `MoveInput.x` 作为动画与方向快照
+- `PlayerMovement.HandleDoubleJump(Vector2)` 负责施加二段跳速度
+- 无水平输入时明确把 X 速度归零；有输入时按输入方向叠加当前水平速度
+- `JumpUp`、`Apex`、`Fall` 都能消费二段跳输入
+- 新增 `DoubleForwardJump` / `DoubleVerticalJump` Animator hash 和动画状态
+
+**2. 一次滞空只能使用一次二段跳**
+
+`Player` 持有 `canDoubleJump`，通过 `TryConsumeDoubleJump()` 原子检查并消耗额度。
+额度不属于 JumpUp、Apex 或 Fall 中的任何单一状态，因为它必须跨越整次滞空。
+
+恢复额度也不再依赖“进入某个地面类”，而是在 `PlayerAir.TryHandleLanding()` 确认真正完成
+落地转换后统一调用 `ResetDoubleJump()`。墙滑仍按当前设计主动恢复一次二段跳。
+
+**3. Ground 与 Fall 的边缘缓冲**
+
+- `FallEnterVelocityThreshold` 当前为 `7`：Ground/Run 离开平台后，向下速度达到 `-7`
+  才进入 Fall，用一个很短的速度窗口过滤平台边缘检测抖动
+- Apex 到 Fall 保持自己的 `ApexThreshold`，两种阈值不混用
+- Coyote Time 普通跳跃仍优先于 Fall 中的二段跳消费
+
+**4. 双层地面判定**
+
+两条 GroundSensor 射线现在承担不同语义：
+
+| 属性 | 条件 | 用途 |
+| --- | --- | --- |
+| `IsGrounded` | 任意一条射线命中 | 判断是否离开地面、刷新 Coyote Time |
+| `CanEnterGrounded` | 两条射线都命中 | 允许空中状态真正进入地面状态 |
+
+这样站在平台边缘时仍可保留支撑，而贴墙时单侧射线命中墙体不会把角色切到 Idle。
+代价是特别窄、只能承托一条射线的平台暂时不能作为有效落地点。
+
+**5. Rolling Land**
+
+- `Player_Fall` 保存落地前的下落速度
+- 当前阈值为 `-35`，达到后进入 `Player_RollingLand`
+- Forward/Vertical 二段跳不强制翻滚，统一由真实下落速度决定
+- Rolling Land 动画期间按角色朝向维持水平速度，最低速度为 `5`
+- 动画的 `StartAnimation` / `EndAnimation` Event 控制状态结束
+
+**6. 动画资源整理**
+
+接入二段跳与 Rolling Land 动画、Animator 状态和事件；同步更新相关跳跃/翻滚 Sprite
+切片元数据。`Hurt`、`PowerUp` 动画片段已导入但尚未接入 Gameplay 状态。
+
+### 头疼 Bug 复盘
+
+| 现象 | 根因与证据 | 最终处理 |
+| --- | --- | --- |
+| Fall 落地后不切状态 | 改写 `Player_Fall.LogicalUpdate()` 时漏掉 `base.LogicalUpdate()`，导致 `GroundSensor.UpdateGroundState()` 根本没有运行，`IsGrounded` 一直是旧值 | 恢复公共更新链，并让 `PlayerAir` 统一刷新传感器与处理落地 |
+| 速度只有约 `-28`，阈值为 `-35` 却仍进入 RollingLand | `PlayerAir.LogicalUpdate()` 先调用虚方法 `TryHandleLanding()`；实际动态分派到 Fall 的重写版本，而当时重写版本无条件进入 RollingLand，后面的阈值判断根本来不及执行 | 让 Fall 的 `TryHandleLanding()` 自己完成“翻滚或普通落地”的完整决策 |
+| 可以无限二段跳 | JumpUp/Apex/Fall 都能消费 Jump，但没有跨状态保存“本轮已经用过”的事实 | 把额度放到 `Player`，使用 `TryConsumeDoubleJump()`，成功一次后保持不可用直到真实落地 |
+| 左右跳墙时空中闪一下 Idle，再进入 WallSlide | GroundSensor 的地面 Mask 包含墙层，且项目允许 Raycast 从 Collider 内部开始命中；贴墙时一侧射线会把墙误报成地面 | 分离 `IsGrounded` 与 `CanEnterGrounded`：离地用单射线，进入地面要求双射线 |
+| 落地后偶尔下一跳只能一段跳 | 二段跳恢复最初写在 `PlayerGround.Enter()`，但 Run 系状态继承 `Player_RunTransition → PlayerState`，按住方向落地到 Run 时完全绕过 PlayerGround | 把恢复时机移到 `PlayerAir` 确认成功落地之后，Idle/Walk/Run/RollingLand 共用同一出口 |
+| Vertical 二段跳可能突然向左窜 | 水平输入为 0 时旧公式仍进入负方向分支，得到 `-Abs(currentX)` | 无水平输入时直接把 X 速度设为 0，再施加垂直速度 |
+
+### 关键决策与理由
+
+| 决策 | 理由 |
+| --- | --- |
+| 二段跳动画类型在进入状态时决定 | 输入是触发瞬间的意图；播放途中松键不应让动画类型变化 |
+| 二段跳额度由 `Player` 持有 | 数据生命周期覆盖多个状态，放进某个状态对象会让别的状态看不到同一事实 |
+| 额度在“成功落地”后恢复 | 落地可能进入 Idle、Walk、Run 或 RollingLand，依赖具体继承链必然漏分支 |
+| `FallEnterVelocityThreshold` 使用正数配置 | Inspector 中 `7` 表示“向下速度绝对值 7”，代码比较 `velocityY <= -threshold`，比填写负数更直观 |
+| Rolling Land 只看落地速度 | Forward 二段跳不再享有特殊落地规则，所有来源使用同一套物理标准 |
+| GroundSensor 保留宽松与严格两个结果 | “是否失去支撑”和“是否足以确认落地”是两个不同问题，不该共用一个 bool |
+
+### 验证结果
+
+- `Assembly-CSharp.csproj` 编译通过，0 Error
+- Unity Play Mode 手测通过：Forward/Vertical 二段跳、第三次按键无效、落地恢复额度
+- Idle、Run、RollingLand 三种落地出口后均能再次二段跳
+- 平台边缘离地、Coyote Jump、左右墙跳与 WallSlide 未再观察到状态闪切
+- 高/低下落速度分别验证 RollingLand 与普通落地分支
+
+### 学到了什么
+
+- **先找状态转换发生在哪一行，再看条件为什么错。** 条件本身可能完全正确，但状态早已在父类调用中切走。
+- **虚方法会动态分派。** `base.LogicalUpdate()` 写在 PlayerAir，调用的仍可能是 Player_Fall 的重写版本。
+- **共享数据要跟生命周期走。** 一次滞空的数据不属于某一个动画状态，落地恢复也不属于某一种地面类。
+- **边界检测通常需要两个答案。** “至少一只脚还在平台上”和“两只脚足以确认落地”不能用同一判断表达。
+- **偶发 Bug 优先怀疑时序与遗漏路径。** Idle 落地正常、Run 落地异常，关键不是随机，而是两条继承链不同。
+
+### 遗留问题
+
+- `PlayerAir.Enter()` 会在进入每个空中状态时清除 Jump Buffer；目前手测未观察到丢输入，但若以后出现只在 JumpUp/Apex/Fall 边界丢失按键，应优先检查这里
+- 双射线严格落地暂不支持比两射线间距更窄的平台；需要时再升级为落点法线、距离或脚底 ShapeCast
+- `BaseLand` 动画 hash 已存在，普通落地目前直接回到移动状态，尚未接入独立 BaseLand 状态
+- `Hurt`、`PowerUp` 动画资源已准备，但没有对应输入、状态或 Gameplay 效果
+
+### 下次从哪继续
+
+二段跳与翻滚落地纵向切片已经闭环。下一阶段可以从一个新的可观察行为开始，优先候选是：
+
+```
+受到伤害 → HP 变化 → Hurt 状态/动画 → 受击结束恢复控制
+```
+
+或者继续此前计划的攻击纵向切片；两者都应先只打通一次输入/事件到状态与动画，不提前搭完整战斗架构。
+
+---
+
 ## 2026-08-30 — 右键菜单改为常驻详情面板
 
 ### 背景

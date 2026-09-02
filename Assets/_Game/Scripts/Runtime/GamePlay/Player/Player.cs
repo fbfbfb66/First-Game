@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class Player : Entity
 {
+    private bool canDoubleJump = true;
+
     [Header("Data")]
     public PlayerBaseConfig playerBaseConfig;
     [Space]
@@ -32,7 +34,28 @@ public class Player : Entity
 
     public Player_HangIdle hangIdleState { get;private set; }
     public Player_ClimbUp climbUpState { get; private set; }
+
+    public Player_DoubleJump doubleJumpState {get;private set;}
+
+    public Player_RollingLand rollingLandState {get;private set;}
+    public bool CanDoubleJump => canDoubleJump;
     #endregion
+
+    public void ResetDoubleJump()
+    {
+        canDoubleJump = true;
+    }
+
+    public bool TryConsumeDoubleJump()
+    {
+        if (!canDoubleJump)
+        {
+            return false;
+        }
+
+        canDoubleJump = false;
+        return true;
+    }
 
     protected override void Awake()
     {
@@ -66,6 +89,8 @@ public class Player : Entity
         wallJumpState = new Player_WallJump(this, stateMachine, PlayerAnimationHash.JumpUp, anim);
         hangIdleState = new Player_HangIdle(this, stateMachine, PlayerAnimationHash.HangIdle, anim);
         climbUpState = new Player_ClimbUp(this, stateMachine, PlayerAnimationHash.ClimbUp, anim);
+        doubleJumpState = new Player_DoubleJump(this, stateMachine, PlayerAnimationHash.DoubleVerticalJump, anim);
+        rollingLandState = new Player_RollingLand(this, stateMachine, PlayerAnimationHash.RollingLand, anim);
     }
 
     private void Start()

@@ -6,19 +6,36 @@ public class PlayerAir : PlayerState
     {
     }
 
+    public override void Enter()
+    {
+        base.Enter();
+        input.ClearJumpRequest();
+    }
+
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
-        if (groundSensor.IsGrounded)
+        if (TryHandleLanding())
         {
-            ChangeStateToMoveState();
+            player.ResetDoubleJump();
             return;
         }
+
         if (wallSensor.ReachedLedgeThisFrame)
         {
             stateMachine.ChangeState(player.hangIdleState);
             return;
         }
+    }
+
+    protected virtual bool TryHandleLanding()
+    {
+        if (groundSensor.CanEnterGrounded)
+        {
+            ChangeStateToMoveState();
+            return true;
+        }
+        return false;
     }
 
 }

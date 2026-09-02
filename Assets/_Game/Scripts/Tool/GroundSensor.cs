@@ -9,14 +9,16 @@ public class GroundSensor : MonoBehaviour
     private float lastGroundedTime = float.NegativeInfinity;
 
     public bool IsGrounded {get;private set;} = true;
+    public bool CanEnterGrounded { get; private set; }
 
     public void UpdateGroundState()
     {
         RaycastHit2D hit = Physics2D.Raycast(point.position,Vector2.down,distance,whatIsGround);
         RaycastHit2D hit2 = Physics2D.Raycast(point2.position, Vector2.down, distance, whatIsGround);
         IsGrounded = hit.collider != null || hit2.collider != null;
+        CanEnterGrounded = hit.collider != null && hit2.collider != null;
 
-        if(IsGrounded)
+        if (IsGrounded)
         {
             lastGroundedTime = Time.time;
         }

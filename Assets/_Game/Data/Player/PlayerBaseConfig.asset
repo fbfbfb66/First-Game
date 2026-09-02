@@ -18,8 +18,12 @@ MonoBehaviour:
   coyoteTimeDuration: 0.1
   jumpForce: {x: 2, y: 19}
   wallJumpForce: {x: 7, y: 23}
+  doubleJumpForce: {x: 5, y: 19}
   fallGravity: 5
   apexThreshold: 0.2
+  fallEnterVelocityThreshold: 7
+  rollingLandThresholdVelocity: -35
+  rollingLandDefaultVelocity: 5
   canEndRunEarlyDuration: 1.5
   runBufferDuration: 0.05
   gravityScale: 4

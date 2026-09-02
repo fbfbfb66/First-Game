@@ -199,9 +199,10 @@ Canvas_Inventory (Screen Space - Overlay)
   - `whatIsGround`：地面 LayerMask。
   - `distance`：检测距离。
   - `lastGroundedTime`：最近一次检测到接地时的 `Time.time`；初始为负无穷，避免游戏开始时误判宽限窗口。
-  - `IsGrounded`：对外只读的落地状态。
+  - `IsGrounded`：任一脚部射线命中时为 `true`，供地面状态判断是否已经离开支撑面，并用于刷新 Coyote Time。
+  - `CanEnterGrounded`：两条脚部射线都命中时为 `true`，供空中状态决定是否允许进入地面状态，避免贴墙时单侧射线误判落地。
 - 函数：
-  - `UpdateGroundState()`：由玩家状态逻辑主动刷新 `IsGrounded`；任一射线命中地面层时同时刷新 `lastGroundedTime`。
+  - `UpdateGroundState()`：由玩家状态逻辑主动刷新 `IsGrounded` 与 `CanEnterGrounded`；任一射线命中地面层时同时刷新 `lastGroundedTime`。
   - `WasGroundedWithin(float duration)`：判断距离最后一次接地是否仍在指定时间窗口内。
   - `OnDrawGizmos()`：在 Scene 视图中绘制两条检测射线，方便调试检测距离。
 - 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；`PlayerGround`、`PlayerAir` 等状态读取当前接地，`Player_Fall` 结合最近接地时间判断 Coyote Time。
@@ -1401,6 +1402,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `JumpBufferDuration`：跳跃按键请求保持有效的时间窗口。
   - `CoyoteTimeDuration`：角色离开地面后仍允许普通跳跃的时间窗口。
   - `GravityScale`、`FallGravity`：默认重力缩放与下落阶段重力缩放。
+  - `FallEnterVelocityThreshold`：Ground 与 Run 地面系状态离开平台后，进入 Fall 所需的最小向下速度绝对值；配置保存正数，判断时取负值。
   - `WallSlideSlowSpeed`、`WallSlideFastSpeed`：贴墙时的普通滑落速度与按下方向时的快速滑落速度。
   - `CoastingDuration`：跑步结束滑行时间。
   - `CanEndRunEarlyDuration`：进入跑步后允许进入 RunEnd 的延迟窗口。
@@ -1465,6 +1467,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `Start()`：读取 `PlayerBaseConfig` 初始化移动参数。
   - `GetMoveVelocity()`：按 `playerMoveType` 返回步行或跑步速度。
   - `HandleJump()`：设置普通跳跃速度。
+  - `HandleDoubleJump(Vector2 moveInput)`：有水平输入时叠加当前水平速度并朝输入方向施加二段跳速度；无水平输入时清除 X 速度，保证 Vertical 二段跳不会意外反向。
   - `HandleWallJump()`：翻转到远离墙面的朝向，并设置墙跳速度。
   - `Teleport(Vector2 targetPosition)`：用于离散位置提交，同时设置 Rigidbody2D 物理位置与 Player Transform 显示位置，避免 Interpolate 下出现一帧视觉回闪。
   - `ClearPlayerVelocity()`：把刚体线速度清零，供挂边和攀爬等冻结状态使用。
@@ -1481,8 +1484,11 @@ Canvas_Inventory (Screen Space - Overlay)
 - 关键字段/属性：
   - `playerBaseConfig`：玩家参数。
   - `playerMovement`、`playerInputReceiver`、`playerAnimationTrigger`、`interaction`、`timeTool`、`groundSensor`、`wallSensor`：玩家子系统引用。
-  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`wallSlideState`、`wallJumpState`：所有玩家状态实例。
+  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`doubleJumpState`、`rollingLandState`、`wallSlideState`、`wallJumpState`：所有玩家状态实例。
+  - `CanDoubleJump`：当前这一轮滞空是否还保留一次二段跳机会；初始可用并由 `Player` 持有，使额度可以跨越 JumpUp、Apex 与 Fall 状态。
 - 函数：
+  - `ResetDoubleJump()`：恢复一次二段跳机会；`PlayerAir` 确认成功处理落地后统一调用，因此落到 Idle、Walk、Run 或 RollingLand 都不会遗漏。
+  - `TryConsumeDoubleJump()`：原子检查并消耗二段跳机会；成功返回 `true`，已经使用时返回 `false`。
   - `Awake()`：调用 `Entity.Awake()` 创建状态机，并实例化所有状态。
   - `Start()`：初始化默认状态。
   - `Update()`：驱动状态机逻辑更新。
@@ -1496,7 +1502,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：集中保存 Animator 参数 hash。
 - 字段：
   - `Idle`、`Run`、`RunTurn`、`RunEnd`、`Walk`、`JumpStart`、`JumpUp`、`Apex`、`Fall`、`BaseLand`、`RollingLand`、`wallSlide`、`HangIdle`、`ClimbUp`。
-- 关联：`Player` 创建状态时传入对应 hash，`EntityState.Enter/Exit()` 控制 Animator bool。
+- 关联：`Player` 创建状态时传入对应 hash，`EntityState.Enter()` 使用 hash 直接 `CrossFade` 到目标 Animator 状态。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerState.cs`
 
@@ -1520,8 +1526,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：地面状态公共逻辑。
 - 函数：
   - `PlayerGround(...)`：调用玩家状态基类构造。
-  - `Enter()`：进入地面状态时清除竖直速度，但保留可能仍有效的跳跃缓冲请求。
-  - `LogicalUpdate()`：按 `JumpBufferDuration` 消费跳跃、处理世界交互；确认仍在地面时才执行移动/待机/跑步转换。
+  - `Enter()`：进入地面状态时清除竖直速度，但保留可能仍有效的跳跃缓冲请求；二段跳额度由实际落地事件统一恢复，不依赖具体地面状态继承关系。
+  - `LogicalUpdate()`：离地后的向下速度达到 `FallEnterVelocityThreshold` 时进入 Fall；否则按 `JumpBufferDuration` 消费跳跃、处理世界交互，并在仍接地时执行移动/待机/跑步转换。
 - 关联：`Player_IdleState`、`Player_WalkState`、跑步相关状态继承或间接使用地面逻辑。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerAir.cs`
@@ -1529,7 +1535,9 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：空中状态公共逻辑。
 - 函数：
   - `PlayerAir(...)`：调用玩家状态基类构造。
-  - `LogicalUpdate()`：落地后切回移动状态；未落地且 `WallSensor` 已确认当前帧到达有效边缘时进入 `Player_HangIdle`。
+  - `Enter()`：开始新的空中状态动画并清除进入前遗留的跳跃请求。
+  - `LogicalUpdate()`：刷新传感器并通过 `TryHandleLanding()` 处理落地；成功落地后统一恢复二段跳额度，未落地且 `WallSensor` 已确认当前帧到达有效边缘时进入 `Player_HangIdle`。
+  - `TryHandleLanding()`：默认仅在 `CanEnterGrounded` 成立时切回移动状态并返回是否已经处理落地；`Player_Fall` 重写它以选择普通落地或翻滚落地。
 - 关联：`Player_JumpUp`、`Player_Apex`、`Player_Fall`、`Player_WallSlide` 继承它，`Player_WallJump` 通过继承 `Player_JumpUp` 间接使用它。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_HangIdle.cs`
@@ -1575,7 +1583,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 函数：
   - `Player_RunTransition(...)`：调用玩家状态构造。
   - `Enter()`：清除竖直速度，但保留可能仍有效的跳跃缓冲请求。
-  - `LogicalUpdate()`：按 `JumpBufferDuration` 消费跳跃；若离地且竖直速度向下则进入下落，并处理跑步公共转换。
+  - `LogicalUpdate()`：按 `JumpBufferDuration` 消费跳跃；离地后的向下速度达到 `FallEnterVelocityThreshold` 才进入下落，用短暂速度窗口过滤平台边缘检测抖动，并处理跑步公共转换。
   - `IsSameDirection()`：判断输入方向和当前朝向是否一致。
 - 关联：`Player_RunState`、`Player_RunTurnState`、`Player_RunEndState` 继承它。
 
@@ -1633,7 +1641,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：向上跳跃状态。
 - 函数：
   - `Player_JumpUp(...)`：调用空中状态构造。
-  - `LogicalUpdate()`：执行空中公共逻辑；当竖直速度低于 Apex 阈值时进入 `Player_Apex`，速度转负后进入 `Player_Fall`。
+  - `LogicalUpdate()`：执行空中公共逻辑；有效跳跃请求与二段跳额度都满足时进入 `Player_DoubleJump`，否则当竖直速度低于 Apex 阈值时进入 `Player_Apex`。
 - 关联：从 `Player_JumpStart` 进入，之后连接 Apex 或 Fall。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Apex.cs`
@@ -1641,7 +1649,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：跳跃最高点状态。
 - 函数：
   - `Player_Apex(...)`：调用空中状态构造。
-  - `LogicalUpdate()`：执行空中公共逻辑；当角色开始下落时进入 `Player_Fall`。
+  - `LogicalUpdate()`：执行空中公共逻辑；有效跳跃请求与二段跳额度都满足时进入 `Player_DoubleJump`，否则当角色开始下落时进入 `Player_Fall`。
 - 关联：让跳跃最高点有独立动画状态。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Fall.cs`
@@ -1650,10 +1658,27 @@ Canvas_Inventory (Screen Space - Overlay)
 - 函数：
   - `Player_Fall(...)`：调用空中状态构造。
   - `Enter()`：切换为配置中的下落重力，使下降手感可与上升阶段独立调整。
-  - `LogicalUpdate()`：执行空中公共逻辑；落地后停止继续处理；在 `CoyoteTimeDuration` 与 `JumpBufferDuration` 同时有效时优先进入 `Player_JumpStart`，否则接触朝向一侧的墙面且输入指向墙面时进入 `Player_WallSlide`。
+  - `LogicalUpdate()`：记录本轮下落速度并执行空中公共逻辑；只有 `CanEnterGrounded` 成立时才落地，下落速度达到阈值时进入 RollingLand；Coyote Time 普通跳跃优先于二段跳，只有有效跳跃请求与二段跳额度都满足时才进入 `Player_DoubleJump`，否则可进入墙滑。
   - `PhysicalUpdate()`：处理空中水平移动。
   - `Exit()`：恢复默认重力缩放。
 - 关联：从离地、跳跃上升结束或 Apex 进入；落地后通过 `PlayerAir.LogicalUpdate()` 回到地面移动状态。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Jump/Player_DoubleJump.cs`
+
+- 脚本职责：执行本轮滞空唯一一次二段跳，并根据进入状态时的水平输入选择向前或垂直动画。
+- 函数：
+  - `Enter()`：以当前 `MoveInput.x` 为快照；无水平输入时播放 `DoubleVerticalJump`，有水平输入时播放 `DoubleForwardJump`、转向并调用 `HandleDoubleJump(Vector2)` 施加速度。
+  - `LogicalUpdate()`：执行空中公共逻辑，二段跳动画结束后进入 `Player_Fall`。
+- 关联：JumpUp、Apex、Fall 消费有效输入和共享二段跳额度后进入；额度在 `PlayerAir` 确认成功落地后恢复，不依赖落地目标状态的继承关系。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_RollingLand.cs`
+
+- 脚本职责：播放高下落速度对应的翻滚落地表现，并在动画期间维持翻滚方向的水平速度。
+- 函数：
+  - `Enter()`：清除竖直速度、重置动画结束标记，并根据当前朝向与配置计算翻滚速度。
+  - `LogicalUpdate()`：动画结束且仍接地时回到待机、步行或跑步状态。
+  - `PhysicalUpdate()`：持续写入翻滚水平速度。
+- 关联：`Player_Fall.TryHandleLanding()` 根据下落速度阈值选择进入。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_WallSlide.cs`
 
@@ -1795,7 +1820,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 ## 10. 玩家跑步与跳跃状态设计
 
-当前已经移除旧的 `Player_JumpState.cs`，跳跃拆分为 `JumpStart`、`JumpUp`、`Apex`、`Fall`。跑步逻辑集中在 `Player_Run` 子目录，步行状态由 `Player_WalkState` 和 `Walk` 动画承接。
+当前已经移除旧的 `Player_JumpState.cs`，跳跃拆分为 `JumpStart`、`JumpUp`、`Apex`、`Fall` 与 `DoubleJump`。二段跳额度由 `Player` 跨状态持有，只在重新进入地面状态时恢复。跑步逻辑集中在 `Player_Run` 子目录，步行状态由 `Player_WalkState` 和 `Walk` 动画承接。
 
 跑步相关动画状态：
 
@@ -1810,7 +1835,9 @@ Canvas_Inventory (Screen Space - Overlay)
 - `JumpUp`：向上运动。
 - `Apex`：最高点附近。
 - `Fall`：下落。
-- `BaseLand`、`RollingLand`：落地动画 hash 已准备，具体落地状态脚本尚未接入。
+- `DoubleForwardJump`、`DoubleVerticalJump`：根据二段跳触发时是否存在水平输入选择。
+- `RollingLand`：下落速度达到配置阈值时进入，动画期间维持翻滚水平速度。
+- `BaseLand`：动画 hash 已准备，普通落地状态尚未接入。
 
 当前 `Player_RunState` 使用两个计时窗口：
 
@@ -1825,6 +1852,7 @@ Canvas_Inventory (Screen Space - Overlay)
 | `RunBufferDuration` | 松手缓冲，过滤点按导致的抖动 | `0.08` - `0.15` |
 | `CoastingDuration` | `RunEnd` 滑行时长 | `0.12` - `0.22` |
 | `ApexThreshold` | 进入最高点状态的竖直速度阈值 | `0.05` - `0.5` |
+| `FallEnterVelocityThreshold` | Ground/Run 离开平台后进入 Fall 的最小向下速度绝对值 | `3` - `6` |
 
 ## 11. 当前资源更新
 

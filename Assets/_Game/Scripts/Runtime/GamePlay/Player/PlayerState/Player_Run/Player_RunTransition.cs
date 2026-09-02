@@ -16,7 +16,8 @@ public class Player_RunTransition : PlayerState
         base.LogicalUpdate();
 
 
-        if(groundSensor.IsGrounded == false && movement.GetCurrentVelocity().y < 0)
+        if(groundSensor.IsGrounded == false &&
+           movement.GetCurrentVelocity().y <= -player.playerBaseConfig.FallEnterVelocityThreshold)
         {
             stateMachine.ChangeState(player.fallState);
             return;
