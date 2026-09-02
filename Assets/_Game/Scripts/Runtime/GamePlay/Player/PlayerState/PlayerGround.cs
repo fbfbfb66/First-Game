@@ -9,7 +9,7 @@ public class PlayerGround : PlayerState
     public override void Enter()
     {
         base.Enter();
-        input.ConsumeJump();
+        movement.ClearYVelocity();
     }
 
     public override void LogicalUpdate()
@@ -21,7 +21,7 @@ public class PlayerGround : PlayerState
             return;
         }
 
-        if (input.ConsumeJump())
+        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;

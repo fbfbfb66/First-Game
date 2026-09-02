@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBaseConfig
   runVelocity: 13
   walkVelocity: 4
+  jumpBufferDuration: 0.12
+  coyoteTimeDuration: 0.1
   jumpForce: {x: 2, y: 19}
   wallJumpForce: {x: 5, y: 23}
   fallGravity: 5

@@ -5,6 +5,7 @@ public class PlayerInputReceiver : MonoBehaviour
     public Vector2 MoveInput { get; private set; }
 
     private bool jumpPressed;
+    private float jumpPressedTime;
     private bool attackPressed;
     private bool dashPressed;
     private bool worldInteractPressed;
@@ -17,6 +18,7 @@ public class PlayerInputReceiver : MonoBehaviour
     public void RequestJump()
     {
         jumpPressed = true;
+        jumpPressedTime = Time.time;
     }
 
     public void RequestAttack()
@@ -41,13 +43,15 @@ public class PlayerInputReceiver : MonoBehaviour
         Debug.Log("Player move input cleared.");
     }
 
-    public bool ConsumeJump()
+    public bool ConsumeJump(float jumpBufferDuration)
     {
-        if(jumpPressed)
+        if(jumpPressed && Time.time - jumpPressedTime < jumpBufferDuration)
         {
-            jumpPressed = false;
+            ClearJumpRequest();
             return true;
         }
+        else
+            ClearJumpRequest();
         return false;
     }
 
@@ -79,5 +83,10 @@ public class PlayerInputReceiver : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    public void ClearJumpRequest()
+    {
+        jumpPressed = false;
     }
 }

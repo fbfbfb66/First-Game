@@ -25,6 +25,11 @@ public class PlayerMovement : Movement
         }
     }
 
+    public void ClearYVelocity()
+    {
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0);
+    }
+
     public float GetMoveVelocity()
     {
         return playerMoveType == PlayerMoveType.Run ? runVelocity : walkVelocity;

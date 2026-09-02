@@ -11,7 +11,7 @@ public class Player_WallSlide : PlayerAir
     public override void Enter()
     {
         base.Enter();
-        input.ConsumeJump();
+        input.ClearJumpRequest();
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
         movement.SetRigibodyVelocity(new Vector2(0,player.playerBaseConfig.WallSlideSlowSpeed));
@@ -28,7 +28,7 @@ public class Player_WallSlide : PlayerAir
             return;
         }
 
-        if (input.ConsumeJump())
+        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
         {
             stateMachine.ChangeState(player.wallJumpState);
             return;

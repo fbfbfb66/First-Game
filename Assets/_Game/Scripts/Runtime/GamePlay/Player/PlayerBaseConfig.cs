@@ -6,6 +6,8 @@ public  class PlayerBaseConfig : ScriptableObject
     [SerializeField] private float runVelocity;
     [SerializeField] private float walkVelocity;
     [Header("Jump")]
+    [SerializeField] private float jumpBufferDuration = 0.12f;
+    [SerializeField] private float coyoteTimeDuration = 0.1f;
     [SerializeField] private Vector2 jumpForce;
     [SerializeField] private Vector2 wallJumpForce;
     [SerializeField] private float fallGravity;
@@ -20,6 +22,8 @@ public  class PlayerBaseConfig : ScriptableObject
     [SerializeField] private float wallSlideFastSpeed = -3f;
     [SerializeField] private float coastingDuration = 0.2f;
 
+    public float JumpBufferDuration => jumpBufferDuration;
+    public float CoyoteTimeDuration => coyoteTimeDuration;
     public float FallGravity => fallGravity;
     public float WallSlideFastSpeed => wallSlideFastSpeed;
     public float WallSlideSlowSpeed => wallSlideSlowSpeed;

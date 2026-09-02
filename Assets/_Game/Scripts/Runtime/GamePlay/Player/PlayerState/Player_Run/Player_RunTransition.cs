@@ -5,11 +5,10 @@ public class Player_RunTransition : PlayerState
     public Player_RunTransition(Player player, StateMachine stateMachine, int stateName, Animator anim) : base(player, stateMachine, stateName, anim)
     {
     }
-
     public override void Enter()
     {
         base.Enter();
-        input.ConsumeJump();
+        movement.ClearYVelocity();
     }
 
     public override void LogicalUpdate()
@@ -23,7 +22,7 @@ public class Player_RunTransition : PlayerState
             return;
         }
 
-        if (input.ConsumeJump())
+        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;

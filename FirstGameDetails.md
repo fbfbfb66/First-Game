@@ -193,16 +193,18 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Tool/GroundSensor.cs`
 
-- 脚本职责：用角色左右脚位置的两条 2D 射线检测角色是否接触地面，避免单点检测在平台边缘过早判定离地。
+- 脚本职责：用角色左右脚位置的两条 2D 射线检测角色是否接触地面，并记录最近一次接地时间，支持当前接地与 Coyote Time 查询。
 - 关键字段：
   - `point`、`point2`：左右两条射线的发射点。
   - `whatIsGround`：地面 LayerMask。
   - `distance`：检测距离。
+  - `lastGroundedTime`：最近一次检测到接地时的 `Time.time`；初始为负无穷，避免游戏开始时误判宽限窗口。
   - `IsGrounded`：对外只读的落地状态。
 - 函数：
-  - `UpdateGroundState()`：由玩家状态逻辑主动刷新 `IsGrounded`；任一发射点向下的射线命中地面层即为 true。
+  - `UpdateGroundState()`：由玩家状态逻辑主动刷新 `IsGrounded`；任一射线命中地面层时同时刷新 `lastGroundedTime`。
+  - `WasGroundedWithin(float duration)`：判断距离最后一次接地是否仍在指定时间窗口内。
   - `OnDrawGizmos()`：在 Scene 视图中绘制两条检测射线，方便调试检测距离。
-- 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；`PlayerGround`、`PlayerAir`、`Player_Fall` 等玩家状态通过 `groundSensor.IsGrounded` 决定落地、起跳、下落转换。
+- 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；`PlayerGround`、`PlayerAir` 等状态读取当前接地，`Player_Fall` 结合最近接地时间判断 Coyote Time。
 
 #### `Assets/_Game/Scripts/Tool/WallSensor.cs`
 
@@ -1392,6 +1394,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 属性：
   - `RunVelocity`、`WalkVelocity`：跑步和步行速度。
   - `JumpForce`、`WallJumpForce`：普通跳跃与墙跳施加速度。
+  - `JumpBufferDuration`：跳跃按键请求保持有效的时间窗口。
+  - `CoyoteTimeDuration`：角色离开地面后仍允许普通跳跃的时间窗口。
   - `GravityScale`、`FallGravity`：默认重力缩放与下落阶段重力缩放。
   - `WallSlideSlowSpeed`、`WallSlideFastSpeed`：贴墙时的普通滑落速度与按下方向时的快速滑落速度。
   - `CoastingDuration`：跑步结束滑行时间。
@@ -1415,18 +1419,20 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerInputReceiver.cs`
 
-- 脚本职责：保存玩家输入缓存和一次性请求。
+- 脚本职责：保存玩家连续输入与一次性请求；跳跃请求额外记录按键时间，使状态能够按配置消费有效期内的输入。
 - 属性/字段：
   - `MoveInput`：当前移动输入。
   - `jumpPressed`、`attackPressed`、`dashPressed`、`worldInteractPressed`：一次性请求标记。
+  - `jumpPressedTime`：最近一次跳跃请求产生时的 `Time.time`。
 - 函数：
   - `SetMoveInput(Vector2 moveInput)`：写入移动输入。
-  - `RequestJump()`：登记跳跃请求。
+  - `RequestJump()`：登记跳跃请求并记录按键时间。
   - `RequestAttack()`：登记攻击请求。
   - `RequestDash()`：登记冲刺请求。
   - `RequestWorldInteract()`：登记世界交互请求。
   - `ClearMoveInput()`：清空移动输入。
-  - `ConsumeJump()`：读取并清除跳跃请求。
+  - `ConsumeJump(float jumpBufferDuration)`：仅在跳跃请求仍处于指定缓冲窗口内时返回 true，并在检查后清除请求。
+  - `ClearJumpRequest()`：主动丢弃当前跳跃请求，不执行时间判断。
   - `ConsumeAttack()`：读取并清除攻击请求。
   - `ConsumeDash()`：读取并清除冲刺请求。
   - `ConsumeWorldInteract()`：读取并清除世界交互请求。
@@ -1456,6 +1462,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `GetMoveVelocity()`：按 `playerMoveType` 返回步行或跑步速度。
   - `HandleJump()`：设置普通跳跃速度。
   - `HandleWallJump()`：翻转到远离墙面的朝向，并设置墙跳速度。
+  - `ClearYVelocity()`：保留水平速度并清除竖直速度，供地面状态进入时稳定落地速度。
   - `HandleMoveAndFlip(Vector2 inputMove)`：移动并根据输入翻转。
   - `HandleMove(Vector2 inputMove)`：按当前速度设置水平速度，保留当前 Y 速度。
   - `SetPlayerMoveMode(PlayerMoveType playerMoveType)`：切换步行/跑步模式。
@@ -1507,8 +1514,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：地面状态公共逻辑。
 - 函数：
   - `PlayerGround(...)`：调用玩家状态基类构造。
-  - `Enter()`：进入地面状态时消费遗留的跳跃请求，避免旧输入在落地后再次触发。
-  - `LogicalUpdate()`：处理跳跃、世界交互；确认仍在地面时才执行移动/待机/跑步转换。
+  - `Enter()`：进入地面状态时清除竖直速度，但保留可能仍有效的跳跃缓冲请求。
+  - `LogicalUpdate()`：按 `JumpBufferDuration` 消费跳跃、处理世界交互；确认仍在地面时才执行移动/待机/跑步转换。
 - 关联：`Player_IdleState`、`Player_WalkState`、跑步相关状态继承或间接使用地面逻辑。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerAir.cs`
@@ -1542,7 +1549,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：跑步相关过渡状态基类。
 - 函数：
   - `Player_RunTransition(...)`：调用玩家状态构造。
-  - `LogicalUpdate()`：若落地则处理跑步方向、转身、结束等逻辑；若离地且竖直速度向下则进入下落。
+  - `Enter()`：清除竖直速度，但保留可能仍有效的跳跃缓冲请求。
+  - `LogicalUpdate()`：按 `JumpBufferDuration` 消费跳跃；若离地且竖直速度向下则进入下落，并处理跑步公共转换。
   - `IsSameDirection()`：判断输入方向和当前朝向是否一致。
 - 关联：`Player_RunState`、`Player_RunTurnState`、`Player_RunEndState` 继承它。
 
@@ -1617,7 +1625,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 函数：
   - `Player_Fall(...)`：调用空中状态构造。
   - `Enter()`：切换为配置中的下落重力，使下降手感可与上升阶段独立调整。
-  - `LogicalUpdate()`：执行空中公共逻辑；接触朝向一侧的墙面且输入指向墙面时进入 `Player_WallSlide`。
+  - `LogicalUpdate()`：执行空中公共逻辑；落地后停止继续处理；在 `CoyoteTimeDuration` 与 `JumpBufferDuration` 同时有效时优先进入 `Player_JumpStart`，否则接触朝向一侧的墙面且输入指向墙面时进入 `Player_WallSlide`。
   - `PhysicalUpdate()`：处理空中水平移动。
   - `Exit()`：恢复默认重力缩放。
 - 关联：从离地、跳跃上升结束或 Apex 进入；落地后通过 `PlayerAir.LogicalUpdate()` 回到地面移动状态。
@@ -1628,8 +1636,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 关键字段：
   - `originalGravity`：进入贴墙状态前的重力缩放，用于退出时恢复。
 - 函数：
-  - `Enter()`：消费进入前遗留的跳跃请求，保存并临时关闭刚体重力，把速度设为配置中的普通滑落速度。
-  - `LogicalUpdate()`：向下输入时使用快速滑落速度；不再朝墙输入时返回 `Player_Fall`；收到新的跳跃请求时进入 `Player_WallJump`；落地转换由 `PlayerAir` 处理。
+  - `Enter()`：主动清除进入前遗留的跳跃请求，保存并临时关闭刚体重力，把速度设为配置中的普通滑落速度。
+  - `LogicalUpdate()`：向下输入时使用快速滑落速度；不再朝墙输入时返回 `Player_Fall`；按 `JumpBufferDuration` 消费新的跳跃请求并进入 `Player_WallJump`；落地转换由 `PlayerAir` 处理。
   - `Exit()`：恢复进入状态前的重力缩放。
 - 关联：`Player_Fall` 检测到玩家持续朝墙输入后进入；墙跳时连接 `Player_WallJump`。
 
