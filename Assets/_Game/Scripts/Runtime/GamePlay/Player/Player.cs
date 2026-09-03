@@ -3,6 +3,7 @@ using UnityEngine;
 public class Player : Entity
 {
     private bool canDoubleJump = true;
+    private bool canDash = true;
 
     [Header("Data")]
     public PlayerBaseConfig playerBaseConfig;
@@ -38,12 +39,28 @@ public class Player : Entity
     public Player_DoubleJump doubleJumpState {get;private set;}
 
     public Player_RollingLand rollingLandState {get;private set;}
+    public Player_Dash dashState { get; private set; }
     public bool CanDoubleJump => canDoubleJump;
+    public bool CanDash => canDash;
     #endregion
 
+    public void RequestDash()
+    {
+        canDash = true;
+    }
     public void ResetDoubleJump()
     {
         canDoubleJump = true;
+    }
+
+    public bool TryConsumeDash()
+    {
+        if (!canDash)
+        {
+            return false;
+        }
+        canDash = false;
+        return true;
     }
 
     public bool TryConsumeDoubleJump()
@@ -91,6 +108,7 @@ public class Player : Entity
         climbUpState = new Player_ClimbUp(this, stateMachine, PlayerAnimationHash.ClimbUp, anim);
         doubleJumpState = new Player_DoubleJump(this, stateMachine, PlayerAnimationHash.DoubleVerticalJump, anim);
         rollingLandState = new Player_RollingLand(this, stateMachine, PlayerAnimationHash.RollingLand, anim);
+        dashState = new Player_Dash(this, stateMachine, PlayerAnimationHash.Dash, anim);
     }
 
     private void Start()

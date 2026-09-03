@@ -20,12 +20,20 @@ public  class PlayerBaseConfig : ScriptableObject
     [Header("Run Conditions")]
     [SerializeField] private float canEndRunEarlyDuration = 3f;
     [SerializeField] private float runBufferDuration = 0.05f;
+    [Header("Dash")]
+    [SerializeField] private float defaultDashSpeed = 15f;
+    [SerializeField] private float dashSpeed = 20f;
+    [SerializeField] private float wallDashSpeed = 15f;
+
     [Header("Physics")]
     [SerializeField] private float gravityScale;
     [SerializeField] private float wallSlideSlowSpeed = -1f;
     [SerializeField] private float wallSlideFastSpeed = -3f;
     [SerializeField] private float coastingDuration = 0.2f;
 
+    public float DefaultDashSpeed => defaultDashSpeed;
+    public float WallDashSpeed => wallDashSpeed;
+    public float DashSpeed => dashSpeed;
     public float RollingLandDefaultVelocity => rollingLandDefaultVelocity;
     public float RollingLandThresholdVelocity => rollingLandThresholdVelocity;
     public Vector2 DoubleJumpForce => doubleJumpForce;

@@ -9,6 +9,7 @@ public class Player_RunTransition : PlayerState
     {
         base.Enter();
         movement.ClearYVelocity();
+        input.ClearDashRequset();
     }
 
     public override void LogicalUpdate()

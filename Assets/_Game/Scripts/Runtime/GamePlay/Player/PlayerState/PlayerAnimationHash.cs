@@ -23,4 +23,5 @@ public static class PlayerAnimationHash
     public static readonly int ClimbUp = Animator.StringToHash("ClimbUp");
     public static readonly int DoubleForwardJump = Animator.StringToHash("DoubleForwardJump");
     public static readonly int DoubleVerticalJump = Animator.StringToHash("DoubleVerticalJump");
+    public static readonly int Dash = Animator.StringToHash("Dash");
 }

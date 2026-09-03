@@ -10,11 +10,19 @@ public class PlayerGround : PlayerState
     {
         base.Enter();
         movement.ClearYVelocity();
+        input.ClearDashRequset();
     }
 
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+
+        if (input.ConsumeDash() && player.TryConsumeDash())
+        {
+            stateMachine.ChangeState(player.dashState);
+            return;
+        }
+
         if(groundSensor.IsGrounded == false &&
            movement.GetCurrentVelocity().y <= -player.playerBaseConfig.FallEnterVelocityThreshold)
         {

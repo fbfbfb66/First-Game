@@ -10,14 +10,19 @@ public class PlayerAir : PlayerState
     {
         base.Enter();
         input.ClearJumpRequest();
+        input.ClearDashRequset();
     }
 
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+
+        if (TryHandleDash()) return;
+
         if (TryHandleLanding())
         {
             player.ResetDoubleJump();
+            player.RequestDash();
             return;
         }
 
@@ -33,6 +38,16 @@ public class PlayerAir : PlayerState
         if (groundSensor.CanEnterGrounded)
         {
             ChangeStateToMoveState();
+            return true;
+        }
+        return false;
+    }
+
+    protected virtual bool TryHandleDash()
+    {
+        if (input.ConsumeDash() && player.TryConsumeDash())
+        {
+            stateMachine.ChangeState(player.dashState);
             return true;
         }
         return false;

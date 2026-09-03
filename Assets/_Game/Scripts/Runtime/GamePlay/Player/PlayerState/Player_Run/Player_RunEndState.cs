@@ -20,6 +20,13 @@ public class Player_RunEndState : Player_RunTransition
         {
             HandleCoasting();
         }
+
+        if (input.ConsumeDash() && player.TryConsumeDash())
+        {
+            stateMachine.ChangeState(player.dashState);
+            return;
+        }
+
         if(movement.GetCurrentVelocity().x == 0)
         {
             stateMachine.ChangeState(player.idleState);

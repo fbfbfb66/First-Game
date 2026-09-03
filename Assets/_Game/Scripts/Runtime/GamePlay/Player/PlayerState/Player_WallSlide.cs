@@ -12,6 +12,7 @@ public class Player_WallSlide : PlayerAir
     {
         base.Enter();
         player.ResetDoubleJump();
+        player.RequestDash();
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
         movement.SetRigibodyVelocity(new Vector2(0,player.playerBaseConfig.WallSlideSlowSpeed));
@@ -50,6 +51,5 @@ public class Player_WallSlide : PlayerAir
         base.Exit();
         movement.Rb.gravityScale = originalGravity;
     }
-
 
 }

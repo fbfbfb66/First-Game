@@ -1408,6 +1408,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `CanEndRunEarlyDuration`：进入跑步后允许进入 RunEnd 的延迟窗口。
   - `RunBufferDuration`：跑步松手缓冲时间。
   - `ApexThreshold`：接近最高点时进入 Apex 的速度阈值。
+  - `DefaultDashSpeed`、`DashSpeed`、`WallDashSpeed`：无水平输入、带水平输入和贴墙反向冲刺时使用的水平速度。
 - 关联：`PlayerMovement` 读取移动/跳跃参数；跑步和跳跃状态读取缓冲、滑行和 Apex 参数。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerAnimationTrigger.cs`
@@ -1439,6 +1440,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `ClearMoveInput()`：清空移动输入。
   - `ConsumeJump(float jumpBufferDuration)`：仅在跳跃请求仍处于指定缓冲窗口内时返回 true，并在检查后清除请求。
   - `ClearJumpRequest()`：主动丢弃当前跳跃请求，不执行时间判断。
+  - `ClearDashRequset()`：主动丢弃当前冲刺请求；当前函数名中的 `Requset` 存在拼写问题。
   - `ConsumeAttack()`：读取并清除攻击请求。
   - `ConsumeDash()`：读取并清除冲刺请求。
   - `ConsumeWorldInteract()`：读取并清除世界交互请求。
@@ -1484,9 +1486,12 @@ Canvas_Inventory (Screen Space - Overlay)
 - 关键字段/属性：
   - `playerBaseConfig`：玩家参数。
   - `playerMovement`、`playerInputReceiver`、`playerAnimationTrigger`、`interaction`、`timeTool`、`groundSensor`、`wallSensor`：玩家子系统引用。
-  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`doubleJumpState`、`rollingLandState`、`wallSlideState`、`wallJumpState`：所有玩家状态实例。
+  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`doubleJumpState`、`rollingLandState`、`wallSlideState`、`wallJumpState`、`dashState`：所有玩家状态实例。
   - `CanDoubleJump`：当前这一轮滞空是否还保留一次二段跳机会；初始可用并由 `Player` 持有，使额度可以跨越 JumpUp、Apex 与 Fall 状态。
+  - `CanDash`：当前是否还保留一次冲刺机会；额度由 `Player` 跨状态持有。
 - 函数：
+  - `RequestDash()`：恢复一次冲刺机会；当前在成功落地和进入墙滑时调用。
+  - `TryConsumeDash()`：原子检查并消耗冲刺机会；成功返回 `true`，已经使用时返回 `false`。
   - `ResetDoubleJump()`：恢复一次二段跳机会；`PlayerAir` 确认成功处理落地后统一调用，因此落到 Idle、Walk、Run 或 RollingLand 都不会遗漏。
   - `TryConsumeDoubleJump()`：原子检查并消耗二段跳机会；成功返回 `true`，已经使用时返回 `false`。
   - `Awake()`：调用 `Entity.Awake()` 创建状态机，并实例化所有状态。
@@ -1501,7 +1506,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：集中保存 Animator 参数 hash。
 - 字段：
-  - `Idle`、`Run`、`RunTurn`、`RunEnd`、`Walk`、`JumpStart`、`JumpUp`、`Apex`、`Fall`、`BaseLand`、`RollingLand`、`wallSlide`、`HangIdle`、`ClimbUp`。
+  - `Idle`、`Run`、`RunTurn`、`RunEnd`、`Walk`、`JumpStart`、`JumpUp`、`Apex`、`Fall`、`BaseLand`、`RollingLand`、`wallSlide`、`HangIdle`、`ClimbUp`、`Dash`。
 - 关联：`Player` 创建状态时传入对应 hash，`EntityState.Enter()` 使用 hash 直接 `CrossFade` 到目标 Animator 状态。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerState.cs`
@@ -1526,8 +1531,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：地面状态公共逻辑。
 - 函数：
   - `PlayerGround(...)`：调用玩家状态基类构造。
-  - `Enter()`：进入地面状态时清除竖直速度，但保留可能仍有效的跳跃缓冲请求；二段跳额度由实际落地事件统一恢复，不依赖具体地面状态继承关系。
-  - `LogicalUpdate()`：离地后的向下速度达到 `FallEnterVelocityThreshold` 时进入 Fall；否则按 `JumpBufferDuration` 消费跳跃、处理世界交互，并在仍接地时执行移动/待机/跑步转换。
+  - `Enter()`：进入地面状态时清除竖直速度和遗留冲刺请求，但保留可能仍有效的跳跃缓冲请求；二段跳额度由实际落地事件统一恢复，不依赖具体地面状态继承关系。
+  - `LogicalUpdate()`：优先消费可用冲刺请求并进入 `Player_Dash`；否则在离地后的向下速度达到 `FallEnterVelocityThreshold` 时进入 Fall，再处理跳跃、世界交互和地面移动转换。
 - 关联：`Player_IdleState`、`Player_WalkState`、跑步相关状态继承或间接使用地面逻辑。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerAir.cs`
@@ -1535,9 +1540,10 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：空中状态公共逻辑。
 - 函数：
   - `PlayerAir(...)`：调用玩家状态基类构造。
-  - `Enter()`：开始新的空中状态动画并清除进入前遗留的跳跃请求。
-  - `LogicalUpdate()`：刷新传感器并通过 `TryHandleLanding()` 处理落地；成功落地后统一恢复二段跳额度，未落地且 `WallSensor` 已确认当前帧到达有效边缘时进入 `Player_HangIdle`。
+  - `Enter()`：开始新的空中状态动画并清除进入前遗留的跳跃与冲刺请求。
+  - `LogicalUpdate()`：刷新传感器，优先通过 `TryHandleDash()` 消费本轮可用冲刺机会，再通过 `TryHandleLanding()` 处理落地；成功落地后统一恢复二段跳与冲刺额度，未落地且 `WallSensor` 已确认当前帧到达有效边缘时进入 `Player_HangIdle`。
   - `TryHandleLanding()`：默认仅在 `CanEnterGrounded` 成立时切回移动状态并返回是否已经处理落地；`Player_Fall` 重写它以选择普通落地或翻滚落地。
+  - `TryHandleDash()`：仅当收到冲刺请求且 `Player.TryConsumeDash()` 成功时进入 `Player_Dash`，并返回是否已经处理状态切换。
 - 关联：`Player_JumpUp`、`Player_Apex`、`Player_Fall`、`Player_WallSlide` 继承它，`Player_WallJump` 通过继承 `Player_JumpUp` 间接使用它。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_HangIdle.cs`
@@ -1680,6 +1686,17 @@ Canvas_Inventory (Screen Space - Overlay)
   - `PhysicalUpdate()`：持续写入翻滚水平速度。
 - 关联：`Player_Fall.TryHandleLanding()` 根据下落速度阈值选择进入。
 
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Dash.cs`
+
+- 脚本职责：执行地面或空中的水平冲刺，并在冲刺期间临时关闭重力。
+- 关键字段：
+  - `originalGravity`：进入冲刺前的重力缩放，用于退出时恢复。
+- 函数：
+  - `Enter()`：重置动画完成标记并关闭重力；无水平输入时使用 `DefaultDashSpeed`，有水平输入时以 `DashSpeed` 叠加当前水平速度；面向墙壁冲刺时翻转并使用 `WallDashSpeed`；最后把竖直速度清零并写入冲刺速度。
+  - `LogicalUpdate()`：空中冲刺期间允许消费二段跳；动画结束后按落地、贴墙或仍在空中的结果分别进入地面移动、墙滑或下落状态；冲刺中落地会恢复二段跳和冲刺额度。
+  - `Exit()`：恢复进入冲刺前的重力缩放。
+- 关联：地面、跑步和空中公共状态消费冲刺输入与共享额度后进入；`PlayerAir` 成功落地时恢复额度，`Player_WallSlide.Enter()` 当前也会补充一次冲刺机会。
+
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_WallSlide.cs`
 
 - 脚本职责：控制玩家贴墙滑落，并接收离墙与墙跳输入。
@@ -1715,7 +1732,7 @@ Canvas_Inventory (Screen Space - Overlay)
 3. `InputRouter` 根据 `GameLayerStack.CurrentLayer` 判断当前层。
 4. `InputRouter` 再通过 `PlayerControlArbitration` 判断当前层规则是否锁定该动作。
 5. 可执行的输入写入 `PlayerInputReceiver`。
-6. 玩家状态在 `LogicalUpdate()` 中消费输入，例如 `PlayerGround` 消费跳跃和世界交互，`Player_RunState` 消费跳跃并处理跑步输入。
+6. 玩家状态在 `LogicalUpdate()` 中消费输入，例如 `PlayerGround` 消费跳跃、冲刺和世界交互，`PlayerAir` 消费本轮空中冲刺额度，`Player_RunState` 处理冲刺、跳跃与跑步输入。
 
 ### 玩家状态机流程
 
@@ -1818,9 +1835,11 @@ Canvas_Inventory (Screen Space - Overlay)
 - `Assets/_Game/Data/Story/Steps/Wait/Step_Wait_1s.asset`
 - `Assets/_Game/Data/Story/Steps/Wait/Step_Wait_4s.asset`
 
-## 10. 玩家跑步与跳跃状态设计
+## 10. 玩家跑步、跳跃与冲刺状态设计
 
 当前已经移除旧的 `Player_JumpState.cs`，跳跃拆分为 `JumpStart`、`JumpUp`、`Apex`、`Fall` 与 `DoubleJump`。二段跳额度由 `Player` 跨状态持有，只在重新进入地面状态时恢复。跑步逻辑集中在 `Player_Run` 子目录，步行状态由 `Player_WalkState` 和 `Walk` 动画承接。
+
+冲刺由 `Player_Dash` 统一承接地面和空中入口。冲刺机会由 `Player` 跨状态持有，成功冲刺时消费，落地时恢复；进入墙滑当前也会恢复一次，因此墙面可作为冲刺补充点。冲刺期间重力暂时关闭，退出状态时恢复原重力。
 
 跑步相关动画状态：
 
@@ -1838,6 +1857,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - `DoubleForwardJump`、`DoubleVerticalJump`：根据二段跳触发时是否存在水平输入选择。
 - `RollingLand`：下落速度达到配置阈值时进入，动画期间维持翻滚水平速度。
 - `BaseLand`：动画 hash 已准备，普通落地状态尚未接入。
+- `Dash`：播放水平冲刺表现，结束后按接地和贴墙结果回到地面移动、墙滑或下落。
 
 当前 `Player_RunState` 使用两个计时窗口：
 
@@ -1868,6 +1888,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 新增剧情步骤资源：显示/隐藏剧情文本、等待 1 秒/4 秒、等待老人帮助任务进入进行中、切换玩家 Walk/Run 移动模式、压入/弹出游戏层、停止玩家、切换玩家/老人剧情镜头和调试日志。
 - 新增基础移动组件 `Movement`，玩家移动组件继承它。
 - 新增玩家 `Walk` 动画状态与 `Player_WalkState` 实际移动逻辑，`PlayerBaseConfig.asset` 中 `walkVelocity` 当前为 4。
+- 新增玩家 `Dash` 动画状态与 `Player_Dash` 状态逻辑，支持地面/空中冲刺、空中次数限制、贴墙反向冲刺、冲刺中二段跳以及落地/墙滑后的额度恢复。
 - 玩家跳跃状态拆分为 `Player_JumpStart`、`Player_JumpUp`、`Player_Apex`、`Player_Fall`。
 - 玩家下落状态已接入完整的墙滑/墙跳纵向切片：持续朝墙输入时按配置速度滑落，向下输入可加速，松开墙面方向会恢复下落，墙滑中再次按跳跃会翻转并施加 `WallJumpForce`；墙滑使用独立动画，墙跳复用 `JumpUp` 动画。
 - 跑步过渡状态移动到 `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Run/`。
@@ -1910,6 +1931,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - `QuestManager` 只能设置已注册在 `QuestDatabase` 中的 Quest。
 - `InteractionContext.IneractorTransform` 当前属性名存在拼写问题；若改名会影响引用处，需要统一重构。
 - `Player_RunState` 中 `isFirstTimeRelese` 存在拼写问题；若改名需要同步所有引用。
+- `PlayerInputReceiver.ClearDashRequset()` 中 `Requset` 存在拼写问题；改名时需要同步所有调用。
+- `Player_Dash` 依赖 Dash 动画末尾调用 `PlayerAnimationTrigger.EndAnimation()` 才能正常退出；提交前的文本检查中 `Player_Dash.anim` 仍显示循环且没有序列化动画事件，若 Unity 中出现冲刺无法结束，应先检查该动画的 Loop Time 和末帧 Animation Event。
 - `Movement.SetRigibodyVelocity` 方法名存在拼写问题；若改名需要同步所有调用。
 - `QuestData` 中 `descrition` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `StoryCameraDirector` 中 `lowerPreviousCameera` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。

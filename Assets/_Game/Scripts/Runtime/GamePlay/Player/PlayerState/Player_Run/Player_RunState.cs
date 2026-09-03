@@ -19,6 +19,12 @@ public class Player_RunState : Player_RunTransition
     {
         base.LogicalUpdate();
 
+        if (input.ConsumeDash() && player.TryConsumeDash())
+        {
+            stateMachine.ChangeState(player.dashState);
+            return;
+        }
+
         if (isSameDirctionForWallandFacingDir())
         {
             stateMachine.ChangeState(player.idleState);

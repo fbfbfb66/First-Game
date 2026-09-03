@@ -28,7 +28,7 @@ public class PlayerInputReceiver : MonoBehaviour
 
     public void RequestDash()
     {
-        Debug.Log("Player received dash request.");
+        dashPressed = true;
     }
 
     public void RequestWorldInteract()
@@ -83,6 +83,11 @@ public class PlayerInputReceiver : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    public void ClearDashRequset()
+    {
+        dashPressed = false;
     }
 
     public void ClearJumpRequest()
