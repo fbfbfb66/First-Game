@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-08-27。
+最后更新时间：2026-09-04。
 
 ## 1. 项目概览
 
@@ -23,6 +23,7 @@
   - Quest 系统：`QuestManager` + `QuestDatabase` + `QuestData` + `QuestState` + `QuestStateCondition`。
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
   - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView` + `ItemDetailPanel`。已打通「显示 → 悬停高亮 → 拖拽 → 旋转 → 落格改数据」与「左键选中 → 选中框 + 常驻详情面板 → 按数量丢弃 → 移除数据并销毁显示对象」。
+  - Falling Sand：已完成 CPU Grid 数据、逐 Tick 重力/斜滑模拟、动态 Texture 渲染，以及首次触底时按外圈/内部概率执行的一次性撞击破碎；当前高处沙块仍是临时测试入口。
   - 其他 UI：`UI_HPBarView`。
 
 ## 2. Unity Git 提交规则
@@ -364,6 +365,66 @@ Canvas_Inventory (Screen Space - Overlay)
 - 关联：挂在 `Canvas_Inventory/InventoryPart/ItemDetailPanel` 上，由 `InventoryView.SetSelectedItem` 驱动。
 - 待办：图中的 `F 使用` 尚未实现——「使用一件物品」要回答「用了会发生什么」（回血多少、装备到哪、触发什么），`ItemData` 当前没有任何这类信息，属于独立的物品效果系统，不在本次改版范围内。`categoryLabel` 目前直接输出 `ItemCategory` 的英文枚举名，中文显示留待本地化。
 
+### Runtime/Systems/FallingSand
+
+#### `Assets/_Game/Scripts/Runtime/Systems/FallingSand/SandGrid.cs`
+
+- 脚本职责：Falling Sand 的纯 C# 二维 Cell 数据容器，不继承 `MonoBehaviour`，不负责模拟时间、输入或渲染。Grid 以左下角为 `(0, 0)`，`x` 向右、`y` 向上。
+- 关键字段/属性：
+  - `width` / `Width`、`height` / `Height`：Grid 尺寸；外部只能读取尺寸。
+  - `cells`：以一维 `byte[]` 保存所有 Cell，索引规则为 `x + y * width`。材质 ID `0` 表示空，`1..255` 可表示不同颗粒材质或颜色类别。
+- 函数：
+  - `SandGrid(int width, int height)`：保存 Grid 尺寸并创建 `width * height` 个 Cell；新数组默认全部为 `0`，因此新 Grid 初始为空。当前尚未加入非正尺寸的构造参数校验。
+  - `IsInside(int x, int y)`：判断单个 Cell 坐标是否位于 Grid 内，合法范围为 `x: 0..Width-1`、`y: 0..Height-1`。
+  - `TryGetMaterial(int x, int y, out byte materialId)`：安全读取 Cell；越界时将输出设为 `0` 并返回 `false`，合法时输出对应材质 ID 并返回 `true`。
+  - `TrySetMaterial(int x, int y, byte materialId)`：安全写入 Cell；越界返回 `false` 且不修改数组。写入 `0` 表示清空 Cell。
+  - `ToIndex(int x, int y)`：私有坐标转换，将二维坐标映射为一维数组下标；调用前由公开读写函数完成边界检查。
+- 关联：`SandSimulation` 通过安全读写接口移动颗粒，`SandGridRenderer` 读取材质 ID 并映射为动态纹理颜色，`SandWorld` 创建并持有运行时 Grid。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/FallingSand/SandSimulation.cs`
+
+- 脚本职责：Falling Sand 的纯 C# 模拟规则，不继承 `MonoBehaviour`。非空 Cell 优先向正下方移动；正下方被阻挡时依次尝试左下和右下，三个方向都不可用时保持原位。
+- 关键字段：
+  - `grid`：构造时注入并以 `readonly` 保存的 `SandGrid` 引用；模拟直接读写同一份 Grid 数据。
+  - `random`：由构造 Seed 创建的独立 `System.Random`，用于决定斜向移动的优先顺序；相同 Seed 可复现相同决策序列。
+  - `BurstDirectionX` / `BurstDirectionY`：按相同下标配对的七个撞击破碎方向，包含上、左上、右上、左、右、左下和右下，不包含正下。
+- 函数：
+  - `SandSimulation(SandGrid grid, int randomSeed = 0)`：保存待模拟 Grid，并按 Seed 创建随机数生成器；传入 `null` Grid 时抛出 `ArgumentNullException`。默认 Seed 为 0，测试或运行时可传入明确 Seed 重现结果。
+  - `ApplyImpactBurst(float edgeBurstChance, float interiorCrackChance, int maxExtraDistance)`：复制撞击瞬间的占用快照，先按内部概率处理内部颗粒，再按外圈概率处理暴露颗粒，返回真正成功移动的总数。概率使破碎数量随候选颗粒数量自动缩放。
+  - `MoveBurstGroup(...)`：只扫描撞击快照中原本存在的颗粒，通过 `HasEmptyBurstNeighbor` 判断所属组，并用 `Random.NextDouble()` 与对应概率决定是否参与；内部使用随机方向，外圈使用原始暴露方向。
+  - `TryFindBurstTarget(...)`：在真实 Grid 中沿指定方向穿过连续占用 Cell，找到第一个空 Cell 后最多额外逐格前进指定距离；遇到占用或边界立即停止，输出最终安全目标。
+  - `GetExposedBurstDirection(...)`：从随机方向起点循环查找撞击快照中原本为空且位于 Grid 内的相邻方向，使外圈颗粒向原始轮廓外侧破碎。
+  - `GetRandomBurstDirection(...)`：从七个撞击方向中随机选择一组配对的 X/Y 偏移，供内部裂隙使用。
+  - `HasEmptyBurstNeighbor(...)`：根据撞击快照检查七个邻近方向，只要有一个 Grid 内邻格原本为空，就把来源颗粒归类为外圈。
+  - `Step()`：执行一次模拟 Tick。按 `y = 1..Height-1` 从下向上、每行从左向右扫描；先跳过空 Cell，每颗粒子优先尝试正下，失败后才用 `System.Random.Next(0, 2)` 随机决定左下/右下的尝试顺序，首选失败仍会尝试另一边。返回本次是否至少移动过一颗粒子。底行 `y = 0` 不参与下落，因此 Grid 下边界充当地面。
+  - `TryMove(int fromX, int fromY, int toX, int toY)`：检查来源是否存在颗粒、目标是否在界内且为空；成功时把来源材质 ID 写入目标，再将来源清为 `0`。越界或被占用时返回 `false` 且不修改 Grid。
+- 关联：读取并修改 `SandGrid`；由 EditMode 测试直接验证，并由场景中的 `SandWorld` 按固定频率调用。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/FallingSand/FirstGame.FallingSand.asmdef`
+
+- 职责：把 Falling Sand 纯逻辑代码编译成独立程序集 `FirstGame.FallingSand`，使 EditMode 测试可以直接引用；`autoReferenced: true` 允许 `Assembly-CSharp` 中后续运行时组件使用它。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/FallingSand/SandGridRenderer.cs`
+
+- 脚本职责：把 `SandGrid` 的材质 ID 映射成 `Color32` 像素，并通过运行时 `Texture2D`、`Sprite` 与 `SpriteRenderer` 统一显示；不修改 Grid 或执行模拟。
+- 关键字段：`spriteRenderer` 是场景绘制组件；`grid` 是只读数据来源；`texture` 是与 Grid 同宽高的 RGBA32 动态纹理；`pixels` 是 CPU 端颜色缓冲；`runtimeSprite` 使用左下 Pivot 把 Texture 对齐到 `SandWorld` 原点。
+- 函数：
+  - `Initialize(SandGrid grid, float cellSize)`：保存 Grid，创建无 Mipmap 的 RGBA32 Texture 与等长 `Color32[]`，设置 Point 过滤和 Clamp 包裹；用 `1 / cellSize` 作为 Pixels Per Unit 创建左下 Pivot Sprite，并赋给 `SpriteRenderer`。
+  - `Render()`：逐 Cell 读取材质 ID，以相同的 `x + y * Width` 下标写入像素缓冲，随后调用一次 `SetPixels32` 和 `Apply(false)` 上传整张 Texture。
+  - `GetColor(byte materialId)`：将 `0` 映射为透明，将当前沙粒颜色变体 ID 映射为不同沙色；未知 ID 返回紫色以暴露配置错误。
+- 关联：由 `SandWorld` 初始化并在 Grid 状态改变后调用。运行时 Sprite/Texture 的销毁清理尚未加入。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/FallingSand/SandWorld.cs`
+
+- 脚本职责：把纯逻辑 Grid、模拟器和世界渲染组合到 Unity 场景中。GameObject 的 Transform 表示 Grid 左下角世界原点。
+- 关键字段：`width`、`height`、`cellSize` 定义逻辑分辨率与世界尺寸；`simulationStepsPerSecond` 和累计时间控制模拟频率；`simulationSeed` 让随机序列可复现；`edgeBurstChance` 与 `interiorCrackChance` 分别控制外圈和内部颗粒参与撞击破碎的概率，`impactBurstExtraDistance` 控制额外飞散距离；`impactDetected` 保证当前运行只处理一次首次触底；`gridRenderer` 是 Inspector 绑定的表现层。
+- 函数：
+  - `Awake()`：创建 `SandGrid` 与使用指定 Seed 的 `SandSimulation`，初始化渲染器，当前还会在 Grid 高处写入带随机沙色 ID 的临时测试块并首次渲染。
+  - `Update()`：累计 `Time.deltaTime`，达到 `1 / simulationStepsPerSecond` 后执行一次 `Step()`；首次发现底行存在沙粒时调用 `ApplyImpactBurst`，并将其真实移动结果合并进 `gridChanged` 后统一 Render。当前使用单次 `if`，低于目标模拟频率的帧率下不会在一帧内追赶多个 Tick。
+  - `DoesBottomRowContainSand()`：扫描 `y = 0` 判断是否至少有一颗沙触及容器底面；它是当前容器实验的临时撞击条件，尚不能识别任意已有沙堆的接触。
+  - `OnDrawGizmosSelected()`：在 Scene 视图选中对象时，从左下原点向右上绘制 Grid 世界边界线框。
+- 关联：当前挂在 `GameScene` 的 `SandWorld` 对象上，组合 `SandGrid`、`SandSimulation` 与 `SandGridRenderer`；高处测试块是临时验证入口，后续由完整沙块颗粒化替换。
+
 ### Runtime/Systems/InventorySystem
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemData.cs`
@@ -457,7 +518,10 @@ Canvas_Inventory (Screen Space - Overlay)
 - `FirstGame.Inventory.Tests.asmdef`：EditMode 测试程序集。引用 `FirstGame.Inventory`、`UnityEngine.TestRunner`、`UnityEditor.TestRunner`，`includePlatforms` 限定为 `Editor`，因此不会打进游戏包。
 - `InventoryGridTests.cs`：`InventoryGrid` 的单元测试。覆盖构造校验、`IsInside` 单点与矩形版、`IsAreaEmpty` 空与被占两种情况、`Place` 的成功/越界/重叠/失败不留痕、`GetItemAt` 越界返回 null。
   - 测试内通过 `JsonUtility.FromJsonOverwrite` 写入 `ItemData` 的私有序列化字段来构造测试物品，避免为了测试放宽生产代码的封装。
-  - 运行方式：`Window → General → Test Runner → EditMode → Run All`。
+- `FallingSand/FirstGame.FallingSand.Tests.asmdef`：Falling Sand 的 EditMode 测试程序集，引用 `FirstGame.FallingSand` 与 Unity Test Runner，并仅在 Editor 中编译。
+- `FallingSand/SandGridTests.cs`：覆盖尺寸属性、边界判断、新 Grid 全空、`byte` 材质 ID 的写入与读回、邻格隔离、写入 `0` 清空、`byte.MaxValue` 往返，以及越界读写返回 `false`。
+- `FallingSand/SandSimulationTests.cs`：覆盖空 Grid、单粒下落、每 Tick 只移动一格、底边阻挡、堆叠颗粒同时各移动一格、连续 Step 最终静止，以及下方优先、随机选择一个开放斜向、另一侧回退、完全阻挡、左右边界和相同 Seed 决策可复现；撞击破碎测试验证零概率不移动、满概率搬运时颗粒总数守恒并留下缺口，以及相同 Seed 产生相同最终 Grid。
+- 运行方式：`Window → General → Test Runner → EditMode → Run All`；也可只选中 `SandGridTests` 运行当前 Checkpoint。
 
 ### Runtime/GameFlow
 
