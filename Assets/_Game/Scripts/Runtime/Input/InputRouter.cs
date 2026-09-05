@@ -8,6 +8,9 @@ public class InputRouter : MonoBehaviour
     [SerializeField] private PlayerInputReceiver playerInputReceiver;
     [SerializeField] private InventoryView inventoryView;
     [SerializeField] private DialogueManager dialogueManager;
+    [SerializeField] private CombatActionCommandKey attackCommand;
+    [SerializeField] private PlayerCombatActionController playerCombatActionController;
+
 
     private void Awake()
     {
@@ -36,6 +39,10 @@ public class InputRouter : MonoBehaviour
         if(inventoryView == null)
         {
             inventoryView = FindAnyObjectByType<InventoryView>(FindObjectsInactive.Include);
+        }
+        if(playerCombatActionController == null)
+        {
+            playerCombatActionController = FindAnyObjectByType<PlayerCombatActionController>();
         }
     }
 
@@ -125,6 +132,12 @@ public class InputRouter : MonoBehaviour
 
     private void OnAttackPressed()
     {
+        if(playerCombatActionController == null)
+        {
+            Debug.LogWarning("Missed playerCombatActionController");
+            return;
+        }
+
         if (!IsCurrentLayer(GameLayerType.Gameplay))
         {
             return;
@@ -135,7 +148,7 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        playerInputReceiver.RequestAttack();
+        playerCombatActionController.RequestAction(attackCommand);
     }
 
     private void OnDashPressed()

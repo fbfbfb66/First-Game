@@ -567,6 +567,8 @@ Canvas_Inventory (Screen Space - Overlay)
   - `gameLayerStack`：判断当前输入层。
   - `playerControlArbitration`：判断当前层是否允许玩家动作。
   - `playerInputReceiver`：接收玩家行动请求。
+  - `attackCommand`：把 Attack Input Action 映射为战斗系统使用的抽象 Command Key。
+  - `playerCombatActionController`：接收战斗 Action Request。
   - `dialogueManager`：接收对话推进和选项输入。
 - 函数：
   - `Awake()`：补齐必要引用。
@@ -575,7 +577,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `OnCurrentLayerChanged(GameLayerType previousLayer, GameLayerType currentLayer)`：层变化时调用 `inputReader.SetInputMode()`。
   - `OnMoveChanged(Vector2 moveInput)`：Gameplay 且允许移动时设置玩家移动输入，否则清空。
   - `OnJumpPressed()`：Gameplay 且允许跳跃时登记跳跃请求。
-  - `OnAttackPressed()`：Gameplay 且允许攻击时登记攻击请求。
+  - `OnAttackPressed()`：Gameplay 且允许攻击时，把 `attackCommand` 提交给 `PlayerCombatActionController.RequestAction()`；输入层不决定最终招式。
   - `OnDashPressed()`：Gameplay 且允许冲刺时登记冲刺请求。
   - `OnInteractPressed()`：Gameplay 时登记世界交互请求；Dialogue 时请求推进台词。
   - `OnUseItemPressed()`：Gameplay 且允许使用物品时处理使用物品入口，目前预留。
@@ -587,6 +589,34 @@ Canvas_Inventory (Screen Space - Overlay)
   - `OnUICancelPressed()`：处理 UI 取消输入入口，目前预留。
   - `IsCurrentLayer(GameLayerType layerType)`：封装当前层判断。
 - 关联：位于 `GameInputReader` 和游戏系统之间；既依赖 `GameLayerStack`，也依赖 `PlayerControlArbitration` 的动作锁定结果。
+
+### Runtime/GamePlay/Combat/Actions
+
+#### `CombatActionCommandKey.cs`
+
+- 脚本职责：用 ScriptableObject 资源身份表达抽象战斗输入意图；核心 Controller 不维护普通攻击、重攻击或 Parry 等硬编码枚举分支。
+- 当前资源：`Assets/_Game/Data/Combat/Commands/Command_Attack.asset`。
+
+#### `CombatActionRequest.cs`
+
+- 脚本职责：不可变的战斗输入快照，保存 `Command` 与请求发生时的 `RequestedTime`；请求表达玩家意图，不直接指定最终 Action。
+
+#### `CombatActionStage.cs`
+
+- 脚本职责：Action 内部单个动画阶段的静态序列化数据。当前保存 Animator State 名称和该 Stage 的 Hit Window 配置，并通过 `TryGetHitWindow()` 按 Animation Event 的 Window ID 查找静态命中几何；不保存窗口是否打开等运行状态。
+
+#### `CombatHitWindowDefinition.cs`
+
+- 脚本职责：嵌入 Stage 的单个命中窗口配置，保存 Window ID、`Box` / `Circle` 形状、相对 `Visual` 的局部偏移以及对应尺寸。它描述查询几何，不保存本次命中了谁，也不包含具体招式名称。
+
+#### `CombatActionDefinition.cs`
+
+- 脚本职责：可被选择的静态 Action ScriptableObject，当前包含入口 `Command`、一个 `Stage` 和一条可选 `Transition`。Definition 只保存静态配置，不保存本次是否已输入或是否准备切换。
+- 当前资源：`Assets/_Game/Data/Combat/Actions/Action_BaseAttack_01_Normal.asset`、`Action_BaseAttack_02_Normal.asset` 和 `Action_BaseAttack_03_Normal.asset`；它们通过资源引用组成普通攻击派生链。
+
+#### `CombatActionTransition.cs`
+
+- 脚本职责：描述当前 Action 接受哪个 `CombatActionCommandKey`，以及成功派生时准备哪个目标 `CombatActionDefinition`。窗口是否开放、请求是否有效和何时真正切换由运行时 Controller 判断，不写入这份静态配置。
 
 ### Runtime/Core
 
@@ -1486,7 +1516,12 @@ Canvas_Inventory (Screen Space - Overlay)
   - `StartAnimation()`：动画事件调用或状态进入时重置动画结束标记。
   - `EnableAction()`：允许动作。
   - `DisableAction()`：禁止动作。
-- 关联：`Player_JumpStart`、跑步转身/结束等状态用它判断动画是否完成。
+  - `OpenCombatHitWindow(int windowId)` / `CloseCombatHitWindow(int windowId)`：把动画时间轴上的命中窗口编号转发给 Action Controller。
+  - `OpenCombatTransitionWindow()`：Combat Clip 的 Animation Event 入口，通知 Controller 开始接受当前 Action 的派生输入。
+  - `CloseCombatTransitionWindow()`：通知 Controller 停止接受派生输入；用于输入窗口早于 Commit 时刻结束的动画。
+  - `CommitCombatTransition()`：通知 Controller 已到达固定衔接帧；只有此前存在 Pending Transition 才会真正切换 Action。
+  - `FinishCombatStage()`：Combat Clip 的 Animation Event 入口，把 Stage 完成事实转发给 `PlayerCombatActionController.NotifyStageFinished()`。
+- 关联：`Player_JumpStart`、跑步转身/结束等状态用它判断动画是否完成；战斗动画通过语义明确的 Combat Stage 信号进入 Action Controller。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerInputReceiver.cs`
 
@@ -1549,8 +1584,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：玩家实体入口，创建和驱动所有玩家状态。
 - 关键字段/属性：
   - `playerBaseConfig`：玩家参数。
-  - `playerMovement`、`playerInputReceiver`、`playerAnimationTrigger`、`interaction`、`timeTool`、`groundSensor`、`wallSensor`：玩家子系统引用。
-  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`doubleJumpState`、`rollingLandState`、`wallSlideState`、`wallJumpState`、`dashState`：所有玩家状态实例。
+  - `playerMovement`、`playerInputReceiver`、`playerAnimationTrigger`、`interaction`、`timeTool`、`groundSensor`、`wallSensor`、`combatActionController`：玩家子系统引用。
+  - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`doubleJumpState`、`rollingLandState`、`wallSlideState`、`wallJumpState`、`dashState`、`combatActionState`：所有玩家状态实例。
   - `CanDoubleJump`：当前这一轮滞空是否还保留一次二段跳机会；初始可用并由 `Player` 持有，使额度可以跨越 JumpUp、Apex 与 Fall 状态。
   - `CanDash`：当前是否还保留一次冲刺机会；额度由 `Player` 跨状态持有。
 - 函数：
@@ -1560,9 +1595,35 @@ Canvas_Inventory (Screen Space - Overlay)
   - `TryConsumeDoubleJump()`：原子检查并消耗二段跳机会；成功返回 `true`，已经使用时返回 `false`。
   - `Awake()`：调用 `Entity.Awake()` 创建状态机，并实例化所有状态。
   - `Start()`：初始化默认状态。
-  - `Update()`：驱动状态机逻辑更新。
+  - `Update()`：驱动当前 FSM 状态逻辑更新，再尝试把缓冲的战斗 Request 准备为 Action 并进入通用 Combat State。
+  - `TryEnterCombatAction()`：连接 Action Controller 与 Player FSM；准备成功时先 `BeginAction()`，再切换到 `Player_CombatActionState`。
   - `FixedUpdate()`：驱动状态机物理更新。
 - 关联：继承 `Entity`；把配置、输入、移动、交互、地面检测、动画触发器整合给各个 `PlayerState`。
+
+### Runtime/GamePlay/Player/Combat
+
+#### `PlayerCombatActionController.cs`
+
+- 脚本职责：Player 战斗 Action 的运行时协调入口；分别保存单槽时间戳 Request、当前 Action、派生窗口、Pending Transition、Commit 请求与 Stage 完成信号。
+- `RequestAction(CombatActionCommandKey command)`：把输入意图和 `Time.time` 组成 Request，后来的请求覆盖尚未消费的旧请求。
+- `TryPrepareAction(out CombatActionDefinition action)`：校验并匹配当前默认 Definition；只有成功准备时才消费入口 Request。
+- `TryQueueTransition()`：仅在请求仍有效、派生窗口开放且当前 Transition 匹配时消费 Request，并把目标 Action 保存为 Pending；不会在输入发生的帧立即切动画。
+- `TryCommitTransition(out CombatActionDefinition targetAction)`：消费动画 Commit 信号；存在 Pending Transition 时输出目标 Action，否则不切换。
+- `BeginAction(CombatActionDefinition action)`：记录 `CurrentAction`，并重置上一 Action 的窗口、Pending、Commit 与 Stage 完成状态。
+- `NotifyTransitionWindowOpened()` / `NotifyTransitionWindowClosed()`：接收动画桥转发的派生输入窗口信号。
+- `NotifyTransitionCommitRequested()`：接收固定衔接帧信号，关闭输入窗口并等待 Combat State 执行切换。
+- `NotifyHitWindowOpened(int windowId)` / `NotifyHitWindowClosed(int windowId)`：验证当前 Stage 是否配置对应 Window ID，并记录或清除当前活动命中窗口；Action 开始、派生或结束时不会继承旧窗口。
+- `NotifyStageFinished()`：接收动画桥转发的 Stage 完成事实。
+- `TryCompleteAction()`：单 Stage Action 收到完成信号后清理当前 Action；当前规则会丢弃 Action 生命周期内未形成合法派生的剩余 Request，再让 Combat State 归还 FSM 控制权。
+
+#### `Player_CombatActionState.cs`
+
+- 脚本职责：所有战斗 Action 共用的 Player FSM 承载状态，不按具体招式创建 State。进入时从 `CurrentAction.Stage` 取得动态 Animator Hash、播放动画并清空速度；逻辑更新先尝试把有效输入 Queue 为派生，再独立消费 Commit 信号并切到目标 Action。没有成功派生时，原动画继续播放收尾，Controller 确认完成后才回到 Idle、Walk 或 Run。
+
+#### `PlayerCombatHitDetector.cs`
+
+- 脚本职责：Player 侧的 Physics2D 命中候选查询器。仅在 Controller 的 Hit Window 开放时读取当前 Stage 配置，通过 `Visual.TransformPoint(localOffset)` 把局部偏移转换为可自动镜像的世界坐标，再执行 Box 或 Circle 查询。
+- 当前阶段：使用 `Enemy` Layer 过滤候选 Collider，并用 Gizmo 与日志验证范围；同一目标在一个窗口跨越多个物理帧时仍会重复报告，去重与实际结算尚未实现。
 
 ### Runtime/GamePlay/Player/PlayerState
 
@@ -1795,17 +1856,17 @@ Canvas_Inventory (Screen Space - Overlay)
 2. `GameInputReader` 更新 `MoveInput` 或触发按键事件。
 3. `InputRouter` 根据 `GameLayerStack.CurrentLayer` 判断当前层。
 4. `InputRouter` 再通过 `PlayerControlArbitration` 判断当前层规则是否锁定该动作。
-5. 可执行的输入写入 `PlayerInputReceiver`。
-6. 玩家状态在 `LogicalUpdate()` 中消费输入，例如 `PlayerGround` 消费跳跃、冲刺和世界交互，`PlayerAir` 消费本轮空中冲刺额度，`Player_RunState` 处理冲刺、跳跃与跑步输入。
+5. 移动、跳跃、冲刺和交互等输入写入 `PlayerInputReceiver`；Attack 被翻译为 `CombatActionCommandKey` 并提交给 `PlayerCombatActionController`。
+6. 普通玩家状态消费 `PlayerInputReceiver` 请求；战斗 Controller 把 Action Request 匹配为 `CombatActionDefinition`，由 `Player` 协调 FSM 进入通用 Combat State。
 
 ### 玩家状态机流程
 
 1. `Player` 继承 `Entity`，在 `Awake()` 中创建状态实例。
 2. `StateMachine.InitializeState()` 进入默认状态。
-3. `Player.Update()` 调用 `StateMachine.LogicalUpdate()`，处理输入、动画完成、状态转换。
+3. `Player.Update()` 调用 `StateMachine.LogicalUpdate()`，随后通过 `TryEnterCombatAction()` 协调 Action System 与 FSM 的控制权交接。
 4. `Player.FixedUpdate()` 调用 `StateMachine.PhysicalUpdate()`，处理刚体移动。
 5. `EntityState.Enter()` 和 `Exit()` 用 `PlayerAnimationHash` 控制 Animator bool。
-6. `PlayerMovement` 负责速度和翻转，`GroundSensor` 负责落地检测，`PlayerAnimationTrigger` 负责动画事件回传。
+6. `PlayerMovement` 负责速度和翻转，`GroundSensor` 负责落地检测，`PlayerAnimationTrigger` 负责动画事件回传；Combat Stage 结束信号经 Controller 处理后由通用 Combat State 把控制权交回移动状态。
 
 ### 世界交互到对话流程
 

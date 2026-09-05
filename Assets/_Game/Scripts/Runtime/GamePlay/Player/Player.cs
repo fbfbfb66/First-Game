@@ -15,6 +15,8 @@ public class Player : Entity
     public TimeTool timeTool;
     public GroundSensor groundSensor;
     public WallSensor wallSensor;
+    [SerializeField] private PlayerCombatActionController combatActionController;
+    public PlayerCombatActionController CombatActionController => combatActionController;
 
     #region 
     public Player_IdleState idleState {get;private set;}
@@ -40,6 +42,7 @@ public class Player : Entity
 
     public Player_RollingLand rollingLandState {get;private set;}
     public Player_Dash dashState { get; private set; }
+    public Player_CombatActionState combatActionState {get;private set;}
     public bool CanDoubleJump => canDoubleJump;
     public bool CanDash => canDash;
     #endregion
@@ -91,6 +94,8 @@ public class Player : Entity
             groundSensor = GetComponentInChildren<GroundSensor>();
         if(wallSensor == null)
             wallSensor = GetComponentInChildren<WallSensor>();
+        if(combatActionController == null)
+            combatActionController = GetComponent<PlayerCombatActionController>();
 
         
         idleState = new Player_IdleState(this,stateMachine,PlayerAnimationHash.Idle,anim);
@@ -109,6 +114,7 @@ public class Player : Entity
         doubleJumpState = new Player_DoubleJump(this, stateMachine, PlayerAnimationHash.DoubleVerticalJump, anim);
         rollingLandState = new Player_RollingLand(this, stateMachine, PlayerAnimationHash.RollingLand, anim);
         dashState = new Player_Dash(this, stateMachine, PlayerAnimationHash.Dash, anim);
+        combatActionState = new Player_CombatActionState(this,stateMachine,0,anim);
     }
 
     private void Start()
@@ -119,10 +125,19 @@ public class Player : Entity
     private void Update()
     {
         stateMachine.LogicalUpdate();
+        TryEnterCombatAction();
     }
 
     private void FixedUpdate()
     {
         stateMachine.PhysicalUpdate();
+    }
+
+    private void TryEnterCombatAction()
+    {
+        if (stateMachine.currentState == combatActionState) return;
+        if(combatActionController.TryPrepareAction(out var action) == false) return;
+        combatActionController.BeginAction(action);
+        stateMachine.ChangeState(combatActionState);
     }
 }

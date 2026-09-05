@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e7b60ab41c273a4ebb39c40054bd21d, type: 3}
+  m_Name: Action_BaseAttack_02_Normal
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
+  command: {fileID: 0}
+  stage:
+    animatorStateName: BaseAttack_02_Normal
+    hitWindows:
+    - windowId: 0
+      shape: 0
+      localOffset: {x: 2.13, y: 0.16}
+      boxSize: {x: 3.68, y: 1.51}
+      circleRadius: 0
+  transition:
+    command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
+    targetAction: {fileID: 11400000, guid: 388e2045c7af7ad49af2101adf031a4c, type: 2}
