@@ -4,9 +4,13 @@ using System;
 public sealed class CombatActionStage
 {
     [SerializeField] private string animatorStateName;
+    [SerializeField] private CombatActionEntryVelocityRule entryVelocityRule = new();
+    [SerializeField, Min(0f)] private float horizontalDeceleration;
     [SerializeField] private CombatActionCancelWindowDefinition[] cancelWindows;
     [SerializeField] private CombatHitWindowDefinition[] hitWindows;
 
+    public float HorizontalDeceleration => horizontalDeceleration;
+    public CombatActionEntryVelocityRule EntryVelocityRule => entryVelocityRule;
     public int AnimatorStateHash => Animator.StringToHash(animatorStateName);
     public string AnimatorStateName => animatorStateName;
 

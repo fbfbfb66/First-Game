@@ -120,6 +120,13 @@ AnimationClip:
     intParameter: 0
     messageOptions: 0
   - time: 0.16
+    functionName: OpenCombatTransitionWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.16
     functionName: OpenCombatHitWindow
     data: 
     objectReferenceParameter: {fileID: 0}
@@ -133,19 +140,19 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.36
-    functionName: CloseCombatHitWindow
-    data: 
-    objectReferenceParameter: {fileID: 0}
-    floatParameter: 0
-    intParameter: 0
-    messageOptions: 0
-  - time: 0.36
+  - time: 0.32
     functionName: OpenCombatCancelWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 1
+    messageOptions: 0
+  - time: 0.32
+    functionName: CloseCombatHitWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
     messageOptions: 0
   - time: 0.48
     functionName: CloseCombatCancelWindow
@@ -153,6 +160,13 @@ AnimationClip:
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 1
+    messageOptions: 0
+  - time: 0.48
+    functionName: CommitCombatTransition
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
     messageOptions: 0
   - time: 0.52
     functionName: FinishCombatStage

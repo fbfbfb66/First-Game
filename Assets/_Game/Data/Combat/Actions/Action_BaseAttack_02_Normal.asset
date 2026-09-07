@@ -12,9 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e7b60ab41c273a4ebb39c40054bd21d, type: 3}
   m_Name: Action_BaseAttack_02_Normal
   m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
-  command: {fileID: 0}
+  command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
   stage:
     animatorStateName: BaseAttack_02_Normal
+    entryVelocityRule:
+      overrideHorizontal: 1
+      localHorizontalVelocity: 8
+      overrideVertical: 1
+      verticalVelocity: 0
+    horizontalDeceleration: 50
     cancelWindows:
     - windowId: 0
       allowedCommands:
@@ -28,3 +34,5 @@ MonoBehaviour:
   transition:
     command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
     targetAction: {fileID: 11400000, guid: 388e2045c7af7ad49af2101adf031a4c, type: 2}
+  entryConditions:
+  - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}

@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PlayerCombatActionController : MonoBehaviour
 {
-    [SerializeField] private CombatActionDefinition defaultAction;
+    [SerializeField] private CombatActionDefinition[] entryActions;
     [SerializeField] private CombatActionSystemConfig config;
     private CombatActionRequest bufferedRequest;
     private bool hasBufferedRequest;
@@ -13,7 +13,9 @@ public class PlayerCombatActionController : MonoBehaviour
     private CombatActionDefinition pendingTransitionAction;
     private CombatActionCancelWindowDefinition activeCancelWindow;
     private CombatHitWindowDefinition activeHitWindow;
+    private readonly CombatActionChainRuntime chainRuntime = new();
 
+    public CombatActionChainRuntime ChainRuntime => chainRuntime;
     public bool IsActionRunning => currentAction != null;
     public CombatActionCancelWindowDefinition ActiveCancelWindow => activeCancelWindow;
     public bool IsCancelWindowOpen => activeCancelWindow != null;
@@ -34,7 +36,6 @@ public class PlayerCombatActionController : MonoBehaviour
         }
         bufferedRequest = new CombatActionRequest(command, Time.time);
         hasBufferedRequest = true;
-        Debug.Log($"[CombatAction] Request buffered | Command={command.name} | RequestedTime={bufferedRequest.RequestedTime:F3}");
     }
 
     public bool TryCommitTransition(out CombatActionDefinition targetAction)
@@ -59,6 +60,7 @@ public class PlayerCombatActionController : MonoBehaviour
         activeHitWindow = null;
         activeCancelWindow = null;
         bufferedRequest = default;
+        chainRuntime.Clear();
     }
 
     private bool TryGetValidBufferedRequest(out CombatActionRequest request)
@@ -79,7 +81,7 @@ public class PlayerCombatActionController : MonoBehaviour
         return true;
     }
 
-    public bool TryQueueTransition()
+    public bool TryQueueTransition(in CombatActionContext context)
     {
         if (currentAction == null) return false;
         if (TryGetValidBufferedRequest(out var request) == false) return false;
@@ -95,6 +97,8 @@ public class PlayerCombatActionController : MonoBehaviour
         }
         if (request.Command != transition.Command) return false;
         if (pendingTransitionAction != null) return false;
+        if (transition.AreConditionsMet(context) == false) return false;
+        if (transition.TargetAction.AreEntryConditionsMet(context) == false) return false;
         pendingTransitionAction = transition.TargetAction;
         hasBufferedRequest = false;
         return true;
@@ -111,56 +115,73 @@ public class PlayerCombatActionController : MonoBehaviour
         return true;
     }
 
-    public bool TryGetEntryActionCandidate(out CombatActionDefinition action)
+    public bool TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)
     {
         action = null;
         if (currentAction != null) return false;
         if (TryGetValidBufferedRequest(out var request) == false) return false;
-        if (defaultAction == null)
-        {
-            Debug.LogWarning("Missed defaultAction");
-            return false;
-        }
-        if (defaultAction.Command == null)
-        {
-            Debug.LogWarning("Missed command in defaultAction");
-            return false;
-        }
-        if (defaultAction.Command != request.Command) return false;
-        if (defaultAction.Stage == null || string.IsNullOrWhiteSpace(defaultAction.Stage.AnimatorStateName)) return false;
 
-        action = defaultAction;
-        Debug.Log($"Action Prepared : {action.name},{action.Command.name},{bufferedRequest.RequestedTime}");
+        if (TryFindEntryActionCandidate(in context, in request, out var entryAction) == false) return false;
 
+        action = entryAction;
         return true;
+    }
+
+    private bool TryFindEntryActionCandidate(in CombatActionContext context, in CombatActionRequest request, out CombatActionDefinition entryAction)
+    {
+        entryAction = null;
+        if (entryActions == null || entryActions.Length == 0)
+        {
+            Debug.LogWarning("EntryActions is Null");
+            return false;
+        }
+
+        foreach (var entry in entryActions)
+        {
+            if (entry == null)
+            {
+                Debug.LogWarning("EntryActions is wrong");
+                continue;
+            }
+            if (entry.Command == null)
+            {
+                Debug.LogWarning($"[CombatAction] Entry action {entry.name} has no command.", entry);
+                continue;
+            }
+            if (entry.Command != request.Command) continue;
+            if (entry.Stage == null || string.IsNullOrWhiteSpace(entry.Stage.AnimatorStateName))
+            {
+                Debug.LogWarning($"[CombatAction] Entry action {entry.name} has no valid stage.", entry);
+                continue;
+            }
+            if (entry.AreEntryConditionsMet(in context) == false) continue;
+            entryAction = entry;
+            return true;
+        }
+        return false;
     }
 
     public bool TryConsumeBufferedRequest(CombatActionCommandKey expectedCommand)
     {
-        if(expectedCommand == null) return false;
+        if (expectedCommand == null) return false;
         if (TryGetValidBufferedRequest(out var request) == false) return false;
         if (request.Command != expectedCommand) return false;
         hasBufferedRequest = false;
         bufferedRequest = default;
-        Debug.Log("Request consumed");
         return true;
     }
 
     public void CancelCurrentAction()
     {
         if (currentAction == null) return;
-        string actionName = currentAction.Stage.AnimatorStateName;
         ClearCurrentActionRuntime();
-        Debug.Log($"Action Canceled :{actionName}");
     }
 
     public bool TryCompleteAction()
     {
         if (currentAction == null) return false;
         if (isCurrentStageFinished == false) return false;
-        string actionName = currentAction.Stage.AnimatorStateName;
         ClearCurrentActionRuntime();
-        Debug.Log($"{actionName} finished");
         return true;
     }
 
@@ -171,6 +192,10 @@ public class PlayerCombatActionController : MonoBehaviour
             Debug.LogWarning("action is null");
             return;
         }
+        if (currentAction == null)
+        {
+            chainRuntime.Clear();
+        }
         currentAction = action;
         pendingTransitionAction = null;
         isCurrentStageFinished = false;
@@ -178,6 +203,21 @@ public class PlayerCombatActionController : MonoBehaviour
         isTransitionCommitRequested = false;
         activeHitWindow = null;
         activeCancelWindow = null;
+    }
+
+    public void NotifyHitConfirmed(GameObject targetOwner)
+    {
+        if (currentAction == null)
+        {
+            Debug.LogWarning("CurrentAction is null");
+            return;
+        }
+        if (targetOwner == null)
+        {
+            Debug.LogWarning("TargetOwner is null");
+            return;
+        }
+        chainRuntime.RecordHit(currentAction, targetOwner);
     }
 
     public void NotifyCancelWindowOpened(int windowId, int sourceStateHash)
@@ -190,7 +230,6 @@ public class PlayerCombatActionController : MonoBehaviour
         }
         if (currentAction.Stage.TryGetCancelWindow(windowId, out var cancelWindow) == false) return;
         activeCancelWindow = cancelWindow;
-        Debug.Log($"Action : {CurrentAction.Stage.AnimatorStateName},CancelWindowId :{windowId} opened");
     }
 
     public void NotifyCancelWindowClosed(int windowId, int sourceStateHash)
@@ -203,7 +242,6 @@ public class PlayerCombatActionController : MonoBehaviour
         }
         if (ActiveCancelWindowId != windowId) return;
         activeCancelWindow = null;
-        Debug.Log($"Action : {CurrentAction.Stage.AnimatorStateName},CancelWindowId :{windowId} closed");
     }
 
     public void NotifyHitWindowOpened(int windowId, int sourceStateHash)
@@ -226,10 +264,8 @@ public class PlayerCombatActionController : MonoBehaviour
         }
 
         activeHitWindow = hitWindow;
-        Debug.Log($"Action : {CurrentAction.Stage.AnimatorStateName},WindowId :{windowId} opened");
-
     }
-    public void NotifyHitWindowClosed(int windowId,int sourceStateHash)
+    public void NotifyHitWindowClosed(int windowId, int sourceStateHash)
     {
         if (IsSignalFromCurrentAction(sourceStateHash) == false) return;
         if (IsHitWindowOpen == false)
@@ -243,7 +279,6 @@ public class PlayerCombatActionController : MonoBehaviour
             return;
         }
         activeHitWindow = null;
-        Debug.Log($"Action : {CurrentAction.Stage.AnimatorStateName},WindowId :{windowId} closed");
     }
 
     private bool IsSignalFromCurrentAction(int sourceStateHash)
@@ -270,7 +305,6 @@ public class PlayerCombatActionController : MonoBehaviour
             return;
         }
         isTransitionWindowOpen = false;
-        Debug.Log($"Transition window closed : Action[{currentAction.Stage.AnimatorStateName}]");
     }
 
     public void NotifyTransitionWindowOpened(int sourceStateHash)
@@ -282,7 +316,6 @@ public class PlayerCombatActionController : MonoBehaviour
             return;
         }
         isTransitionWindowOpen = true;
-        Debug.Log($"Transition window opened : Action[{currentAction.Stage.AnimatorStateName}]");
     }
 
     public void NotifyStageFinished(int sourceStateHash)

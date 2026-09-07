@@ -15,6 +15,12 @@ MonoBehaviour:
   command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
   stage:
     animatorStateName: BaseAttack_03_Normal
+    entryVelocityRule:
+      overrideHorizontal: 1
+      localHorizontalVelocity: -8
+      overrideVertical: 1
+      verticalVelocity: 0
+    horizontalDeceleration: 50
     cancelWindows:
     - windowId: 0
       allowedCommands:
@@ -29,5 +35,9 @@ MonoBehaviour:
       boxSize: {x: 4.6, y: 1.51}
       circleRadius: 0
   transition:
-    command: {fileID: 0}
-    targetAction: {fileID: 0}
+    conditions:
+    - {fileID: 11400000, guid: 8ad85df8864aef141bd9d850013cd95e, type: 2}
+    command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
+    targetAction: {fileID: 11400000, guid: 9544890f66989194296be4d6c872530f, type: 2}
+  entryConditions:
+  - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}

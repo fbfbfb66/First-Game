@@ -19,8 +19,8 @@ public sealed class Player_CombatActionState : PlayerState
 
         if (TryHandleCancel()) return;
 
-
-        actionController.TryQueueTransition();
+        CombatActionContext context = player.CreateCombatActionContext();
+        actionController.TryQueueTransition(context);
         if (actionController.TryCommitTransition(out var targetAction))
         {
             actionController.BeginAction(targetAction);
@@ -30,15 +30,36 @@ public sealed class Player_CombatActionState : PlayerState
 
         if (actionController.TryCompleteAction())
         {
-            ChangeStateToMoveState();
+            ReturnToLocomotionState();
         }
+    }
+
+    public override void PhysicalUpdate()
+    {
+        base.PhysicalUpdate();
+        ApplyHorizontalDeceleration(actionController.CurrentAction.Stage.HorizontalDeceleration);
     }
 
     private void PlayCurrentActionStage()
     {
         stateName = actionController.CurrentAction.Stage.AnimatorStateHash;
         anim.CrossFade(stateName, 0);
-        movement.ClearPlayerVelocity();
+        ApplyEntryVelocity(actionController.CurrentAction.Stage.EntryVelocityRule);
+    }
+
+    private void ApplyHorizontalDeceleration(float deceleration)
+    {
+        if (deceleration <= 0) return;
+        Vector2 velocity = movement.GetCurrentVelocity();
+        velocity.x = Mathf.MoveTowards(velocity.x, 0,deceleration*Time.fixedDeltaTime);
+        movement.SetRigibodyVelocity(velocity);
+    }
+
+    private void ApplyEntryVelocity(CombatActionEntryVelocityRule rule)
+    {
+        if (rule == null) return;
+        Vector2 entryVelocity = rule.Resolve(movement.GetCurrentVelocity(),movement.facingRight);
+        movement.SetRigibodyVelocity(entryVelocity);
     }
 
     private bool TryHandleCancel()
@@ -52,5 +73,30 @@ public sealed class Player_CombatActionState : PlayerState
             return true;
         }
         return false;
+    }
+
+    private void ReturnToLocomotionState()
+    {
+        if (groundSensor.CanEnterGrounded)
+        {
+            ChangeStateToMoveState();
+            return;
+        }
+        else
+        {
+            float yVelocity = movement.GetCurrentVelocity().y;
+            float apexThreshold = player.playerBaseConfig.ApexThreshold;
+            if (yVelocity > apexThreshold)
+            {
+                stateMachine.ChangeState(player.jumpUpState);
+                return;
+            }
+            if (yVelocity <= -apexThreshold)
+            {
+                stateMachine.ChangeState(player.fallState);
+                return;
+            }
+            stateMachine.ChangeState(player.apexState);
+        }
     }
 }

@@ -5,6 +5,54 @@
 
 ---
 
+## 2026-09-07 — Combat Action 上下文条件、空中入口与命中派生
+
+### 这轮做成的游戏行为
+
+- 同一个 Attack Command 在地面选择 BaseAttack01，在空中选择 JumpAttack01；
+- JumpAttack01 可以派生 JumpAttack02，动作结束后根据落地与垂直速度回到正确移动状态；
+- 每个 Action Stage 可以独立决定进入时是否覆盖水平 / 垂直速度，并配置水平减速形成攻击顿挫；
+- Hit Window 在多个物理帧持续检测，但同一窗口内只按 Hurtbox Owner 登记一次；
+- BaseAttack01、02、03 都至少命中一个有效敌人后，BaseAttack03 才能派生 HeavyAttack；
+- HeavyAttack 原画中的视觉位移通过逐帧 Sprite Pivot 对齐，角色真实位移仍由 Rigidbody2D 规则负责。
+
+### 数据与调用链
+
+```text
+Attack Request
+→ Player 创建 CombatActionContext
+→ Controller 按 Command + Entry Conditions 查找入口
+→ Combat State 播放 Stage，并应用进入速度 / 水平减速
+→ Animation Event 打开 Hit Window
+→ Hit Detector 查询 Hurtbox Owner
+→ CombatActionChainRuntime 按 Action 记录唯一 Owner
+→ Transition Condition 查询三段命中事实
+→ Commit Event 将 Pending Action 切换为 HeavyAttack
+```
+
+`CombatActionDefinition`、`CombatActionTransition` 与所有 Condition 仍是无运行状态的静态配置；本轮命中事实只存在于 `CombatActionChainRuntime`。新入口开始、整条链完成或取消时清空，Action → Action 派生时保留。
+
+### 头疼 Bug：RecordHit 的 Dictionary 空引用
+
+**现象：** 命中时 `CombatActionChainRuntime.RecordHit` 抛出 `NullReferenceException`。
+
+**定位证据：** `TryGetValue` 找不到 Action 时，Dictionary 还没有对应的 `HashSet<GameObject>`；局部创建集合后如果继续使用旧的 null 引用，第一次 `Add` 就会崩溃。
+
+**修复：** 找不到键时创建 `HashSet<GameObject>`，把同一个引用加入 Dictionary 并赋给后续使用的局部变量，再调用 `Add(targetOwner)`。`Dictionary.Count` 只作为已确认命中的 Action 数量调试信息，真正的条件判断始终按指定 Action 资源调用 `HasConfirmedHit()`。
+
+### 关键取舍
+
+- Context 只提供事实，不负责查找或修改；Condition 只判断，不播放动画、不消费输入。
+- 入口条件与派生条件共用同一抽象，但配置位置不同：前者回答“能否选中这个 Action”，后者回答“这条边现在能否通过”。
+- 当前“Base123 全命中”允许三段命中不同敌人；系统保留了每段的 Owner 集合，未来需要同目标连击时可以增加另一种 Condition，不修改 Controller。
+- Sprite Pivot 只修正画面锚点。需要真正冲刺或上升时先让动画原地，再由 Action 的 Rigidbody2D 速度规则产生游戏位置变化，避免视觉位移与物理位移叠加。
+
+### 下一步
+
+进入目标上下文的第一个纵向切片：先确定前方候选敌人由谁查询和持有，再将目标事实放入 `CombatActionContext`，实现第一个不自行做 Physics 查询的 Enemy Condition。
+
+---
+
 ## 2026-09-07 — Combat Action 取消转换与迟到 Animation Event
 
 ### 背景

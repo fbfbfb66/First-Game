@@ -33,17 +33,19 @@ public class PlayerCombatHitDetector : MonoBehaviour
             StopTrackingHitWindow();
             return;
         }
-        if (trackedAction == actionController.CurrentAction && trackedWindowId == actionController.ActiveHitWindowId) return;
         CombatActionDefinition currentAction = actionController.CurrentAction;
         if (currentAction == null) return;
-        BeginTrackingHitWindow(currentAction,actionController.ActiveHitWindowId);
+        if(currentAction != trackedAction || actionController.ActiveHitWindowId != trackedWindowId)
+        {
+            BeginTrackingHitWindow(currentAction,actionController.ActiveHitWindowId);
+        }
         if (currentAction.Stage.TryGetHitWindow(actionController.ActiveHitWindowId, out var hitWindow) == false) return;
         if (hitWindow == null) return;
         Collider2D[] targets = DetectTargets(hitWindow);
         foreach(Collider2D target in targets)
         {
             if (TryRegisterTarget(target, out var hurtbox) == false) continue;
-            Debug.Log($"Action : {actionController.CurrentAction.Stage.AnimatorStateName} Hit {hurtbox.Owner.name} in WindowId {actionController.ActiveHitWindowId}");
+            actionController.NotifyHitConfirmed(hurtbox.Owner);
         }
     }
 
@@ -66,7 +68,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
         hurtbox = null;
         if(candidate == null) return false;
         if (candidate.TryGetComponent(out hurtbox) == false) return false;
-        GameObject target = candidate.gameObject;
+        GameObject target = hurtbox.Owner;
         if(target == null) return false;
         return hitOwners.Add(target);
     }
@@ -84,7 +86,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
         return null;
     }
 
-    private void OnDrawGizmosSelected()
+    private void OnDrawGizmos()
     {
         if(hitboxRoot == null || actionController == null) return;
         Gizmos.color = actionController.IsHitWindowOpen ? Color.red : Color.green;

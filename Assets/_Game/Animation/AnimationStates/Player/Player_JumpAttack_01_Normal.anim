@@ -38,22 +38,6 @@ AnimationClip:
       value: {fileID: 3866410365395652651, guid: 64a0a2331fad8e54086c09fa9609c7b3, type: 3}
     - time: 0.53333336
       value: {fileID: -1473813725835000479, guid: 64a0a2331fad8e54086c09fa9609c7b3, type: 3}
-    - time: 0.6
-      value: {fileID: -8328107480272713517, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.6666667
-      value: {fileID: 4141738532851969623, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.73333335
-      value: {fileID: 4818750185286475463, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.8
-      value: {fileID: 8360663014144616483, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.8666667
-      value: {fileID: -4745036497509176049, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.93333334
-      value: {fileID: -6708210291422950250, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 1
-      value: {fileID: -2095045527147994976, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 1.0666667
-      value: {fileID: 5369869714450617176, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
     attribute: m_Sprite
     path: 
     classID: 212
@@ -85,20 +69,12 @@ AnimationClip:
     - {fileID: -405671617435660707, guid: 64a0a2331fad8e54086c09fa9609c7b3, type: 3}
     - {fileID: 3866410365395652651, guid: 64a0a2331fad8e54086c09fa9609c7b3, type: 3}
     - {fileID: -1473813725835000479, guid: 64a0a2331fad8e54086c09fa9609c7b3, type: 3}
-    - {fileID: -8328107480272713517, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - {fileID: 4141738532851969623, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - {fileID: 4818750185286475463, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - {fileID: 8360663014144616483, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - {fileID: -4745036497509176049, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - {fileID: -6708210291422950250, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - {fileID: -2095045527147994976, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - {fileID: 5369869714450617176, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
   m_AnimationClipSettings:
     serializedVersion: 2
     m_AdditiveReferencePoseClip: {fileID: 0}
     m_AdditiveReferencePoseTime: 0
     m_StartTime: 0
-    m_StopTime: 1.1333334
+    m_StopTime: 0.6
     m_OrientationOffsetY: 0
     m_Level: 0
     m_CycleOffset: 0
@@ -117,4 +93,53 @@ AnimationClip:
   m_EulerEditorCurves: []
   m_HasGenericRootTransform: 0
   m_HasMotionFloatCurves: 0
-  m_Events: []
+  m_Events:
+  - time: 0
+    functionName: OpenCombatTransitionWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.13333334
+    functionName: OpenCombatHitWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.33333334
+    functionName: CloseCombatHitWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.33333334
+    functionName: OpenCombatCancelWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.4
+    functionName: CommitCombatTransition
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.53333336
+    functionName: CloseCombatCancelWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.6
+    functionName: FinishCombatStage
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0

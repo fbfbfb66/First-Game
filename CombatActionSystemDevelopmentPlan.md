@@ -2,11 +2,11 @@
 
 > 文档状态：持续实施
 >
-> 当前版本：v0.2
+> 当前版本：v0.3
 >
-> 当前目标：在已经跑通的 Action 执行、派生窗口、命中窗口与 FSM 取消转换骨架上，引入入口候选与上下文条件。
+> 当前目标：在入口条件、空中 Action、动作速度规则和命中结果条件已经跑通的基础上，引入稳定的目标上下文与 Enemy Condition。
 >
-> 当前范围：下一阶段先替换固定 `defaultAction`，让不同 Command 和 Player 上下文选择不同入口 Action；目标/敌人条件在目标上下文可用后接入。
+> 当前范围：下一阶段先定义候选目标由谁提供，再让 Context 携带只读目标事实；暂不让 Condition 自己执行 Physics 查询。
 
 ## 0. 当前实现快照（2026-09-07）
 
@@ -20,13 +20,19 @@
 - FSM 转换已区分 Natural、Cancel、Forced，Cancel 必须匹配来源 State 的窗口与目标规则；
 - Dash 已能通过窗口进入 Combat Action 或 Jump；Combat Action 也能通过自己的 Cancel Window 请求 Dash；
 - 所有战斗与 FSM 动画通知都会校验 Animation Event 的来源 Animator State，取消后到达的旧事件不会修改新状态。
+- 固定 `defaultAction` 已替换为有序入口列表，同一个 Attack Command 会根据 Grounded / Airborne 条件选择 BaseAttack01 或 JumpAttack01；
+- `CombatActionContext` 提供选择瞬间的 Player 事实和当前连招命中记录，`CombatActionCondition` 同时服务入口与派生判断；
+- JumpAttack01 → JumpAttack02 已跑通，Action 完成后会按落地状态与 Y 速度返回 Ground、JumpUp、Apex 或 Fall；
+- 每个 Stage 可配置进入速度覆盖与水平减速，角色移动由 Rigidbody2D 负责，动画贴图位移通过 Sprite Pivot 校准为原地表现；
+- Hit Detector 会在开放窗口期间持续查询，并按 Hurtbox Owner 去重；`CombatActionChainRuntime` 按 Action 记录命中目标；
+- BaseAttack01、02、03 全部确认命中后，BaseAttack03 的 Transition Condition 才允许派生 HeavyAttack。
 
 当前仍是教学用最小实现，而不是最终形态：
 
-- Action 入口仍由单个 `defaultAction` 固定提供；
 - Action Definition 目前只有一条 Transition；
-- Hit Window 已能查询 Hurtbox 与战斗 Owner，但正式伤害、Outcome 和重复命中策略尚未完成；
-- 尚无 `CombatActionContext` 和真实 Condition；
+- Hit Window 已能查询 Hurtbox、按 Owner 去重并记录命中结果，但正式 Damage Receiver、Effect 与伤害结算尚未接入；
+- 当前 Context 只有 Grounded 与连招命中查询，尚未包含候选目标及 Enemy 能力事实；
+- HeavyAttack 暂时沿用 Attack Command 作为条件派生验证，独立重攻击输入语义尚未确定；
 - 目标选择、敌人状态条件、多 Stage、Opportunity 与 PowerUp 仍未接入。
 
 ## 1. 背景与动机
@@ -566,24 +572,26 @@ Play Mode 验证：
 
 Checkpoint 复盘重点：派生窗口和动画完成为什么是两个概念，以及 Request 为什么只能在成功准备目标 Action 后消费。
 
-### Checkpoint 3：单次命中纵向切片（进行中）
+### Checkpoint 3：单次命中纵向切片（已完成骨架）
 
 游戏行为：一段攻击只在指定 Hit Window 内命中测试目标，并对同一目标按规则结算一次。
 
 已经落地：
 
 - Hit Window Signal；
-- 最小 Hitbox；
-- Gizmo 与有意义的命中日志。
+- 可按 Box / Circle 配置的 Hit Window；
+- Hurtbox Owner 身份与单窗口去重；
+- Gizmo 范围验证；
+- 跨 Action 连招命中记录。
 
 尚未落地：
 
 - 正式 Damage Receiver；
-- Action Runtime 命中记录；
-- HitConfirmed Outcome；
-- 同一 Stage、同一 Hit Window 和整个 Action 的重复命中作用域。
+- 正式伤害与 Effect；
+- 多 Stage 动作的重复命中规则；
+- 受击反馈、Hit Stop 与击退。
 
-### Checkpoint 4A：入口候选、Command 与 Player Condition（下一阶段）
+### Checkpoint 4A：入口候选、Command 与 Player Condition（已完成）
 
 游戏行为：同一个 Controller 不再固定启动 `defaultAction`。不同按键产生不同 Command；同一 Command 可以根据 Player 的当前事实选择不同入口 Action。
 
@@ -615,6 +623,8 @@ Checkpoint 复盘重点：派生窗口和动画完成为什么是两个概念，
 
 Checkpoint 复盘重点：Command 与 Condition 为什么是两层筛选；Context 为什么是选择瞬间的只读事实；候选顺序如何形成可读优先级。
 
+已验证结果：地面 Attack 进入 BaseAttack01，空中 Attack 进入 JumpAttack01；条件不满足的候选不会启动，也不会因为普通的不匹配候选产生错误警告。Controller 仍然不包含具体攻击类型分支。
+
 ### Checkpoint 4B：目标上下文与 Enemy Condition
 
 游戏行为：同一个输入和 Player 状态下，前方目标的存在、战斗身份或能力可以改变所选 Action。
@@ -630,7 +640,7 @@ Checkpoint 复盘重点：Command 与 Condition 为什么是两层筛选；Conte
 
 Condition 只判断敌人的通用能力或状态，不根据 `LauncherAttack`、`DiveAttack` 等招式名称写分支。
 
-### Checkpoint 4C：Outcome 与 Effect
+### Checkpoint 4C：Outcome 与 Effect（命中条件切片已完成）
 
 游戏行为：至少一条派生或动作效果由命中结果和目标能力决定，而不是由动作名称硬编码。
 
@@ -642,6 +652,8 @@ Condition 只判断敌人的通用能力或状态，不根据 `LauncherAttack`�
 - Outcome 驱动的 Transition 或 Effect。
 
 验证重点：替换 Action 资源后，Controller 不需要增加具体招式分支。
+
+当前已提前完成其中一个最小切片：Hit Detector 将有效 Hurtbox Owner 交给 `CombatActionChainRuntime`；`CombatActionRequiredHitsCondition` 按 Action 资源身份查询命中事实；BaseAttack03 → HeavyAttack 只有在 BaseAttack01、02、03 都至少命中一个有效目标时才成立。该条件不要求三段命中同一个目标，正式 Effect 与目标能力检查仍未实现。
 
 ### Checkpoint 5：多 Stage Action
 
@@ -773,8 +785,8 @@ Checkpoint 通过后删除高频临时日志，只保留缺少配置、非法 Si
 
 ## 17. 下一轮实施边界
 
-下一轮只执行 Checkpoint 4A 的第一个纵向切片：
+下一轮执行 Checkpoint 4B 的第一个纵向切片：
 
-> 用一个 Attack Command、两个入口 Action 和一个 Player 上下文条件，证明 Controller 可以替换固定 `defaultAction`，并在不认识任何攻击类型的前提下选择正确动作。
+> 先定义“当前候选敌人”由谁查询和持有，再把一次选择所需的目标事实放入 `CombatActionContext`，用一个 Enemy Condition 证明同一 Command 能按前方目标情况选择不同 Action。
 
-本轮不同时加入敌人条件。原因不是敌人条件不重要，而是它依赖尚未确定的候选目标来源；先让 Player Context 的完整调用链跑通，再用同一套 Condition 接口扩展目标事实。通过标准必须包括：两个上下文各选中正确 Action、条件失败不误消费缓冲、Controller 没有新增具体招式名称分支。
+第一步只处理目标来源与只读事实，不同时实现完整上挑、浮空能力、伤害 Effect 或 Dive 优先级。通过标准必须包括：有合法前方目标时高优先级候选成立；无目标或目标不满足时继续检查兜底候选；Condition 不自行做 Physics 查询；Controller 不新增具体招式名称分支。

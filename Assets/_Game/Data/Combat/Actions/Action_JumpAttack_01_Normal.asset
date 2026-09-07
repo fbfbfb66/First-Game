@@ -10,32 +10,29 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e7b60ab41c273a4ebb39c40054bd21d, type: 3}
-  m_Name: Action_BaseAttack_01_Normal
+  m_Name: Action_JumpAttack_01_Normal
   m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
   command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
   stage:
-    animatorStateName: BaseAttack_01_Normal
+    animatorStateName: JumpAttack_01_Normal
     entryVelocityRule:
-      overrideHorizontal: 1
-      localHorizontalVelocity: 5
-      overrideVertical: 1
+      overrideHorizontal: 0
+      localHorizontalVelocity: 0
+      overrideVertical: 0
       verticalVelocity: 0
-    horizontalDeceleration: 50
+    horizontalDeceleration: 0
     cancelWindows:
     - windowId: 0
-      allowedCommands:
-      - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
-    - windowId: 1
       allowedCommands:
       - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
     hitWindows:
     - windowId: 0
       shape: 0
-      localOffset: {x: 2.51, y: 0.16}
-      boxSize: {x: 2.58, y: 1.38}
+      localOffset: {x: 1.11, y: -0.24}
+      boxSize: {x: 3.45, y: 1.31}
       circleRadius: 0
   transition:
     command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
-    targetAction: {fileID: 11400000, guid: 0331e94f0279e8e469be330b50ab7f91, type: 2}
+    targetAction: {fileID: 11400000, guid: 87a7d915b7b6b164b838fc69c72fb4e9, type: 2}
   entryConditions:
-  - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}
+  - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}

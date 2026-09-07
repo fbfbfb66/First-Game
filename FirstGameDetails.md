@@ -601,9 +601,26 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：不可变的战斗输入快照，保存 `Command` 与请求发生时的 `RequestedTime`；请求表达玩家意图，不直接指定最终 Action。
 
+#### `CombatActionContext.cs`
+
+- 脚本职责：一次 Action 入口或派生判断使用的只读事实快照。当前携带 `IsGrounded`，并通过只读查询接口暴露本轮连招中指定 Action 是否确认命中；Condition 不直接持有或修改 Controller。
+
+#### `CombatActionCondition.cs`
+
+- 脚本职责：所有 Action 条件资源的抽象基类，通过 `IsMet(in CombatActionContext context)` 读取上下文并返回 true / false，不播放动画、不切换状态、不消费输入。
+- 当前实现：`CombatActionGroundedCondition` 用同一脚本表达 Grounded / Airborne；`CombatActionRequiredHitsCondition` 检查配置的每个 Action 是否至少确认命中过一个有效 Owner。
+
+#### `CombatActionChainRuntime.cs`
+
+- 脚本职责：保存一次连续 Action 链的运行时命中事实，内部以 `CombatActionDefinition → HashSet<GameObject>` 记录每个 Action 命中过的唯一战斗 Owner。开始新的入口 Action、完成或取消整条链时清空；Action 派生时保留。
+
+#### `CombatActionEntryVelocityRule.cs`
+
+- 脚本职责：嵌入 Stage 的进入速度规则。水平和垂直轴可分别选择保留当前 Rigidbody2D 速度或覆盖；水平速度按角色朝向转换为世界方向。
+
 #### `CombatActionStage.cs`
 
-- 脚本职责：Action 内部单个动画阶段的静态序列化数据。当前保存 Animator State 名称和该 Stage 的 Hit Window 配置，并通过 `TryGetHitWindow()` 按 Animation Event 的 Window ID 查找静态命中几何；不保存窗口是否打开等运行状态。
+- 脚本职责：Action 内部单个动画阶段的静态序列化数据。当前保存 Animator State、进入速度规则、水平减速度、多个 Cancel Window 与 Hit Window；通过 Window ID 为 Animation Event 查找静态配置，不保存窗口是否打开等运行状态。
 
 #### `CombatHitWindowDefinition.cs`
 
@@ -611,12 +628,13 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `CombatActionDefinition.cs`
 
-- 脚本职责：可被选择的静态 Action ScriptableObject，当前包含入口 `Command`、一个 `Stage` 和一条可选 `Transition`。Definition 只保存静态配置，不保存本次是否已输入或是否准备切换。
-- 当前资源：`Assets/_Game/Data/Combat/Actions/Action_BaseAttack_01_Normal.asset`、`Action_BaseAttack_02_Normal.asset` 和 `Action_BaseAttack_03_Normal.asset`；它们通过资源引用组成普通攻击派生链。
+- 脚本职责：可被选择的静态 Action ScriptableObject，当前包含入口 `Command`、一个 `Stage`、一条可选 `Transition` 和入口 Condition 列表。`AreEntryConditionsMet()` 要求所有入口条件成立；Definition 只保存静态配置，不保存本次是否已输入、命中或准备切换。
+- 当前资源：BaseAttack01 / 02 / 03、JumpAttack01 / 02 与 HeavyAttack。BaseAttack 和 JumpAttack 分别通过资源引用形成派生链；Grounded / Airborne 条件决定同一 Attack Command 的入口候选。
 
 #### `CombatActionTransition.cs`
 
-- 脚本职责：描述当前 Action 接受哪个 `CombatActionCommandKey`，以及成功派生时准备哪个目标 `CombatActionDefinition`。窗口是否开放、请求是否有效和何时真正切换由运行时 Controller 判断，不写入这份静态配置。
+- 脚本职责：描述当前 Action 接受哪个 `CombatActionCommandKey`、派生必须满足的 Condition 列表，以及成功时准备哪个目标 `CombatActionDefinition`。窗口是否开放、请求是否有效和何时真正切换由运行时 Controller 判断，不写入这份静态配置。
+- 当前条件派生：BaseAttack03 的 Transition 引用 `Condition_Base123ConfirmedHits`；BaseAttack01、02、03 都确认命中后才能准备 HeavyAttack。
 
 ### Runtime/Core
 
@@ -1606,7 +1624,8 @@ Canvas_Inventory (Screen Space - Overlay)
   - `Awake()`：调用 `Entity.Awake()` 创建状态机，并实例化所有状态。
   - `Start()`：初始化默认状态。
   - `Update()`：驱动当前 FSM 状态逻辑更新，再尝试把缓冲的战斗 Request 准备为 Action 并进入通用 Combat State。
-  - `TryEnterCombatAction()`：连接 Action Controller 与 Player FSM；准备成功时先 `BeginAction()`，再切换到 `Player_CombatActionState`。
+  - `CreateCombatActionContext()`：从 GroundSensor 与 Controller 的 Chain Runtime 组装本帧只读上下文，供入口和派生条件读取。
+  - `TryEnterCombatAction()`：连接 Action Controller 与 Player FSM；用 Context 选择入口候选，FSM Cancel 转换允许后消费对应 Request，再 `BeginAction()` 并切换到 `Player_CombatActionState`。
   - `FixedUpdate()`：驱动状态机物理更新。
 - 关联：继承 `Entity`；把配置、输入、移动、交互、地面检测、动画触发器整合给各个 `PlayerState`。
 
@@ -1614,13 +1633,14 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `PlayerCombatActionController.cs`
 
-- 脚本职责：Player 战斗 Action 的运行时协调入口；分别保存单槽时间戳 Request、当前 Action、派生窗口、Pending Transition、Commit 请求与 Stage 完成信号。
+- 脚本职责：Player 战斗 Action 的运行时协调入口；保存单槽时间戳 Request、有序入口 Action、当前 Action、各类窗口、Pending Transition、Commit 请求、Stage 完成信号与整条连招的命中记录。
 - `RequestAction(CombatActionCommandKey command)`：把输入意图和 `Time.time` 组成 Request，后来的请求覆盖尚未消费的旧请求。
-- `TryGetEntryActionCandidate(out CombatActionDefinition action)`：只校验并返回当前默认入口候选，不消费仍可能等待 FSM 窗口的 Request。
+- `TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)`：按 Inspector 顺序执行“Command 匹配 → Stage 有效 → 所有入口 Condition 成立”，返回第一条合法入口；不消费仍可能等待 FSM 窗口的 Request。
 - `TryConsumeBufferedRequest(CombatActionCommandKey expectedCommand)`：FSM 已允许控制权转换后，校验并消费与候选 Action 对应的 Request。
-- `TryQueueTransition()`：仅在请求仍有效、派生窗口开放且当前 Transition 匹配时消费 Request，并把目标 Action 保存为 Pending；不会在输入发生的帧立即切动画。
+- `TryQueueTransition(in CombatActionContext context)`：仅在请求仍有效、派生窗口开放、Command 匹配、Transition Conditions 和目标 Action 入口 Conditions 都成立时消费 Request，并把目标 Action 保存为 Pending；不会在输入发生的帧立即切动画。
 - `TryCommitTransition(out CombatActionDefinition targetAction)`：消费动画 Commit 信号；存在 Pending Transition 时输出目标 Action，否则不切换。
-- `BeginAction(CombatActionDefinition action)`：记录 `CurrentAction`，并重置上一 Action 的窗口、Pending、Commit 与 Stage 完成状态。
+- `BeginAction(CombatActionDefinition action)`：记录 `CurrentAction`，并重置上一 Action 的窗口、Pending、Commit 与 Stage 完成状态；只有从非 Action 状态开始一条新链时才清空 Chain Runtime，派生之间保留命中事实。
+- `NotifyHitConfirmed(GameObject targetOwner)`：把当前 Action 与 Hurtbox 声明的战斗 Owner 交给 Chain Runtime 去重记录。
 - `Notify...(..., int sourceStateHash)`：所有 Hit、Cancel、Transition 与 Stage 完成信号先通过 `IsSignalFromCurrentAction()` 比较来源 Animator State Hash；迟到的旧动画信号被忽略。
 - `NotifyTransitionWindowOpened(...)` / `NotifyTransitionWindowClosed(...)`：来源校验通过后修改派生输入窗口。
 - `NotifyTransitionCommitRequested(...)`：来源校验通过后接收固定衔接帧，关闭输入窗口并等待 Combat State 执行切换。
@@ -1630,12 +1650,13 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Player_CombatActionState.cs`
 
-- 脚本职责：所有战斗 Action 共用的 Player FSM 承载状态，不按具体招式创建 State。进入时从 `CurrentAction.Stage` 取得动态 Animator Hash、播放动画并清空速度；逻辑更新先尝试把有效输入 Queue 为派生，再独立消费 Commit 信号并切到目标 Action。没有成功派生时，原动画继续播放收尾，Controller 确认完成后才回到 Idle、Walk 或 Run。
+- 脚本职责：所有战斗 Action 共用的 Player FSM 承载状态，不按具体招式创建 State。进入每个 Action 时播放 Stage 动画并按 `CombatActionEntryVelocityRule` 决定是否覆盖 Rigidbody2D 各轴速度；物理更新按 Stage 的水平减速度形成地面攻击顿挫感。
+- 逻辑顺序：先处理 Action → FSM Cancel，再创建 Context 尝试 Queue 派生，然后独立消费 Commit 信号。Action 完成后，已落地则回到 Idle / Walk / Run；仍在空中则按 Y 速度回到 JumpUp / Apex / Fall。
 
 #### `PlayerCombatHitDetector.cs`
 
 - 脚本职责：Player 侧的 Physics2D 命中候选查询器。仅在 Controller 的 Hit Window 开放时读取当前 Stage 配置，通过 `Visual.TransformPoint(localOffset)` 把局部偏移转换为可自动镜像的世界坐标，再执行 Box 或 Circle 查询。
-- 当前阶段：使用 `Enemy` Layer 过滤候选 Collider，并用 Gizmo 与日志验证范围；同一目标在一个窗口跨越多个物理帧时仍会重复报告，去重与实际结算尚未实现。
+- 当前阶段：使用 `Enemy` Layer 过滤候选 Collider，通过 `CombatHurtbox.Owner` 取得战斗身份；同一 Action、同一 Window 内按 Owner 去重，并把首次确认命中交给 Controller 的 Chain Runtime。Gizmo 长期保留用于校准不同 Action 的 Hit Window；正式伤害结算尚未实现。
 
 ### Runtime/GamePlay/Player/PlayerState
 

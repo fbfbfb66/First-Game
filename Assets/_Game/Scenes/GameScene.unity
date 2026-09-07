@@ -11366,7 +11366,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8fa14346c62519848b9a297c5a0d7ca0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatActionController
-  defaultAction: {fileID: 11400000, guid: ad24428fd1949f240a62995379427803, type: 2}
+  entryActions:
+  - {fileID: 11400000, guid: ad24428fd1949f240a62995379427803, type: 2}
+  - {fileID: 11400000, guid: 480a310550fc6c34e9ff99139735757d, type: 2}
   config: {fileID: 11400000, guid: d3f42bb2eaf94d147acadae16becfc61, type: 2}
 --- !u!114 &2075136176
 MonoBehaviour:
@@ -11381,9 +11383,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatHitDetector
   shape: 0
-  localOffset: {x: 0.32, y: -0.39}
-  boxSize: {x: 4.6, y: 1.51}
-  circleRadius: 1
+  localOffset: {x: 5.02, y: 0.42}
+  boxSize: {x: 6.71, y: 3.93}
+  circleRadius: 2.57
   actionController: {fileID: 2075136175}
   hitboxRoot: {fileID: 366906409}
   targetLayers:
