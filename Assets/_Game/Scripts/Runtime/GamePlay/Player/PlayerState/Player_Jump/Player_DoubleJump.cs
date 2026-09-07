@@ -12,13 +12,13 @@ public class Player_DoubleJump : PlayerAir
 
         if(input.MoveInput.x == 0)
         {
-            anim.CrossFade(PlayerAnimationHash.DoubleVerticalJump, 0);
+            stateName = PlayerAnimationHash.DoubleVerticalJump;
         }
         else
         {
-            anim.CrossFade(PlayerAnimationHash.DoubleForwardJump, 0);
-            movement.HandleFlip(input.MoveInput);
+            stateName = PlayerAnimationHash.DoubleForwardJump;
         }
+        base.Enter();
         movement.HandleDoubleJump(input.MoveInput);
     }
 

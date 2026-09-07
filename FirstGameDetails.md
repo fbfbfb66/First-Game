@@ -707,13 +707,15 @@ Canvas_Inventory (Screen Space - Overlay)
   - `stateMachine`：状态切换入口。
   - `anim`：状态控制的动画器。
   - `stateName`：Animator 参数 hash。
+  - `AnimatorStateHash`：只读暴露当前状态实际使用的 Animator State Hash，供动画事件来源校验。
 - 函数：
   - `EntityState(StateMachine stateMachine, int stateName, Animator anim)`：保存状态机、动画器和动画参数。
-  - `Enter()`：进入状态时把动画 bool 置为 true。
+  - `Enter()`：进入状态时通过 `Animator.CrossFade` 播放 `stateName` 对应状态。
   - `LogicalUpdate()`：每帧逻辑更新入口，默认空实现。
   - `PhysicalUpdate()`：物理帧更新入口，默认空实现。
-  - `Exit()`：退出状态时把动画 bool 置为 false。
-- 关联：所有玩家状态继承它的动画开关和生命周期。
+  - `Exit()`：状态退出入口，默认空实现。
+  - `CanTransitionTo(EntityState targetState, StateTransitionKind transitionKind)`：由当前源状态判断是否允许指定种类的转换；基类默认拒绝 Cancel。
+- 关联：所有玩家状态继承它的动画身份和生命周期。
 
 #### `Assets/_Game/Scripts/Runtime/Core/FSM/StateMachine.cs`
 
@@ -722,10 +724,17 @@ Canvas_Inventory (Screen Space - Overlay)
   - `currentState`：当前状态。
 - 函数：
   - `InitializeState(EntityState currentState)`：设置初始状态并调用 `Enter()`。
-  - `ChangeState(EntityState stateChangeTo)`：退出旧状态，切换并进入新状态。
+  - `ChangeState(EntityState stateChangeTo)`：Natural 转换的兼容入口。
+  - `CanChangeState(EntityState targetState, StateTransitionKind transitionKind)`：无副作用地查询目标、同状态保护、Forced 规则和当前源状态权限。
+  - `TryChangeState(EntityState targetState, StateTransitionKind transitionKind)`：权限成立后退出旧状态并进入目标状态，返回是否提交成功。
   - `LogicalUpdate()`：转发到当前状态的逻辑更新。
   - `PhysicalUpdate()`：转发到当前状态的物理更新。
 - 关联：`Player.Update()`、`Player.FixedUpdate()` 分别调用逻辑和物理更新。
+
+#### `Assets/_Game/Scripts/Runtime/Core/FSM/StateCancelTransitionRule.cs`
+
+- 脚本职责：一条运行时 FSM Cancel 出口规则，保存目标 `EntityState` 与所需窗口 ID；源状态由持有这条规则的 `PlayerState` 隐式确定。
+- `-1` 表示该目标不要求窗口；非负值必须匹配源状态当前活动窗口。
 
 #### `Assets/_Game/Scripts/Runtime/Core/FSM/Movement.cs`
 
@@ -1516,12 +1525,13 @@ Canvas_Inventory (Screen Space - Overlay)
   - `StartAnimation()`：动画事件调用或状态进入时重置动画结束标记。
   - `EnableAction()`：允许动作。
   - `DisableAction()`：禁止动作。
-  - `OpenCombatHitWindow(int windowId)` / `CloseCombatHitWindow(int windowId)`：把动画时间轴上的命中窗口编号转发给 Action Controller。
-  - `OpenCombatTransitionWindow()`：Combat Clip 的 Animation Event 入口，通知 Controller 开始接受当前 Action 的派生输入。
-  - `CloseCombatTransitionWindow()`：通知 Controller 停止接受派生输入；用于输入窗口早于 Commit 时刻结束的动画。
-  - `CommitCombatTransition()`：通知 Controller 已到达固定衔接帧；只有此前存在 Pending Transition 才会真正切换 Action。
-  - `FinishCombatStage()`：Combat Clip 的 Animation Event 入口，把 Stage 完成事实转发给 `PlayerCombatActionController.NotifyStageFinished()`。
-- 关联：`Player_JumpStart`、跑步转身/结束等状态用它判断动画是否完成；战斗动画通过语义明确的 Combat Stage 信号进入 Action Controller。
+  - `OpenStateCancelWindow(AnimationEvent)` / `CloseStateCancelWindow(AnimationEvent)`：把 Window ID 和事件来源 State Hash 转发给 `Player`；只有来源仍是当前 FSM 状态时才修改窗口。
+  - `OpenCombatHitWindow(AnimationEvent)` / `CloseCombatHitWindow(AnimationEvent)`：转发 Window ID 与事件来源 State Hash。
+  - `OpenCombatCancelWindow(AnimationEvent)` / `CloseCombatCancelWindow(AnimationEvent)`：转发 Action 取消窗口信号及来源身份。
+  - `OpenCombatTransitionWindow(AnimationEvent)` / `CloseCombatTransitionWindow(AnimationEvent)`：转发派生输入窗口及来源身份。
+  - `CommitCombatTransition(AnimationEvent)`：转发固定衔接帧及来源身份；只有当前 Action 的信号才能提交 Pending Transition。
+  - `FinishCombatStage(AnimationEvent)`：转发 Stage 完成事实及来源身份。
+- 关联：Combat Animation Event 回调接收完整 `AnimationEvent`，使用 `intParameter` 取得 Window ID，并用 `animatorStateInfo.shortNameHash` 阻止已取消或已替换动画的迟到信号污染当前运行时。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerInputReceiver.cs`
 
@@ -1606,14 +1616,16 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：Player 战斗 Action 的运行时协调入口；分别保存单槽时间戳 Request、当前 Action、派生窗口、Pending Transition、Commit 请求与 Stage 完成信号。
 - `RequestAction(CombatActionCommandKey command)`：把输入意图和 `Time.time` 组成 Request，后来的请求覆盖尚未消费的旧请求。
-- `TryPrepareAction(out CombatActionDefinition action)`：校验并匹配当前默认 Definition；只有成功准备时才消费入口 Request。
+- `TryGetEntryActionCandidate(out CombatActionDefinition action)`：只校验并返回当前默认入口候选，不消费仍可能等待 FSM 窗口的 Request。
+- `TryConsumeBufferedRequest(CombatActionCommandKey expectedCommand)`：FSM 已允许控制权转换后，校验并消费与候选 Action 对应的 Request。
 - `TryQueueTransition()`：仅在请求仍有效、派生窗口开放且当前 Transition 匹配时消费 Request，并把目标 Action 保存为 Pending；不会在输入发生的帧立即切动画。
 - `TryCommitTransition(out CombatActionDefinition targetAction)`：消费动画 Commit 信号；存在 Pending Transition 时输出目标 Action，否则不切换。
 - `BeginAction(CombatActionDefinition action)`：记录 `CurrentAction`，并重置上一 Action 的窗口、Pending、Commit 与 Stage 完成状态。
-- `NotifyTransitionWindowOpened()` / `NotifyTransitionWindowClosed()`：接收动画桥转发的派生输入窗口信号。
-- `NotifyTransitionCommitRequested()`：接收固定衔接帧信号，关闭输入窗口并等待 Combat State 执行切换。
-- `NotifyHitWindowOpened(int windowId)` / `NotifyHitWindowClosed(int windowId)`：验证当前 Stage 是否配置对应 Window ID，并记录或清除当前活动命中窗口；Action 开始、派生或结束时不会继承旧窗口。
-- `NotifyStageFinished()`：接收动画桥转发的 Stage 完成事实。
+- `Notify...(..., int sourceStateHash)`：所有 Hit、Cancel、Transition 与 Stage 完成信号先通过 `IsSignalFromCurrentAction()` 比较来源 Animator State Hash；迟到的旧动画信号被忽略。
+- `NotifyTransitionWindowOpened(...)` / `NotifyTransitionWindowClosed(...)`：来源校验通过后修改派生输入窗口。
+- `NotifyTransitionCommitRequested(...)`：来源校验通过后接收固定衔接帧，关闭输入窗口并等待 Combat State 执行切换。
+- `NotifyHitWindowOpened(...)` / `NotifyHitWindowClosed(...)`：来源校验通过后验证当前 Stage 的 Window ID，并记录或清除当前活动命中窗口。
+- `NotifyStageFinished(...)`：只接受当前 Action Animator State 发出的 Stage 完成事实。
 - `TryCompleteAction()`：单 Stage Action 收到完成信号后清理当前 Action；当前规则会丢弃 Action 生命周期内未形成合法派生的剩余 Request，再让 Combat State 归还 FSM 控制权。
 
 #### `Player_CombatActionState.cs`
@@ -1644,8 +1656,13 @@ Canvas_Inventory (Screen Space - Overlay)
   - `groundSensor`：地面检测。
   - `wallSensor`：墙面检测。
   - `animationTrigger`：动画事件状态。
+  - `activeCancelWindowId`：当前源状态开放的 Cancel Window；`-1` 表示没有窗口。
+  - `cancelTransitions`：该源状态拥有的目标与所需窗口规则。
 - 函数：
   - `PlayerState(...)`：缓存玩家相关子系统。
+  - `AddCancelTransition(EntityState targetState, int requiredWindowId)`：在状态初始化后注册一条源到目标的 Cancel 出口。
+  - `CanTransitionTo(...)`：Cancel 请求只在某条目标规则与当前窗口同时匹配时成立。
+  - `OpenCancelWindow(int windowId)` / `CloseCancelWindow(int windowId)`：记录 Animation Event 驱动的源状态窗口；退出状态时清理窗口。
   - `LogicalUpdate()`：统一刷新 `GroundSensor` 的落地状态和 `WallSensor` 的贴墙状态。
   - `ChangeStateToMoveState()`：根据移动输入、当前 `PlayerMoveType` 和面墙状态切换到待机、步行或跑步；持续朝墙输入时保持待机，避免地面移动状态反复切换。
   - `isSameDirctionForWallandFacingDir()`：判断玩家是否接触朝向一侧的墙面且输入仍指向墙面，供地面阻挡和墙滑转换共用。

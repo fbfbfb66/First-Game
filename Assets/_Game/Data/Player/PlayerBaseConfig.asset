@@ -26,6 +26,9 @@ MonoBehaviour:
   rollingLandDefaultVelocity: 5
   canEndRunEarlyDuration: 1.5
   runBufferDuration: 0.05
+  defaultDashSpeed: 15
+  dashFactor: 0.4
+  wallDashSpeed: 15
   gravityScale: 4
   wallSlideSlowSpeed: -3
   wallSlideFastSpeed: -8

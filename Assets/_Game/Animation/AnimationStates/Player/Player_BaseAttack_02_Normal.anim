@@ -135,6 +135,13 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
+  - time: 0.24
+    functionName: OpenCombatCancelWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
   - time: 0.28
     functionName: CloseCombatHitWindow
     data: 
@@ -144,6 +151,13 @@ AnimationClip:
     messageOptions: 0
   - time: 0.36
     functionName: CommitCombatTransition
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.68
+    functionName: CloseCombatCancelWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0

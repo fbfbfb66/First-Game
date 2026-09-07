@@ -17,6 +17,8 @@ public class Player : Entity
     public WallSensor wallSensor;
     [SerializeField] private PlayerCombatActionController combatActionController;
     public PlayerCombatActionController CombatActionController => combatActionController;
+    [SerializeField] private CombatActionCommandKey dashCommand;
+    public CombatActionCommandKey DashCommand => dashCommand;
 
     #region 
     public Player_IdleState idleState {get;private set;}
@@ -111,10 +113,19 @@ public class Player : Entity
         wallJumpState = new Player_WallJump(this, stateMachine, PlayerAnimationHash.JumpUp, anim);
         hangIdleState = new Player_HangIdle(this, stateMachine, PlayerAnimationHash.HangIdle, anim);
         climbUpState = new Player_ClimbUp(this, stateMachine, PlayerAnimationHash.ClimbUp, anim);
-        doubleJumpState = new Player_DoubleJump(this, stateMachine, PlayerAnimationHash.DoubleVerticalJump, anim);
         rollingLandState = new Player_RollingLand(this, stateMachine, PlayerAnimationHash.RollingLand, anim);
         dashState = new Player_Dash(this, stateMachine, PlayerAnimationHash.Dash, anim);
+        doubleJumpState = new Player_DoubleJump(this, stateMachine, 0, anim);
         combatActionState = new Player_CombatActionState(this,stateMachine,0,anim);
+
+
+
+        idleState.AddCancelTransition(combatActionState);
+        walkState.AddCancelTransition(combatActionState);
+        runState.AddCancelTransition(combatActionState);
+        dashState.AddCancelTransition(combatActionState, 0);
+        dashState.AddCancelTransition(jumpStartState, 0);
+        dashState.AddCancelTransition(doubleJumpState, 0);
     }
 
     private void Start()
@@ -136,8 +147,31 @@ public class Player : Entity
     private void TryEnterCombatAction()
     {
         if (stateMachine.currentState == combatActionState) return;
-        if(combatActionController.TryPrepareAction(out var action) == false) return;
+        if(combatActionController.TryGetEntryActionCandidate(out var action) == false) return;
+        if (stateMachine.CanChangeState(combatActionState, StateTransitionKind.Cancel) == false) return;
+        if (CombatActionController.TryConsumeBufferedRequest(action.Command) == false) return;
         combatActionController.BeginAction(action);
-        stateMachine.ChangeState(combatActionState);
+        stateMachine.TryChangeState(combatActionState,StateTransitionKind.Cancel);
+    }
+
+    public void NotifyStateCancelWindowOpened(int windowId, int sourceStateHash)
+    {
+        if(stateMachine.currentState is PlayerState currentPlayerState)
+        {
+            if (currentPlayerState.AnimatorStateHash != sourceStateHash) return;
+            currentPlayerState.OpenCancelWindow(windowId);
+            return;
+        }
+        Debug.LogWarning($"{stateMachine.currentState} Not PlayerState");
+    }
+    public void NotifyStateCancelWindowClosed(int windowId, int sourceStateHash)
+    {
+        if (stateMachine.currentState is PlayerState currentPlayerState)
+        {
+            if (currentPlayerState.AnimatorStateHash != sourceStateHash) return;
+            currentPlayerState.CloseCancelWindow(windowId);
+            return;
+        }
+        Debug.LogWarning($"{stateMachine.currentState} Not PlayerState");
     }
 }

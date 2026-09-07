@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerCombatHitDetector : MonoBehaviour
@@ -12,6 +13,9 @@ public class PlayerCombatHitDetector : MonoBehaviour
     [SerializeField] private LayerMask targetLayers;
 
     private bool IsOnGamePlaye = false;
+    private readonly HashSet<GameObject> hitOwners = new();
+    private CombatActionDefinition trackedAction;
+    private int trackedWindowId = -1;
 
 
     private void Awake()
@@ -24,16 +28,47 @@ public class PlayerCombatHitDetector : MonoBehaviour
     private void FixedUpdate()
     {
         if (actionController == null || hitboxRoot == null) return;
-        if (actionController.IsHitWindowOpen == false) return;
+        if (actionController.IsHitWindowOpen == false)
+        {
+            StopTrackingHitWindow();
+            return;
+        }
+        if (trackedAction == actionController.CurrentAction && trackedWindowId == actionController.ActiveHitWindowId) return;
         CombatActionDefinition currentAction = actionController.CurrentAction;
         if (currentAction == null) return;
+        BeginTrackingHitWindow(currentAction,actionController.ActiveHitWindowId);
         if (currentAction.Stage.TryGetHitWindow(actionController.ActiveHitWindowId, out var hitWindow) == false) return;
         if (hitWindow == null) return;
         Collider2D[] targets = DetectTargets(hitWindow);
         foreach(Collider2D target in targets)
         {
-            Debug.Log($"Action : {actionController.CurrentAction.Stage.AnimatorStateName} Hit {target.gameObject.name} in WindowId {actionController.ActiveHitWindowId}");
+            if (TryRegisterTarget(target, out var hurtbox) == false) continue;
+            Debug.Log($"Action : {actionController.CurrentAction.Stage.AnimatorStateName} Hit {hurtbox.Owner.name} in WindowId {actionController.ActiveHitWindowId}");
         }
+    }
+
+    private void StopTrackingHitWindow()
+    {
+        hitOwners.Clear();
+        trackedAction = null;
+        trackedWindowId = -1;
+    }
+
+    private void BeginTrackingHitWindow(CombatActionDefinition aciton,int windowId)
+    {
+        hitOwners.Clear();
+        trackedAction = aciton;
+        trackedWindowId = windowId;
+    }
+
+    private bool TryRegisterTarget(Collider2D candidate,out CombatHurtbox hurtbox)
+    {
+        hurtbox = null;
+        if(candidate == null) return false;
+        if (candidate.TryGetComponent(out hurtbox) == false) return false;
+        GameObject target = candidate.gameObject;
+        if(target == null) return false;
+        return hitOwners.Add(target);
     }
 
     private Collider2D[] DetectTargets(CombatHitWindowDefinition hitWindow)
@@ -49,7 +84,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
         return null;
     }
 
-    private void OnDrawGizmos()
+    private void OnDrawGizmosSelected()
     {
         if(hitboxRoot == null || actionController == null) return;
         Gizmos.color = actionController.IsHitWindowOpen ? Color.red : Color.green;

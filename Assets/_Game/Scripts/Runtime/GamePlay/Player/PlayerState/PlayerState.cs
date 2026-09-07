@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerState : EntityState
@@ -8,6 +9,11 @@ public class PlayerState : EntityState
     protected GroundSensor groundSensor;
     protected WallSensor wallSensor;
     protected PlayerAnimationTrigger animationTrigger;
+    private int activeCancelWindowId = -1;
+    private readonly List<StateCancelTransitionRule> cancelTransitions = new();
+
+    public bool HasActiveCancelWindow => activeCancelWindowId >= 0;
+    public int ActiveCancelWindowId => activeCancelWindowId;
     public PlayerState(Player player,StateMachine stateMachine, int stateName, Animator anim) : base(stateMachine, stateName, anim)
     {
         this.player = player;
@@ -16,6 +22,55 @@ public class PlayerState : EntityState
         animationTrigger = player.playerAnimationTrigger;
         groundSensor = player.groundSensor;
         wallSensor = player.wallSensor;
+    }
+
+    public void AddCancelTransition(EntityState targetState,int requiredWindowId = -1)
+    {
+        StateCancelTransitionRule rule = new StateCancelTransitionRule(targetState, requiredWindowId);
+        cancelTransitions.Add(rule);
+    }
+
+    public override bool CanTransitionTo(EntityState targetState, StateTransitionKind transitionKind)
+    {
+        if (transitionKind != StateTransitionKind.Cancel) return base.CanTransitionTo(targetState, transitionKind);
+        foreach(var transitionRule in cancelTransitions)
+        {
+            if (transitionRule == null) continue;
+            if (transitionRule.Allows(targetState, activeCancelWindowId)) return true;
+        }
+        return false;
+    }
+
+    public void OpenCancelWindow(int windowId)
+    {
+        if(windowId < 0)
+        {
+            Debug.LogWarning($"WindowId less 0");
+            return;
+        }
+        if (HasActiveCancelWindow)
+        {
+            Debug.LogWarning($"CancelWindow is Exit");
+            return;
+        }
+        activeCancelWindowId = windowId;
+        Debug.Log($"[FSM Window] Open | Source={GetType().Name} | Window={windowId}");
+    }
+
+    public void CloseCancelWindow(int windowId)
+    {
+        if (windowId != activeCancelWindowId)
+        {
+            Debug.LogWarning("windowId Not Equal to activeCancelWindowId ");
+            return;
+        }
+        if (HasActiveCancelWindow==false)
+        {
+            Debug.LogWarning($"CancelWindow Not Exit");
+            return;
+        }
+        activeCancelWindowId = -1;
+        Debug.Log($"[FSM Window] Close | Source={GetType().Name} | Window={windowId}");
     }
 
     public override void LogicalUpdate()
@@ -64,5 +119,15 @@ public class PlayerState : EntityState
         }
         if (needToHandleKey == false && move.x == 0) return true;
         return isSameDir;
+    }
+
+    public override void Exit()
+    {
+        base.Exit();
+        if (HasActiveCancelWindow)
+        {
+            Debug.Log("FSM| CleanUp");
+            activeCancelWindowId = -1;
+        }
     }
 }

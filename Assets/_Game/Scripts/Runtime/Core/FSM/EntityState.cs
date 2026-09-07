@@ -5,6 +5,7 @@ public class EntityState
     protected StateMachine stateMachine;
     protected Animator anim;
     protected int stateName;
+    public int AnimatorStateHash => stateName;
     public EntityState(StateMachine stateMachine,int stateName,Animator anim)
     {
         this.stateMachine = stateMachine;
@@ -30,5 +31,11 @@ public class EntityState
     public virtual void Exit()
     {
         
+    }
+
+    public virtual bool CanTransitionTo(EntityState targetState,StateTransitionKind transitionKind)
+    {
+        if (StateTransitionKind.Cancel == transitionKind) return false;
+        return true;
     }
 }

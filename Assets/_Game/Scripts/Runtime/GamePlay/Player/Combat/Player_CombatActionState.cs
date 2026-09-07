@@ -10,12 +10,16 @@ public sealed class Player_CombatActionState : PlayerState
 
     public override void Enter()
     {
-       PlayCurrentActionStage();
+        PlayCurrentActionStage();
     }
 
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+
+        if (TryHandleCancel()) return;
+
+
         actionController.TryQueueTransition();
         if (actionController.TryCommitTransition(out var targetAction))
         {
@@ -35,5 +39,18 @@ public sealed class Player_CombatActionState : PlayerState
         stateName = actionController.CurrentAction.Stage.AnimatorStateHash;
         anim.CrossFade(stateName, 0);
         movement.ClearPlayerVelocity();
+    }
+
+    private bool TryHandleCancel()
+    {
+        if (actionController.TryPrepareCancel(out var request) == false) return false;
+        if (request.Command == player.DashCommand)
+        {
+            if (player.TryConsumeDash() == false) return false;
+            actionController.CancelCurrentAction();
+            stateMachine.ChangeState(player.dashState);
+            return true;
+        }
+        return false;
     }
 }

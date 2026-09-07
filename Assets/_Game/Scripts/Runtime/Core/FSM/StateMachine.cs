@@ -1,5 +1,5 @@
 using UnityEngine;
-public class StateMachine 
+public class StateMachine
 {
     public EntityState currentState{ get; private set; }
 
@@ -14,13 +14,32 @@ public class StateMachine
 
     public void ChangeState(EntityState stateChangeTo)
     {
-        if (!CanChangeState(stateChangeTo))
+        TryChangeState(stateChangeTo, StateTransitionKind.Natural);
+    }
+
+    public bool CanChangeState(EntityState targetState,StateTransitionKind transitionKind)
+    {
+        if (targetState == null)
         {
-            return;
+            Debug.LogWarning("targetState is null");
+            return false;
         }
-        currentState.Exit();
-        currentState = stateChangeTo;
-        currentState.Enter();
+        if (currentState == null)
+        {
+            Debug.LogWarning("CurrentState is null");
+            return false;
+        }
+        if (currentState == targetState) return false;
+        if (transitionKind == StateTransitionKind.Forced) return true;
+        return currentState.CanTransitionTo(targetState, transitionKind);
+    }
+
+    public bool TryChangeState(EntityState targetState, StateTransitionKind transitionKind)
+    {
+        if (CanChangeState(targetState, transitionKind) == false) return false;
+
+        CommitStateChange(targetState);
+        return true;
     }
 
     public void LogicalUpdate()
@@ -33,8 +52,10 @@ public class StateMachine
         currentState.PhysicalUpdate();
     }
 
-    private bool CanChangeState(EntityState stateChangeTo)
+    private void CommitStateChange(EntityState targetState)
     {
-        return stateChangeTo != currentState;
+        currentState.Exit();
+        currentState = targetState;
+        currentState.Enter();
     }
 }

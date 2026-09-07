@@ -9,6 +9,7 @@ public class InputRouter : MonoBehaviour
     [SerializeField] private InventoryView inventoryView;
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private CombatActionCommandKey attackCommand;
+    [SerializeField] private CombatActionCommandKey dashCommand;
     [SerializeField] private PlayerCombatActionController playerCombatActionController;
 
 
@@ -162,7 +163,11 @@ public class InputRouter : MonoBehaviour
         {
             return;
         }
-
+        if(playerCombatActionController && playerCombatActionController.IsActionRunning)
+        {
+            playerCombatActionController.RequestAction(dashCommand);
+            return;
+        }
         playerInputReceiver.RequestDash();
     }
 

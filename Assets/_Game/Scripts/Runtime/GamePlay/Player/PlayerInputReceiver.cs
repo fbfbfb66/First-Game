@@ -45,14 +45,16 @@ public class PlayerInputReceiver : MonoBehaviour
 
     public bool ConsumeJump(float jumpBufferDuration)
     {
-        if(jumpPressed && Time.time - jumpPressedTime < jumpBufferDuration)
-        {
-            ClearJumpRequest();
-            return true;
-        }
-        else
-            ClearJumpRequest();
-        return false;
+        bool result = HasBufferedJump(jumpBufferDuration);
+        ClearJumpRequest();
+        return result;
+    }
+
+    public bool HasBufferedJump(float jumpBufferDuration)
+    {
+        if (jumpPressed == false) return false;
+        if(Time.time - jumpPressedTime >= jumpBufferDuration) return false;
+        return true;
     }
 
     public bool ConsumeAttack()

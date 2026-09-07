@@ -3,6 +3,7 @@ using UnityEngine;
 public class PlayerAnimationTrigger : MonoBehaviour
 {
     [SerializeField] private PlayerCombatActionController combatActionController;
+    [SerializeField] private Player player;
     public bool IsAnimationFinished { get; private set; }
     public bool canPerformAction { get; private set; }
 
@@ -10,63 +11,117 @@ public class PlayerAnimationTrigger : MonoBehaviour
     {
         if (combatActionController == null)
             combatActionController = GetComponentInParent<PlayerCombatActionController>();
+        if(player == null)
+            player = GetComponentInParent<Player>();
     }
 
-    public void OpenCombatHitWindow(int windowId)
+    public void OpenStateCancelWindow(AnimationEvent animationEvent)
     {
-        if (combatActionController == null)
+        if(player == null)
         {
-            Debug.LogWarning("Missed PlayerCombatActionController");
+            Debug.LogWarning("Player Null");
             return;
         }
-        combatActionController.NotifyHitWindowOpened(windowId);
+        player.NotifyStateCancelWindowOpened(
+            animationEvent.intParameter,
+            animationEvent.animatorStateInfo.shortNameHash);
     }
-    public void CloseCombatHitWindow(int windowId)
+    public void CloseStateCancelWindow(AnimationEvent animationEvent)
     {
-        if (combatActionController == null)
+        if (player == null)
         {
-            Debug.LogWarning("Missed PlayerCombatActionController");
+            Debug.LogWarning("Player Null");
             return;
         }
-        combatActionController.NotifyHitWindowClosed(windowId);
-    }
-
-    public void CommitCombatTransition()
-    {
-        if (combatActionController == null)
-        {
-            Debug.LogWarning("Missed PlayerCombatActionController");
-            return;
-        }
-        combatActionController.NotifyTransitionCommitRequested();
+        player.NotifyStateCancelWindowClosed(
+            animationEvent.intParameter,
+            animationEvent.animatorStateInfo.shortNameHash);
     }
 
-    public void OpenCombatTransitionWindow()
+    public void OpenCombatCancelWindow(AnimationEvent animationEvent)
     {
         if (combatActionController == null)
         {
             Debug.LogWarning("Missed PlayerCombatActionController");
             return;
         }
-        combatActionController.NotifyTransitionWindowOpened();
+        combatActionController.NotifyCancelWindowOpened(
+            animationEvent.intParameter,
+            animationEvent.animatorStateInfo.shortNameHash);
     }
-    public void CloseCombatTransitionWindow()
+    public void CloseCombatCancelWindow(AnimationEvent animationEvent)
     {
         if (combatActionController == null)
         {
             Debug.LogWarning("Missed PlayerCombatActionController");
             return;
         }
-        combatActionController.NotifyTransitionWindowClosed();
+        combatActionController.NotifyCancelWindowClosed(
+            animationEvent.intParameter,
+            animationEvent.animatorStateInfo.shortNameHash);
     }
-    public void FinishCombatStage()
+
+    public void OpenCombatHitWindow(AnimationEvent animationEvent)
+    {
+        if (combatActionController == null)
+        {
+            Debug.LogWarning("Missed PlayerCombatActionController");
+            return;
+        }
+        combatActionController.NotifyHitWindowOpened(
+            animationEvent.intParameter,
+            animationEvent.animatorStateInfo.shortNameHash);
+    }
+    public void CloseCombatHitWindow(AnimationEvent animationEvent)
+    {
+        if (combatActionController == null)
+        {
+            Debug.LogWarning("Missed PlayerCombatActionController");
+            return;
+        }
+        combatActionController.NotifyHitWindowClosed(animationEvent.intParameter, animationEvent.animatorStateInfo.shortNameHash);
+    }
+
+    public void CommitCombatTransition(AnimationEvent animationEvent)
+    {
+        if (combatActionController == null)
+        {
+            Debug.LogWarning("Missed PlayerCombatActionController");
+            return;
+        }
+        combatActionController.NotifyTransitionCommitRequested(
+            animationEvent.animatorStateInfo.shortNameHash);
+    }
+
+    public void OpenCombatTransitionWindow(AnimationEvent animationEvent)
+    {
+        if (combatActionController == null)
+        {
+            Debug.LogWarning("Missed PlayerCombatActionController");
+            return;
+        }
+        combatActionController.NotifyTransitionWindowOpened(
+            animationEvent.animatorStateInfo.shortNameHash);
+    }
+    public void CloseCombatTransitionWindow(AnimationEvent animationEvent)
+    {
+        if (combatActionController == null)
+        {
+            Debug.LogWarning("Missed PlayerCombatActionController");
+            return;
+        }
+        combatActionController.NotifyTransitionWindowClosed(
+            animationEvent.animatorStateInfo.shortNameHash);
+    }
+    public void FinishCombatStage(AnimationEvent animationEvent)
     {
         if(combatActionController == null)
         {
             Debug.LogWarning("Missed PlayerCombatActionController");
             return;
         }
-        combatActionController.NotifyStageFinished();
+        combatActionController.NotifyStageFinished(
+            animationEvent.animatorStateInfo.shortNameHash);
     }
 
     public void EndAnimation()

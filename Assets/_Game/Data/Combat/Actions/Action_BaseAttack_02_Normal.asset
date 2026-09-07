@@ -15,6 +15,10 @@ MonoBehaviour:
   command: {fileID: 0}
   stage:
     animatorStateName: BaseAttack_02_Normal
+    cancelWindows:
+    - windowId: 0
+      allowedCommands:
+      - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
     hitWindows:
     - windowId: 0
       shape: 0

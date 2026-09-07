@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-09-07 — Combat Action 取消转换与迟到 Animation Event
+
+### 背景
+
+Combat Action 和 Player FSM 都加入了动作取消窗口。一次攻击可以在多个动画区间允许 Dash 等目标状态进入；Dash 也能只在配置窗口内进入 Combat Action 或 Jump。转换不再只回答“目标状态是否不同”，而是区分 Natural、Cancel 与 Forced 三种意图。
+
+### 做了什么
+
+- `StateMachine` 增加带 `StateTransitionKind` 的查询与提交入口；
+- `PlayerState` 持有取消目标规则与当前活动窗口；
+- Action Stage 支持多个 `CombatActionCancelWindowDefinition`；
+- 输入请求先被缓冲，只有目标转换规则和窗口都成立时才消费；
+- Animation Event 统一携带来源 Animator State Hash，所有 Combat/FSM Notify 都先校验来源再修改当前运行时。
+
+### 头疼 Bug：Attack → Dash 后偶发 CurrentAction is null
+
+**现象：** 攻击通过取消窗口进入 Dash 后，偶尔在关闭 Hit Window 时出现 `currentAction is null` 一类警告，触发时间不稳定。
+
+**假设与最小证据：** Action 已经在取消时清理了 Runtime，但被 CrossFade 退出的攻击动画仍可能继续派发排在后面的 Animation Event。因此问题不在 Hit Window 配置本身，而在“事件属于谁”这条数据链丢失。
+
+**根因：** 旧动画事件只携带 Window ID。它抵达时，Controller 只能看到“现在有没有 CurrentAction”，无法知道事件来自已经退出的 Attack，甚至可能错误修改随后进入的新 Action。
+
+**修复：** `PlayerAnimationTrigger` 改为接收完整 `AnimationEvent`，读取 `animationEvent.animatorStateInfo.shortNameHash`。Controller 将这个来源 Hash 与当前 Stage 的 `AnimatorStateHash` 比较；Player FSM 的取消窗口通知也与当前 State 的 Hash 比较。不属于当前执行者的迟到事件直接忽略。
+
+**验证：** 用户在 Play Mode 复测后确认链路正常；C# 工程编译无新增错误。当前方案按 Animator State 区分来源，如果未来复现“同一个 State 快速重复进入，上一执行实例的旧事件污染下一实例”，再增加 execution id，而不是现在预建复杂事件令牌。
+
+### 下一步
+
+将 `PlayerCombatActionController.defaultAction` 替换为有序入口候选，通过 Command 和 `CombatActionContext` / `CombatActionCondition` 两层筛选，让同一系统能够按不同按键、Player 状态以及后续 Enemy 上下文选择不同 Action。
+
+---
+
 ## 2026-09-02 — 二段跳、翻滚落地与空中状态边界修复
 
 ### 背景

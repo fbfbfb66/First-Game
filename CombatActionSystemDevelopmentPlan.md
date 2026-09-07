@@ -1,9 +1,33 @@
 # Combat Action System 开发计划书
 
-> 文档状态：设计阶段  
-> 当前版本：v0.1  
-> 当前目标：在保留现有 Player FSM 的前提下，建立一套可逐步扩展、不过度设计的战斗 Action 执行框架。  
-> 当前范围：只制定架构边界与分阶段开发计划，不在本阶段实现攻击伤害、完整连招或所有动作内容。
+> 文档状态：持续实施
+>
+> 当前版本：v0.2
+>
+> 当前目标：在已经跑通的 Action 执行、派生窗口、命中窗口与 FSM 取消转换骨架上，引入入口候选与上下文条件。
+>
+> 当前范围：下一阶段先替换固定 `defaultAction`，让不同 Command 和 Player 上下文选择不同入口 Action；目标/敌人条件在目标上下文可用后接入。
+
+## 0. 当前实现快照（2026-09-07）
+
+已经通过 Play Mode 验证的纵向链路：
+
+- InputRouter 把 Attack / Dash 输入转换为 `CombatActionCommandKey` 请求；
+- `PlayerCombatActionController` 保存带时间戳的输入缓冲，并只在找到合法目标后消费；
+- `Player_CombatActionState` 是所有 Combat Action 共用的 FSM 桥接状态；
+- BaseAttack01 → 02 → 03 使用 Transition Window、Pending Transition 与 Commit Event 派生；
+- Action Stage 已能配置 Hit Window 和多个 Cancel Window；
+- FSM 转换已区分 Natural、Cancel、Forced，Cancel 必须匹配来源 State 的窗口与目标规则；
+- Dash 已能通过窗口进入 Combat Action 或 Jump；Combat Action 也能通过自己的 Cancel Window 请求 Dash；
+- 所有战斗与 FSM 动画通知都会校验 Animation Event 的来源 Animator State，取消后到达的旧事件不会修改新状态。
+
+当前仍是教学用最小实现，而不是最终形态：
+
+- Action 入口仍由单个 `defaultAction` 固定提供；
+- Action Definition 目前只有一条 Transition；
+- Hit Window 已能查询 Hurtbox 与战斗 Owner，但正式伤害、Outcome 和重复命中策略尚未完成；
+- 尚无 `CombatActionContext` 和真实 Condition；
+- 目标选择、敌人状态条件、多 Stage、Opportunity 与 PowerUp 仍未接入。
 
 ## 1. 背景与动机
 
@@ -50,7 +74,7 @@
 - 不创建可视化 Graph Editor。
 - 不预先制作所有 Condition、Effect、Signal 和 Action 类型。
 - 不一次性实现全部普通攻击、空中连招、Parry、下落攻击和 PowerUp。
-- 不在第一阶段重构现有移动 FSM。
+- 不把现有移动 FSM 全部改造成 Action，也不为每种移动状态重做一套框架。
 - 不在第一阶段接入完整装备、武器切换或伤害系统。
 - 不使用字符串 Dictionary 作为万能 Blackboard。
 
@@ -162,7 +186,7 @@ Combat Content
 
 输入层负责把 Input Action 映射到对应 Command Key；Action System 只比较资源身份。
 
-第一阶段只需要一个攻击 Command Key，但结构不能要求每新增一种输入都修改 Action Controller。
+当前已经接入 Attack 与 Dash Command Key。下一阶段仍不会在 Controller 中按具体按键写分支，而是让候选 Action 自己声明所需 Command。
 
 ### 5.2 CombatActionRequest
 
@@ -330,22 +354,26 @@ Player FSM 只新增一个 `Player_CombatActionState`。所有战斗 Action 共�
 
 现有 `PlayerAnimationTrigger` 继续服务移动动画，同时增加战斗专用信号转发，避免战斗逻辑依赖共享的全局完成 bool。
 
-初步预定的 Animation Event 入口：
+当前 Animation Event 入口：
 
 ```csharp
-public void OpenCombatTransitionWindow(int windowId);
-public void CloseCombatTransitionWindow(int windowId);
-public void OpenCombatHitWindow(int windowId);
-public void CloseCombatHitWindow(int windowId);
-public void FinishCombatStage();
+public void OpenCombatTransitionWindow(AnimationEvent animationEvent);
+public void CloseCombatTransitionWindow(AnimationEvent animationEvent);
+public void CommitCombatTransition(AnimationEvent animationEvent);
+public void OpenCombatHitWindow(AnimationEvent animationEvent);
+public void CloseCombatHitWindow(AnimationEvent animationEvent);
+public void OpenCombatCancelWindow(AnimationEvent animationEvent);
+public void CloseCombatCancelWindow(AnimationEvent animationEvent);
+public void FinishCombatStage(AnimationEvent animationEvent);
 ```
 
 这些函数只转发 Signal，不直接决定下一个 Action，也不直接计算伤害。
 
 必须保证：
 
-- 旧动画的信号不会结束新 Action；
-- 没有 Active Action 时收到战斗信号只产生一次明确警告；
+- 每个 Event 使用 `animatorStateInfo.shortNameHash` 携带来源 State；
+- Controller 只接受来源 Hash 与当前 Action Stage 一致的通知；
+- 取消后的旧动画通知会被静默忽略，不会污染新 Action；
 - Action 或 Stage 切换时关闭旧 Window；
 - 动画事件名称、Window ID 与 Definition 配置可以被验证。
 
@@ -468,7 +496,7 @@ public abstract void Apply(in CombatActionExecutionContext context);
 
 ## 12. 分阶段开发计划
 
-### Checkpoint 0：冻结基线与确认素材
+### Checkpoint 0：冻结基线与确认素材（已完成）
 
 当前目标：在开始写代码前保护现有未提交内容，并确认第一个测试动画的 Animator State 名称和 Animation Event 状态。
 
@@ -482,7 +510,7 @@ public abstract void Apply(in CombatActionExecutionContext context);
 
 正确结果：能够明确指出第一个 Action 使用哪条动画、哪个输入以及最后一帧在哪里结束。
 
-### Checkpoint 1：单个 Action 完整执行闭环
+### Checkpoint 1：单个 Action 完整执行闭环（已完成）
 
 游戏行为：玩家在允许的移动状态中按攻击，播放一段完整攻击动画；动作期间普通移动不会覆盖动画或速度；动作结束后恢复正确移动状态。
 
@@ -516,7 +544,7 @@ Play Mode 验证：
 
 Checkpoint 复盘重点：输入从哪里产生、何时被消费、FSM 如何交出和收回执行权、为什么不会出现两个系统同时写 Animator/Rigidbody2D。
 
-### Checkpoint 2：派生窗口与收尾帧
+### Checkpoint 2：派生窗口与收尾帧（已完成）
 
 游戏行为：第一段攻击在指定动画帧开放派生窗口；提前输入可以被缓冲；窗口内的合法输入先记录为 Pending Transition，并在动画指定的 Commit 帧切入第二个 Action；没有输入时继续播放第一段收尾并正常结束。
 
@@ -538,26 +566,75 @@ Play Mode 验证：
 
 Checkpoint 复盘重点：派生窗口和动画完成为什么是两个概念，以及 Request 为什么只能在成功准备目标 Action 后消费。
 
-### Checkpoint 3：单次命中纵向切片
+### Checkpoint 3：单次命中纵向切片（进行中）
 
 游戏行为：一段攻击只在指定 Hit Window 内命中测试目标，并对同一目标按规则结算一次。
 
-本次只新增：
+已经落地：
 
 - Hit Window Signal；
 - 最小 Hitbox；
-- 最小 Damage Receiver 或测试 Dummy；
-- Action Runtime 命中记录；
-- HitConfirmed Outcome；
 - Gizmo 与有意义的命中日志。
 
-必须先决定：同一 Stage、同一 Hit Window 和整个 Action 对重复命中的作用域。
+尚未落地：
 
-### Checkpoint 4：Condition、Outcome 与 Effect
+- 正式 Damage Receiver；
+- Action Runtime 命中记录；
+- HitConfirmed Outcome；
+- 同一 Stage、同一 Hit Window 和整个 Action 的重复命中作用域。
+
+### Checkpoint 4A：入口候选、Command 与 Player Condition（下一阶段）
+
+游戏行为：同一个 Controller 不再固定启动 `defaultAction`。不同按键产生不同 Command；同一 Command 可以根据 Player 的当前事实选择不同入口 Action。
+
+这一阶段先解决三件事：
+
+1. `CommandKey` 负责筛掉“按键意图不同”的候选，它不是 Condition；
+2. `CombatActionContext` 提供一次选择时的 Player 事实快照；
+3. `CombatActionCondition` 只读取 Context 并返回 true/false，不播放动画、不改状态、不消费输入。
+
+本次最小结构：
+
+- 将 Controller 的单个 `defaultAction` 替换为有明确顺序的入口 Action 列表；
+- Action Definition 增加入口 Condition 列表；
+- 创建最小 `CombatActionContext`，只携带首个真实条件所需的 Player 事实；
+- 创建 `CombatActionCondition` 抽象基类；
+- 只实现第一种真实 Player Condition，例如 Grounded / Airborne；
+- 候选选择按“Command 匹配 → 所有 Conditions 成立 → 第一条获胜”的固定顺序执行；
+- 没有候选时保留 Request，直到缓冲过期；只有成功准备并切换状态后才消费。
+
+第一条验证链建议使用同一 Attack Command：
+
+```text
+地面 + Attack → BaseAttack01
+空中 + Attack → 一个测试用空中入口 Action
+条件不满足 → 不启动错误 Action，请求按缓冲规则保留或过期
+```
+
+这条测试验证的是“数据驱动的上下文选择”，不是提前实现完整 JumpAttack / Dive 优先级。
+
+Checkpoint 复盘重点：Command 与 Condition 为什么是两层筛选；Context 为什么是选择瞬间的只读事实；候选顺序如何形成可读优先级。
+
+### Checkpoint 4B：目标上下文与 Enemy Condition
+
+游戏行为：同一个输入和 Player 状态下，前方目标的存在、战斗身份或能力可以改变所选 Action。
+
+开始这个 Checkpoint 的前提是先定义“候选目标是谁”：由锁定系统、前方查询还是最近 Hurtbox 提供。只有 Context 能稳定携带候选目标后，才增加首个 Enemy Condition，避免 Condition 自己到处做 Physics 查询。
+
+最小验证示例：
+
+```text
+前方存在满足条件的目标 → 选择高优先级 Action
+没有目标或目标条件失败 → 继续检查后面的兜底 Action
+```
+
+Condition 只判断敌人的通用能力或状态，不根据 `LauncherAttack`、`DiveAttack` 等招式名称写分支。
+
+### Checkpoint 4C：Outcome 与 Effect
 
 游戏行为：至少一条派生或动作效果由命中结果和目标能力决定，而不是由动作名称硬编码。
 
-本次才正式落地：
+本次再正式落地：
 
 - 第一批真实 CombatActionCondition；
 - 第一批真实 CombatActionEffect；
@@ -642,7 +719,7 @@ Checkpoint 通过后删除高频临时日志，只保留缺少配置、非法 Si
 
 ### Animation Event 污染新 Action
 
-防护：Signal 必须由当前 Runtime 和 Stage 校验；Action/Stage 切换时关闭旧窗口并清理旧信号状态。
+当前防护：所有 Notify 都接收完整 `AnimationEvent`，用来源 Animator State Hash 与当前 Action Stage 或 FSM State 校验；Action/State 切换时同时清理旧窗口。当前 Hash 能区分不同 State，若未来出现“同一 Animator State 被快速重复进入且旧 Event 跨执行实例抵达”，再引入 execution id，不提前复杂化。
 
 ### ScriptableObject 保存运行时数据
 
@@ -694,12 +771,10 @@ Checkpoint 通过后删除高频临时日志，只保留缺少配置、非法 Si
 6. 同步更新 `FirstGameDetails.md` 中真实存在的脚本职责、核心函数、资源与调用链。
 7. 如果遇到难以定位的系统性 Bug，在 `DevLog.md` 记录现象、假设、最小实验、证据、根因、修复和剩余问题。
 
-## 17. 第一轮实施边界
+## 17. 下一轮实施边界
 
-下一轮正式开始编码时，只执行 Checkpoint 0 和 Checkpoint 1。
+下一轮只执行 Checkpoint 4A 的第一个纵向切片：
 
-第一轮成功标准不是“已经有成熟连招”，而是：
+> 用一个 Attack Command、两个入口 Action 和一个 Player 上下文条件，证明 Controller 可以替换固定 `defaultAction`，并在不认识任何攻击类型的前提下选择正确动作。
 
-> 一个不包含任何具体招式判断的 Action Runtime，能够从输入缓冲中选择一项数据资源，通过唯一桥接状态取得 Player 控制权，完整播放一个 Stage，并在收到动画结束 Signal 后把控制权安全交还给移动 FSM。
-
-只有该闭环在 Idle、移动和边界输入情况下都稳定后，才进入派生窗口 Checkpoint。
+本轮不同时加入敌人条件。原因不是敌人条件不重要，而是它依赖尚未确定的候选目标来源；先让 Player Context 的完整调用链跑通，再用同一套 Condition 接口扩展目标事实。通过标准必须包括：两个上下文各选中正确 Action、条件失败不误消费缓冲、Controller 没有新增具体招式名称分支。

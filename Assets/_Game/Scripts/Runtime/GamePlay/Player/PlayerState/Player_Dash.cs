@@ -14,11 +14,7 @@ public class Player_Dash : PlayerState
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
         
-        float speedX = movement.facingRight ? player.playerBaseConfig.DefaultDashSpeed : -player.playerBaseConfig.DefaultDashSpeed;
-        if(input.MoveInput.x != 0)
-        {
-            speedX = movement.facingRight ? player.playerBaseConfig.DashSpeed + movement.Rb.linearVelocity.x : -player.playerBaseConfig.DashSpeed + movement.Rb.linearVelocity.x;
-        }
+        float speedX = movement.facingRight ? player.playerBaseConfig.DefaultDashSpeed + movement.Rb.linearVelocity.x * player.playerBaseConfig.DashFactor : -player.playerBaseConfig.DefaultDashSpeed + movement.Rb.linearVelocity.x * player.playerBaseConfig.DashFactor;
 
         if (isSameDirctionForWallandFacingDir())
         {
@@ -33,11 +29,7 @@ public class Player_Dash : PlayerState
     {
         base.LogicalUpdate();
 
-        if(groundSensor.IsGrounded == false && input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration) && player.TryConsumeDoubleJump())
-        {
-            stateMachine.ChangeState(player.doubleJumpState);
-            return;
-        }
+        if (TryCancelToJump()) return;
 
 
         if (animationTrigger.IsAnimationFinished)
@@ -46,7 +38,6 @@ public class Player_Dash : PlayerState
             {
                 ChangeStateToMoveState();
                 player.ResetDoubleJump();
-                player.RequestDash();
                 return;
             }
 
@@ -68,5 +59,24 @@ public class Player_Dash : PlayerState
     {
         base.Exit();
         movement.Rb.gravityScale = originalGravity;
+        if (groundSensor.CanEnterGrounded)
+            player.RequestDash();
+    }
+
+    private bool TryCancelToJump()
+    {
+        if (input.HasBufferedJump(player.playerBaseConfig.JumpBufferDuration) == false) return false;
+        PlayerState targetState = null;
+        if (groundSensor.IsGrounded) targetState = player.jumpStartState;
+        else targetState = player.doubleJumpState;
+        if(targetState == null) return false;
+        if (stateMachine.CanChangeState(targetState, StateTransitionKind.Cancel) == false) return false;
+        input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration);
+        if(targetState == player.doubleJumpState)
+        {
+            if (player.TryConsumeDoubleJump() == false) return false;
+        }
+        stateMachine.TryChangeState(targetState, StateTransitionKind.Cancel);
+        return true;
     }
 }

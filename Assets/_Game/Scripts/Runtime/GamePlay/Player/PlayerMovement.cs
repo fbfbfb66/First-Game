@@ -31,6 +31,7 @@ public class PlayerMovement : Movement
             rb.linearVelocity = new Vector2(0f, player.playerBaseConfig.DoubleJumpForce.y);
             return;
         }
+        HandleFlip(moveInput);
 
         float jumpX = player.playerBaseConfig.DoubleJumpForce.x * moveInput.x;
         jumpX = jumpX > 0f
