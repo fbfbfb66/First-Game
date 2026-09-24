@@ -439,6 +439,7 @@ GameObject:
   - component: {fileID: 65120125}
   - component: {fileID: 65120124}
   - component: {fileID: 65120128}
+  - component: {fileID: 65120129}
   m_Layer: 11
   m_Name: Enemy
   m_TagString: Untagged
@@ -461,7 +462,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 1
+  m_GravityScale: 3.5
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -555,8 +556,8 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 1475732137
+  m_SortingLayer: -3
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9095717837082945937, guid: 207ee8102dd4143d288186ef0be518ee, type: 3}
@@ -578,7 +579,7 @@ Transform:
   m_GameObject: {fileID: 65120123}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -77.02649, y: 11.082, z: 0}
+  m_LocalPosition: {x: -71.65, y: 8.34, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -597,6 +598,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatHurtbox
   owener: {fileID: 65120123}
+--- !u!114 &65120129
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 65120123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
+  body: {fileID: 65120124}
+  canBeLaunched: 1
 --- !u!1 &104389071
 GameObject:
   m_ObjectHideFlags: 0
@@ -644,7 +659,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -796,14 +811,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f626a3cc0554e9249b370f52b9a6431a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputRouter
+  attackCommand: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
+  dashCommand: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
+  launcherAttackCommand: {fileID: 11400000, guid: 47fbdfd815453804ba67f0bf60d7e60d, type: 2}
   inputReader: {fileID: 0}
   gameLayerStack: {fileID: 0}
   playerControlArbitration: {fileID: 0}
   playerInputReceiver: {fileID: 0}
   inventoryView: {fileID: 0}
   dialogueManager: {fileID: 0}
-  attackCommand: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
-  dashCommand: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
   playerCombatActionController: {fileID: 0}
 --- !u!4 &178392424
 Transform:
@@ -1726,7 +1742,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: -1974498659
-  m_SortingLayer: -4
+  m_SortingLayer: -5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
@@ -4031,7 +4047,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: -1974498659
-  m_SortingLayer: -4
+  m_SortingLayer: -5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
@@ -5634,7 +5650,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: -1974498659
-  m_SortingLayer: -4
+  m_SortingLayer: -5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
@@ -7093,7 +7109,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: -1974498659
-  m_SortingLayer: -4
+  m_SortingLayer: -5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
@@ -9490,7 +9506,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: -1974498659
-  m_SortingLayer: -4
+  m_SortingLayer: -5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
@@ -11172,6 +11188,7 @@ GameObject:
   - component: {fileID: 2075136174}
   - component: {fileID: 2075136175}
   - component: {fileID: 2075136176}
+  - component: {fileID: 2075136177}
   - component: {fileID: 2075136168}
   - component: {fileID: 2075136172}
   m_Layer: 6
@@ -11369,6 +11386,7 @@ MonoBehaviour:
   entryActions:
   - {fileID: 11400000, guid: ad24428fd1949f240a62995379427803, type: 2}
   - {fileID: 11400000, guid: 480a310550fc6c34e9ff99139735757d, type: 2}
+  - {fileID: 11400000, guid: 435b0d0846158594d871a615af8b6636, type: 2}
   config: {fileID: 11400000, guid: d3f42bb2eaf94d147acadae16becfc61, type: 2}
 --- !u!114 &2075136176
 MonoBehaviour:
@@ -11383,14 +11401,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatHitDetector
   shape: 0
-  localOffset: {x: 5.02, y: 0.42}
-  boxSize: {x: 6.71, y: 3.93}
+  localOffset: {x: 1.75, y: 0.8}
+  boxSize: {x: 2.17, y: 3.46}
   circleRadius: 2.57
   actionController: {fileID: 2075136175}
   hitboxRoot: {fileID: 366906409}
   targetLayers:
     serializedVersion: 2
     m_Bits: 2048
+--- !u!114 &2075136177
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2075136164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
+  body: {fileID: 2075136168}
+  canBeLaunched: 1
 --- !u!1 &2077044661
 GameObject:
   m_ObjectHideFlags: 0
@@ -11651,7 +11683,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: -916931609
-  m_SortingLayer: -3
+  m_SortingLayer: -4
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 815424164945274260, guid: b7c37f1b9ed5b8d4c90d0b4a704077da, type: 3}

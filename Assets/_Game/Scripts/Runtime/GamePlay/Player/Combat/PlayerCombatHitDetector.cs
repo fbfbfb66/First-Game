@@ -15,7 +15,8 @@ public class PlayerCombatHitDetector : MonoBehaviour
     private bool IsOnGamePlaye = false;
     private readonly HashSet<GameObject> hitOwners = new();
     private CombatActionDefinition trackedAction;
-    private int trackedWindowId = -1;
+    private CombatHitWindowDefinition trackedHitWindow;
+    private readonly List<CombatHitEffectContext> appliedEffectContexts = new();
 
 
     private void Awake()
@@ -23,6 +24,11 @@ public class PlayerCombatHitDetector : MonoBehaviour
         if (actionController == null)
             actionController = GetComponent<PlayerCombatActionController>();
         IsOnGamePlaye = true;
+    }
+
+    private void OnDisable()
+    {
+        StopTrackingHitWindow();
     }
 
     private void FixedUpdate()
@@ -35,17 +41,20 @@ public class PlayerCombatHitDetector : MonoBehaviour
         }
         CombatActionDefinition currentAction = actionController.CurrentAction;
         if (currentAction == null) return;
-        if(currentAction != trackedAction || actionController.ActiveHitWindowId != trackedWindowId)
-        {
-            BeginTrackingHitWindow(currentAction,actionController.ActiveHitWindowId);
-        }
         if (currentAction.Stage.TryGetHitWindow(actionController.ActiveHitWindowId, out var hitWindow) == false) return;
+        if(currentAction != trackedAction || hitWindow != trackedHitWindow)
+        {
+            BeginTrackingHitWindow(currentAction,hitWindow);
+        }
         if (hitWindow == null) return;
         Collider2D[] targets = DetectTargets(hitWindow);
         foreach(Collider2D target in targets)
         {
             if (TryRegisterTarget(target, out var hurtbox) == false) continue;
             actionController.NotifyHitConfirmed(hurtbox.Owner);
+            CombatHitEffectContext context = new CombatHitEffectContext(transform.gameObject, hurtbox.Owner);
+            hitWindow.ApplyEffects(context);
+            appliedEffectContexts.Add(context);
         }
     }
 
@@ -53,14 +62,24 @@ public class PlayerCombatHitDetector : MonoBehaviour
     {
         hitOwners.Clear();
         trackedAction = null;
-        trackedWindowId = -1;
+        if (trackedHitWindow != null)
+        {
+            foreach (var context in appliedEffectContexts)
+            {
+                trackedHitWindow.EndEffects(context);
+            }
+
+            trackedHitWindow = null;
+        }
+
+        appliedEffectContexts.Clear();
     }
 
-    private void BeginTrackingHitWindow(CombatActionDefinition aciton,int windowId)
+    private void BeginTrackingHitWindow(CombatActionDefinition aciton,CombatHitWindowDefinition hitWindow)
     {
-        hitOwners.Clear();
+        StopTrackingHitWindow();
         trackedAction = aciton;
-        trackedWindowId = windowId;
+        trackedHitWindow = hitWindow;
     }
 
     private bool TryRegisterTarget(Collider2D candidate,out CombatHurtbox hurtbox)

@@ -17,7 +17,7 @@ MonoBehaviour:
     animatorStateName: BaseAttack_03_Normal
     entryVelocityRule:
       overrideHorizontal: 1
-      localHorizontalVelocity: -8
+      localHorizontalVelocity: -10
       overrideVertical: 1
       verticalVelocity: 0
     horizontalDeceleration: 50
@@ -31,8 +31,8 @@ MonoBehaviour:
     hitWindows:
     - windowId: 0
       shape: 0
-      localOffset: {x: 0.32, y: -0.39}
-      boxSize: {x: 4.6, y: 1.51}
+      localOffset: {x: 0.5, y: -0.39}
+      boxSize: {x: 5, y: 1.51}
       circleRadius: 0
   transition:
     conditions:

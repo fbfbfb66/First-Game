@@ -156,7 +156,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 输入配置来自 `Assets/Settings/InputSystem_Actions.inputactions`，生成代码为 `Assets/Settings/InputSystem_Actions.cs`。
 
-- `Player` Action Map：移动、跳跃、攻击、冲刺、交互、使用物品。
+- `Player` Action Map：移动、跳跃、普通攻击、上挑攻击（`LauncherAttack`，绑定 <Keyboard>/e）、冲刺、交互、使用物品。
 - `Game` Action Map：暂停、打开背包、打开地图。
 - `UI` Action Map：导航、确认、取消、旋转物品（`RotateItem`，绑定 <Keyboard>/r）。`RotateItem` 放在 `UI` 而非 `Player` Map，因为背包打开时 `SetInputMode` 只启用 `UI`，放在别处这个键在背包里就是死的。
 
@@ -170,7 +170,7 @@ Canvas_Inventory (Screen Space - Overlay)
 `InputRouter` 负责把输入派发到当前层：
 
 - `Gameplay` 的移动输入进入 `PlayerInputReceiver.SetMoveInput()`。
-- `Gameplay` 的跳跃、攻击、冲刺、交互输入分别进入 `PlayerInputReceiver` 的请求函数。
+- `Gameplay` 的普通攻击与上挑攻击会被翻译为各自的 `CombatActionCommandKey` 并提交给战斗 Action Controller；跳跃、冲刺与交互仍进入 `PlayerInputReceiver` 的请求函数。
 - 玩家地面状态中消费交互请求，并调用 `InteractionDetector.TryInteract()`。
 - `Dialogue` 的交互输入调用 `DialogueManager.RequestAdvance()`。
 - `DialogueChoice` 的导航与确认输入调用 `DialogueManager.HandleChoiceSelectedNavigate()` 和 `DialogueManager.HandleChoiceConfirmed()`。
@@ -545,7 +545,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `inputActions`：`InputSystem_Actions` 生成对象。
   - `MoveInput`：当前玩家移动输入。
   - `UINavigateInput`：当前 UI 导航输入。
-  - `MoveChanged`、`JumpPressed`、`AttackPressed`、`DashPressed`、`InteractPressed`、`UseItemPressed`：玩家输入事件。
+  - `MoveChanged`、`JumpPressed`、`AttackPressed`、`LauncherAttackPressed`、`DashPressed`、`InteractPressed`、`UseItemPressed`：玩家输入事件。
   - `PausePressed`、`OpenInventoryPressed`、`OpenMapPressed`：游戏级输入事件。
   - `UINavigateChanged`、`UISubmitPressed`、`UICancelPressed`：UI 输入事件。
 - 函数：
@@ -567,7 +567,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `gameLayerStack`：判断当前输入层。
   - `playerControlArbitration`：判断当前层是否允许玩家动作。
   - `playerInputReceiver`：接收玩家行动请求。
-  - `attackCommand`：把 Attack Input Action 映射为战斗系统使用的抽象 Command Key。
+  - `attackCommand`、`launcherAttackCommand`：把普通攻击与上挑攻击 Input Action 映射为战斗系统使用的抽象 Command Key。
   - `playerCombatActionController`：接收战斗 Action Request。
   - `dialogueManager`：接收对话推进和选项输入。
 - 函数：
@@ -578,6 +578,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `OnMoveChanged(Vector2 moveInput)`：Gameplay 且允许移动时设置玩家移动输入，否则清空。
   - `OnJumpPressed()`：Gameplay 且允许跳跃时登记跳跃请求。
   - `OnAttackPressed()`：Gameplay 且允许攻击时，把 `attackCommand` 提交给 `PlayerCombatActionController.RequestAction()`；输入层不决定最终招式。
+  - `OnLauncherAttackPressed()`：Gameplay 且允许攻击时，把 `launcherAttackCommand` 提交给同一个 Action Controller；上挑招式由配置匹配，而不是由 Router 直接播放。
   - `OnDashPressed()`：Gameplay 且允许冲刺时登记冲刺请求。
   - `OnInteractPressed()`：Gameplay 时登记世界交互请求；Dialogue 时请求推进台词。
   - `OnUseItemPressed()`：Gameplay 且允许使用物品时处理使用物品入口，目前预留。
@@ -595,7 +596,7 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `CombatActionCommandKey.cs`
 
 - 脚本职责：用 ScriptableObject 资源身份表达抽象战斗输入意图；核心 Controller 不维护普通攻击、重攻击或 Parry 等硬编码枚举分支。
-- 当前资源：`Assets/_Game/Data/Combat/Commands/Command_Attack.asset`。
+- 当前资源：`Command_Attack.asset`、`Command_LauncherAttack.asset`；Command 只表达输入意图，不编码具体招式类型。
 
 #### `CombatActionRequest.cs`
 
@@ -624,17 +625,38 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `CombatHitWindowDefinition.cs`
 
-- 脚本职责：嵌入 Stage 的单个命中窗口配置，保存 Window ID、`Box` / `Circle` 形状、相对 `Visual` 的局部偏移以及对应尺寸。它描述查询几何，不保存本次命中了谁，也不包含具体招式名称。
+- 脚本职责：嵌入 Stage 的单个命中窗口配置，保存 Window ID、`Box` / `Circle` 查询几何和一组命中效果资源。首次确认目标时依次 `ApplyEffects()`；窗口关闭、Action 被取消或检测器禁用时，对本窗口实际命中过的上下文调用 `EndEffects()`。
 
 #### `CombatActionDefinition.cs`
 
 - 脚本职责：可被选择的静态 Action ScriptableObject，当前包含入口 `Command`、一个 `Stage`、一条可选 `Transition` 和入口 Condition 列表。`AreEntryConditionsMet()` 要求所有入口条件成立；Definition 只保存静态配置，不保存本次是否已输入、命中或准备切换。
-- 当前资源：BaseAttack01 / 02 / 03、JumpAttack01 / 02 与 HeavyAttack。BaseAttack 和 JumpAttack 分别通过资源引用形成派生链；Grounded / Airborne 条件决定同一 Attack Command 的入口候选。
+- 当前资源：BaseAttack01 / 02 / 03、JumpAttack01 / 02、HeavyAttack 与 LauncherAttack。LauncherAttack 使用独立 Command；BaseAttack 和 JumpAttack 分别通过资源引用形成派生链，Grounded / Airborne 条件决定同一普通攻击 Command 的入口候选。
 
 #### `CombatActionTransition.cs`
 
 - 脚本职责：描述当前 Action 接受哪个 `CombatActionCommandKey`、派生必须满足的 Condition 列表，以及成功时准备哪个目标 `CombatActionDefinition`。窗口是否开放、请求是否有效和何时真正切换由运行时 Controller 判断，不写入这份静态配置。
 - 当前条件派生：BaseAttack03 的 Transition 引用 `Condition_Base123ConfirmedHits`；BaseAttack01、02、03 都确认命中后才能准备 HeavyAttack。
+
+### Runtime/GamePlay/Combat/Effects
+
+#### `CombatHitEffect.cs` / `CombatHitEffectContext.cs`
+
+- `CombatHitEffect` 是命中效果 ScriptableObject 的抽象入口：`Apply()` 在目标首次被本窗口确认时执行，`End()` 在该命中窗口结束时执行；默认 `End()` 为空，因此瞬时效果无需伪造收尾逻辑。
+- `CombatHitEffectContext` 是只读上下文，明确携带本次效果的 `SourceOwner` 与 `TargetOwner`。效果资源只读取上下文，不把某次命中的运行时对象保存在自身字段中。
+
+#### `CombatLaunchHitEffect.cs`
+
+- 先通过目标的 `CombatEffectReceiver.TryLaunch()` 判断目标能否被挑起；成功后可按资源配置同时设置来源角色的向上速度。LauncherAttack 使用“目标与来源一起上升”，JumpAttack02 使用“只挑起目标”。
+
+#### `CombatMotionPauseHitEffect.cs`
+
+- 可分别暂停来源和目标的 Rigidbody2D 运动；`Apply()` 请求 Receiver 保存并冻结运动，`End()` 在同一命中窗口关闭时恢复。JumpAttack01 当前使用该效果，让双方在剩余命中窗口内停顿，但动画继续播放。
+
+### Runtime/GamePlay/Combat/Receivers
+
+#### `CombatEffectReceiver.cs`
+
+- 挂在能够接收战斗物理效果的 Owner 上，集中处理“是否可被挑起”和“暂停/恢复 Rigidbody2D 运动”。暂停开始时只保存一次速度与重力快照，`FixedUpdate()` 在暂停期间持续把速度压为零，结束时恢复快照；Player 与可受影响的 Enemy 各持有自己的 Receiver，互不共享状态。
 
 ### Runtime/Core
 
@@ -1656,7 +1678,7 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `PlayerCombatHitDetector.cs`
 
 - 脚本职责：Player 侧的 Physics2D 命中候选查询器。仅在 Controller 的 Hit Window 开放时读取当前 Stage 配置，通过 `Visual.TransformPoint(localOffset)` 把局部偏移转换为可自动镜像的世界坐标，再执行 Box 或 Circle 查询。
-- 当前阶段：使用 `Enemy` Layer 过滤候选 Collider，通过 `CombatHurtbox.Owner` 取得战斗身份；同一 Action、同一 Window 内按 Owner 去重，并把首次确认命中交给 Controller 的 Chain Runtime。Gizmo 长期保留用于校准不同 Action 的 Hit Window；正式伤害结算尚未实现。
+- 当前阶段：使用 `Enemy` Layer 过滤候选 Collider，通过 `CombatHurtbox.Owner` 取得战斗身份；同一 Action、同一 Window 内按 Owner 去重，并把首次确认命中交给 Controller 的 Chain Runtime。检测器同时保存本窗口已经应用效果的 Context；窗口关闭、Action 切换或组件禁用时逐一结束效果并清空列表。Gizmo 长期保留用于校准不同 Action 的 Hit Window；正式伤害结算尚未实现。
 
 ### Runtime/GamePlay/Player/PlayerState
 

@@ -123,6 +123,8 @@ public class Player : Entity
         idleState.AddCancelTransition(combatActionState);
         walkState.AddCancelTransition(combatActionState);
         jumpUpState.AddCancelTransition(combatActionState);
+        apexState.AddCancelTransition(combatActionState);
+        fallState.AddCancelTransition(combatActionState);
         runState.AddCancelTransition(combatActionState);
         dashState.AddCancelTransition(combatActionState, 0);
         dashState.AddCancelTransition(jumpStartState, 0);

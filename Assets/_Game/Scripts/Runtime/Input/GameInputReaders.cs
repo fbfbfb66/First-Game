@@ -15,6 +15,7 @@ public class GameInputReader : MonoBehaviour
     public event Action DashPressed;
     public event Action InteractPressed;
     public event Action UseItemPressed;
+    public event Action LauncherAttackPressed;
 
     public event Action PausePressed;
     public event Action OpenInventoryPressed;
@@ -103,6 +104,7 @@ public class GameInputReader : MonoBehaviour
         inputActions.Player.Dash.performed += ctx => DashPressed?.Invoke();
         inputActions.Player.Interact.performed += ctx => InteractPressed?.Invoke();
         inputActions.Player.UseItem.performed += ctx => UseItemPressed?.Invoke();
+        inputActions.Player.LauncherAttack.performed += ctx => LauncherAttackPressed?.Invoke();
     }
 
     private void BindGameInput()
