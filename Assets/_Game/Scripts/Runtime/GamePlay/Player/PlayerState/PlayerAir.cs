@@ -21,8 +21,7 @@ public class PlayerAir : PlayerState
 
         if (TryHandleLanding())
         {
-            player.ResetDoubleJump();
-            player.RequestDash();
+            player.RestoreAirborneResources();
             return;
         }
 

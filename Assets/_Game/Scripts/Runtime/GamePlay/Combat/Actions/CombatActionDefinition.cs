@@ -4,13 +4,13 @@ public sealed class CombatActionDefinition : ScriptableObject
 {
     [SerializeField] private CombatActionCommandKey command;
     [SerializeField] private CombatActionStage stage;
-    [SerializeField] private CombatActionTransition transition;
+    [SerializeField] private CombatActionTransition[] transitions;
     [SerializeField] private CombatActionCondition[] entryConditions;
 
 
     public CombatActionCommandKey Command => command;
     public CombatActionStage Stage => stage;
-    public CombatActionTransition Transition => transition;
+    public CombatActionTransition[] Transitions => transitions;
 
     public bool AreEntryConditionsMet(in CombatActionContext context)
     {

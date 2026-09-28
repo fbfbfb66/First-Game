@@ -11,8 +11,7 @@ public class Player_WallSlide : PlayerAir
     public override void Enter()
     {
         base.Enter();
-        player.ResetDoubleJump();
-        player.RequestDash();
+        player.RestoreAirborneResources();
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
         movement.SetRigibodyVelocity(new Vector2(0,player.playerBaseConfig.WallSlideSlowSpeed));

@@ -15,6 +15,25 @@ public class PlayerAnimationTrigger : MonoBehaviour
             player = GetComponentInParent<Player>();
     }
 
+    public void CommitAutomaticCombatTransitionOpened(AnimationEvent animationEvent)
+    {
+        if (combatActionController == null)
+        {
+            Debug.LogWarning("Missed PlayerCombatActionController");
+            return;
+        }
+        combatActionController.NotifyAutomaticTransitionOpend(animationEvent.animatorStateInfo.shortNameHash);
+    }
+    public void CommitAutomaticCombatTransitionClosed(AnimationEvent animationEvent)
+    {
+        if (combatActionController == null)
+        {
+            Debug.LogWarning("Missed PlayerCombatActionController");
+            return;
+        }
+        combatActionController.NotifyAutomaticTransitionClosed(animationEvent.animatorStateInfo.shortNameHash);
+    }
+
     public void OpenStateCancelWindow(AnimationEvent animationEvent)
     {
         if(player == null)
@@ -89,7 +108,7 @@ public class PlayerAnimationTrigger : MonoBehaviour
             Debug.LogWarning("Missed PlayerCombatActionController");
             return;
         }
-        combatActionController.NotifyTransitionCommitRequested(
+        combatActionController.NotifyTransitionCommitOpened(
             animationEvent.animatorStateInfo.shortNameHash);
     }
 

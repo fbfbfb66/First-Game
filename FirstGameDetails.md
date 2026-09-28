@@ -194,18 +194,18 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Tool/GroundSensor.cs`
 
-- 脚本职责：用角色左右脚位置的两条 2D 射线检测角色是否接触地面，并记录最近一次接地时间，支持当前接地与 Coyote Time 查询。
+- 脚本职责：用角色脚底左、中、右三条 2D 射线检测角色与地面的接触程度，并记录最近一次接地时间，支持当前接地、稳定落地与 Coyote Time 查询。
 - 关键字段：
-  - `point`、`point2`：左右两条射线的发射点。
+  - `point`、`pointCenter`、`point2`：左、中、右三条射线的发射点。
   - `whatIsGround`：地面 LayerMask。
   - `distance`：检测距离。
   - `lastGroundedTime`：最近一次检测到接地时的 `Time.time`；初始为负无穷，避免游戏开始时误判宽限窗口。
-  - `IsGrounded`：任一脚部射线命中时为 `true`，供地面状态判断是否已经离开支撑面，并用于刷新 Coyote Time。
-  - `CanEnterGrounded`：两条脚部射线都命中时为 `true`，供空中状态决定是否允许进入地面状态，避免贴墙时单侧射线误判落地。
+  - `IsGrounded`：任意一条脚部射线命中时为 `true`，供地面状态判断是否仍接触支撑面，并用于刷新 Coyote Time。
+  - `CanEnterGrounded`：至少两条脚部射线命中时为 `true`，供空中状态和 Grounded Action Condition 判断是否形成足够稳定的落地接触。
 - 函数：
   - `UpdateGroundState()`：由玩家状态逻辑主动刷新 `IsGrounded` 与 `CanEnterGrounded`；任一射线命中地面层时同时刷新 `lastGroundedTime`。
   - `WasGroundedWithin(float duration)`：判断距离最后一次接地是否仍在指定时间窗口内。
-  - `OnDrawGizmos()`：在 Scene 视图中绘制两条检测射线，方便调试检测距离。
+  - `OnDrawGizmos()`：在 Scene 视图中绘制三条检测射线；绿色表示命中，红色表示未命中，并在命中点绘制圆圈。
 - 关联：`PlayerState.LogicalUpdate()` 统一刷新检测结果；`PlayerGround`、`PlayerAir` 等状态读取当前接地，`Player_Fall` 结合最近接地时间判断 Coyote Time。
 
 #### `Assets/_Game/Scripts/Tool/WallSensor.cs`
@@ -604,12 +604,13 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `CombatActionContext.cs`
 
-- 脚本职责：一次 Action 入口或派生判断使用的只读事实快照。当前携带 `IsGrounded`，并通过只读查询接口暴露本轮连招中指定 Action 是否确认命中；Condition 不直接持有或修改 Controller。
+- 脚本职责：一次 Action 入口或派生判断使用的只读事实快照。当前携带 GroundSensor 的 `IsGrounded`、`CanEnterGrounded` 与 `GroundProbePosition`，并通过只读查询接口暴露本轮连招中指定 Action 是否确认命中、落地后是否已使用；Condition 不直接持有或修改 Controller。
 
 #### `CombatActionCondition.cs`
 
 - 脚本职责：所有 Action 条件资源的抽象基类，通过 `IsMet(in CombatActionContext context)` 读取上下文并返回 true / false，不播放动画、不切换状态、不消费输入。
-- 当前实现：`CombatActionGroundedCondition` 用同一脚本表达 Grounded / Airborne；`CombatActionRequiredHitsCondition` 检查配置的每个 Action 是否至少确认命中过一个有效 Owner。
+- 当前实现：`CombatActionGroundedCondition` 要求 `CanEnterGrounded`，即三条地面射线至少两条命中；`CombatActionAirborneCondition` 要求 `IsGrounded == false`，即三条射线全部未命中。单条命中的平台边缘区既不算稳定落地，也不算完全腾空。`CombatActionGroundClearanceCondition` 从 Context 的检测位置竖直向下 Raycast，要求配置距离内不存在 Ground / Wall；`CombatActionRequiredHitsCondition` 检查配置的每个 Action 是否至少确认命中过一个有效 Owner；`CombatActionNotUsedCondition` 限制同一落地周期内重复进入指定 Action。
+- `CombatActionGroundClearanceGizmo` 挂在 GroundSensor 上并读取同一 Clearance Condition 资源；Scene Gizmos 用绿色射线表示空间足够、红色射线和命中圆表示距离内检测到地面，保证可视化与实际判断共用同一套参数和 Raycast。
 
 #### `CombatActionChainRuntime.cs`
 
@@ -629,13 +630,14 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `CombatActionDefinition.cs`
 
-- 脚本职责：可被选择的静态 Action ScriptableObject，当前包含入口 `Command`、一个 `Stage`、一条可选 `Transition` 和入口 Condition 列表。`AreEntryConditionsMet()` 要求所有入口条件成立；Definition 只保存静态配置，不保存本次是否已输入、命中或准备切换。
-- 当前资源：BaseAttack01 / 02 / 03、JumpAttack01 / 02、HeavyAttack 与 LauncherAttack。LauncherAttack 使用独立 Command；BaseAttack 和 JumpAttack 分别通过资源引用形成派生链，Grounded / Airborne 条件决定同一普通攻击 Command 的入口候选。
+- 脚本职责：可被选择的静态 Action ScriptableObject，当前包含入口 `Command`、一个 `Stage`、有序 `Transitions` 数组和入口 Condition 列表。`AreEntryConditionsMet()` 要求所有入口条件成立；Definition 只保存静态配置，不保存本次是否已输入、命中或准备切换。
+- 当前资源：BaseAttack01 / 02 / 03、JumpAttack01 / 02、HeavyAttack、LauncherAttack 与 Dive Start / Loop / Land。LauncherAttack 和 Dive 使用独立 Command；有序 Transition 允许同一 Action 按条件选择不同目标。
 
 #### `CombatActionTransition.cs`
 
 - 脚本职责：描述当前 Action 接受哪个 `CombatActionCommandKey`、派生必须满足的 Condition 列表，以及成功时准备哪个目标 `CombatActionDefinition`。窗口是否开放、请求是否有效和何时真正切换由运行时 Controller 判断，不写入这份静态配置。
 - 当前条件派生：BaseAttack03 的 Transition 引用 `Condition_Base123ConfirmedHits`；BaseAttack01、02、03 都确认命中后才能准备 HeavyAttack。
+- Dive 分支：Start 优先在真正落地时进入 Land；仍在空中且 `Condition_DiveLoopGroundClearance` 确认下方至少有 5 个世界单位空间时才进入 Loop。空间不足时 Start 的自动转换窗口继续逐帧判断，直到落地后直接进入 Land。
 
 ### Runtime/GamePlay/Combat/Effects
 
@@ -1646,7 +1648,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `Awake()`：调用 `Entity.Awake()` 创建状态机，并实例化所有状态。
   - `Start()`：初始化默认状态。
   - `Update()`：驱动当前 FSM 状态逻辑更新，再尝试把缓冲的战斗 Request 准备为 Action 并进入通用 Combat State。
-  - `CreateCombatActionContext()`：从 GroundSensor 与 Controller 的 Chain Runtime 组装本帧只读上下文，供入口和派生条件读取。
+  - `CreateCombatActionContext()`：从 GroundSensor 取得接地事实与射线检测位置，并与 Controller 的 Chain / Usage Runtime 组装本帧只读上下文，供入口和派生条件读取。
   - `TryEnterCombatAction()`：连接 Action Controller 与 Player FSM；用 Context 选择入口候选，FSM Cancel 转换允许后消费对应 Request，再 `BeginAction()` 并切换到 `Player_CombatActionState`。
   - `FixedUpdate()`：驱动状态机物理更新。
 - 关联：继承 `Entity`；把配置、输入、移动、交互、地面检测、动画触发器整合给各个 `PlayerState`。
@@ -1660,12 +1662,14 @@ Canvas_Inventory (Screen Space - Overlay)
 - `TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)`：按 Inspector 顺序执行“Command 匹配 → Stage 有效 → 所有入口 Condition 成立”，返回第一条合法入口；不消费仍可能等待 FSM 窗口的 Request。
 - `TryConsumeBufferedRequest(CombatActionCommandKey expectedCommand)`：FSM 已允许控制权转换后，校验并消费与候选 Action 对应的 Request。
 - `TryQueueTransition(in CombatActionContext context)`：仅在请求仍有效、派生窗口开放、Command 匹配、Transition Conditions 和目标 Action 入口 Conditions 都成立时消费 Request，并把目标 Action 保存为 Pending；不会在输入发生的帧立即切动画。
+- `TryQueueAutomaticTransition(in CombatActionContext context)`：自动转换窗口开放期间每帧按数组顺序检查无 Command 的 Transition；第一条同时满足自身 Conditions 与目标入口 Conditions 的分支会立即准备并提交。
 - `TryCommitTransition(out CombatActionDefinition targetAction)`：消费动画 Commit 信号；存在 Pending Transition 时输出目标 Action，否则不切换。
 - `BeginAction(CombatActionDefinition action)`：记录 `CurrentAction`，并重置上一 Action 的窗口、Pending、Commit 与 Stage 完成状态；只有从非 Action 状态开始一条新链时才清空 Chain Runtime，派生之间保留命中事实。
 - `NotifyHitConfirmed(GameObject targetOwner)`：把当前 Action 与 Hurtbox 声明的战斗 Owner 交给 Chain Runtime 去重记录。
 - `Notify...(..., int sourceStateHash)`：所有 Hit、Cancel、Transition 与 Stage 完成信号先通过 `IsSignalFromCurrentAction()` 比较来源 Animator State Hash；迟到的旧动画信号被忽略。
 - `NotifyTransitionWindowOpened(...)` / `NotifyTransitionWindowClosed(...)`：来源校验通过后修改派生输入窗口。
-- `NotifyTransitionCommitRequested(...)`：来源校验通过后接收固定衔接帧，关闭输入窗口并等待 Combat State 执行切换。
+- `NotifyTransitionCommitOpened(...)`：来源校验通过后接收固定衔接帧，关闭输入窗口并等待 Combat State 执行切换。
+- `NotifyAutomaticTransitionOpend(...)` / `NotifyAutomaticTransitionClosed(...)`：控制逐帧检查无输入 Transition 的自动转换窗口；开始新 Action 时窗口自动重置。
 - `NotifyHitWindowOpened(...)` / `NotifyHitWindowClosed(...)`：来源校验通过后验证当前 Stage 的 Window ID，并记录或清除当前活动命中窗口。
 - `NotifyStageFinished(...)`：只接受当前 Action Animator State 发出的 Stage 完成事实。
 - `TryCompleteAction()`：单 Stage Action 收到完成信号后清理当前 Action；当前规则会丢弃 Action 生命周期内未形成合法派生的剩余 Request，再让 Combat State 归还 FSM 控制权。

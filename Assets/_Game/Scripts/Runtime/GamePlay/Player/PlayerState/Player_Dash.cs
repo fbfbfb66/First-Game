@@ -37,7 +37,7 @@ public class Player_Dash : PlayerState
             if (groundSensor.CanEnterGrounded)
             {
                 ChangeStateToMoveState();
-                player.ResetDoubleJump();
+                player.RestoreAirborneResources();
                 return;
             }
 
@@ -59,8 +59,6 @@ public class Player_Dash : PlayerState
     {
         base.Exit();
         movement.Rb.gravityScale = originalGravity;
-        if (groundSensor.CanEnterGrounded)
-            player.RequestDash();
     }
 
     private bool TryCancelToJump()

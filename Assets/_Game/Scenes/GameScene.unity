@@ -608,7 +608,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
   body: {fileID: 65120124}
   canBeLaunched: 1
@@ -659,7 +659,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -811,6 +811,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f626a3cc0554e9249b370f52b9a6431a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputRouter
+  diveAttackCommand: {fileID: 11400000, guid: 243ce5f31d9a0ba49a877bb9b84946fa, type: 2}
   attackCommand: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
   dashCommand: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
   launcherAttackCommand: {fileID: 11400000, guid: 47fbdfd815453804ba67f0bf60d7e60d, type: 2}
@@ -2509,6 +2510,7 @@ GameObject:
   m_Component:
   - component: {fileID: 436329358}
   - component: {fileID: 436329359}
+  - component: {fileID: 436329360}
   m_Layer: 0
   m_Name: GroundSensor
   m_TagString: Untagged
@@ -2531,6 +2533,7 @@ Transform:
   m_Children:
   - {fileID: 861526115}
   - {fileID: 463243746}
+  - {fileID: 1309058574}
   m_Father: {fileID: 2075136166}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &436329359
@@ -2546,11 +2549,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GroundSensor
   point: {fileID: 861526115}
+  pointCenter: {fileID: 1309058574}
   point2: {fileID: 463243746}
   whatIsGround:
     serializedVersion: 2
     m_Bits: 1152
   distance: 1.56
+--- !u!114 &436329360
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 436329357}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ec9622611c9fe94fb36e75ff56ebd7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActionGroundClearanceGizmo
+  condition: {fileID: 11400000, guid: c05730d3f3e21b1439532cbf75e7e97c, type: 2}
 --- !u!1 &440401209
 GameObject:
   m_ObjectHideFlags: 0
@@ -2969,7 +2986,7 @@ Transform:
   m_GameObject: {fileID: 463243745}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.426, y: 0, z: 0}
+  m_LocalPosition: {x: -0.42, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5130,7 +5147,7 @@ Transform:
   m_GameObject: {fileID: 861526114}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.678, y: 0, z: 0}
+  m_LocalPosition: {x: 0.69, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7136,6 +7153,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1309058573
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1309058574}
+  m_Layer: 0
+  m_Name: pointCenter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1309058574
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1309058573}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.135, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 436329358}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1309188557
 GameObject:
@@ -11387,6 +11435,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ad24428fd1949f240a62995379427803, type: 2}
   - {fileID: 11400000, guid: 480a310550fc6c34e9ff99139735757d, type: 2}
   - {fileID: 11400000, guid: 435b0d0846158594d871a615af8b6636, type: 2}
+  - {fileID: 11400000, guid: 621171206551c9b4d916c859e35107be, type: 2}
   config: {fileID: 11400000, guid: d3f42bb2eaf94d147acadae16becfc61, type: 2}
 --- !u!114 &2075136176
 MonoBehaviour:
@@ -11401,8 +11450,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatHitDetector
   shape: 0
-  localOffset: {x: 1.75, y: 0.8}
-  boxSize: {x: 2.17, y: 3.46}
+  localOffset: {x: 0.24, y: 0.86}
+  boxSize: {x: 1.48, y: 6.75}
   circleRadius: 2.57
   actionController: {fileID: 2075136175}
   hitboxRoot: {fileID: 366906409}
@@ -11419,7 +11468,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
   body: {fileID: 2075136168}
   canBeLaunched: 1

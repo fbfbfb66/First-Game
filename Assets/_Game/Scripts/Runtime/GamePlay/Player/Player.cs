@@ -149,7 +149,12 @@ public class Player : Entity
 
     public CombatActionContext CreateCombatActionContext()
     {
-        CombatActionContext context = new CombatActionContext(groundSensor.IsGrounded,combatActionController.ChainRuntime);
+        CombatActionContext context = new CombatActionContext(
+            groundSensor.IsGrounded,
+            groundSensor.CanEnterGrounded,
+            groundSensor.transform.position,
+            combatActionController.ChainRuntime,
+            combatActionController.UsageRuntime);
         return context;
     }
 
@@ -163,6 +168,13 @@ public class Player : Entity
 
         combatActionController.BeginAction(action);
         stateMachine.TryChangeState(combatActionState, StateTransitionKind.Cancel);
+    }
+
+    public void RestoreAirborneResources()
+    {
+        ResetDoubleJump();
+        RequestDash();
+        combatActionController.ClearActionUsage();
     }
 
     public void NotifyStateCancelWindowOpened(int windowId, int sourceStateHash)

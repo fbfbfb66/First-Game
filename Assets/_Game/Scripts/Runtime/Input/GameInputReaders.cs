@@ -12,6 +12,7 @@ public class GameInputReader : MonoBehaviour
     public event Action<Vector2> MoveChanged;
     public event Action JumpPressed;
     public event Action AttackPressed;
+    public event Action DiveAttackHeld;
     public event Action DashPressed;
     public event Action InteractPressed;
     public event Action UseItemPressed;
@@ -105,6 +106,7 @@ public class GameInputReader : MonoBehaviour
         inputActions.Player.Interact.performed += ctx => InteractPressed?.Invoke();
         inputActions.Player.UseItem.performed += ctx => UseItemPressed?.Invoke();
         inputActions.Player.LauncherAttack.performed += ctx => LauncherAttackPressed?.Invoke();
+        inputActions.Player.DiveAttack.performed += ctx => DiveAttackHeld?.Invoke();
     }
 
     private void BindGameInput()

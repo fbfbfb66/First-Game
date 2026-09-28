@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class InputRouter : MonoBehaviour
 {
+    [SerializeField] private CombatActionCommandKey diveAttackCommand;
     [SerializeField] private CombatActionCommandKey attackCommand;
     [SerializeField] private CombatActionCommandKey dashCommand;
     [SerializeField] private CombatActionCommandKey launcherAttackCommand;
@@ -65,6 +66,7 @@ public class InputRouter : MonoBehaviour
         inputReader.InteractPressed += OnInteractPressed;
         inputReader.UseItemPressed += OnUseItemPressed;
         inputReader.LauncherAttackPressed += OnLauncherAttackPressed;
+        inputReader.DiveAttackHeld += OnDiveAttackHeld;
 
         inputReader.PausePressed += OnPausePressed;
         inputReader.OpenInventoryPressed += OnOpenInventoryPressed;
@@ -88,6 +90,7 @@ public class InputRouter : MonoBehaviour
         inputReader.InteractPressed -= OnInteractPressed;
         inputReader.UseItemPressed -= OnUseItemPressed;
         inputReader.LauncherAttackPressed -= OnLauncherAttackPressed;
+        inputReader.DiveAttackHeld -= OnDiveAttackHeld;
 
         inputReader.PausePressed -= OnPausePressed;
         inputReader.OpenInventoryPressed -= OnOpenInventoryPressed;
@@ -97,6 +100,26 @@ public class InputRouter : MonoBehaviour
         inputReader.UISubmitPressed -= OnUISubmitPressed;
         inputReader.UICancelPressed -= OnUICancelPressed;
         inputReader.UIRotateItemPressed -= OnUIRotateItemPressed;
+    }
+
+    private void OnDiveAttackHeld()
+    {
+        if(playerCombatActionController == null)
+        {
+            Debug.LogWarning("Missed playerCombatActionController");
+            return;
+        }
+
+        if (!IsCurrentLayer(GameLayerType.Gameplay))
+        {
+            return;
+        }
+
+        if (!playerControlArbitration.CanAttack)
+        {
+            return;
+        }
+        playerCombatActionController.RequestAction(diveAttackCommand);
     }
 
     private void OnLauncherAttackPressed()
@@ -116,6 +139,7 @@ public class InputRouter : MonoBehaviour
         {
             return;
         }
+
         playerCombatActionController.RequestAction(launcherAttackCommand);
     }
 

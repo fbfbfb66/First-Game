@@ -10,34 +10,34 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e7b60ab41c273a4ebb39c40054bd21d, type: 3}
-  m_Name: Action_JumpAttack_01_Normal
+  m_Name: Action_DiveStart_Normal
   m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
-  command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
+  command: {fileID: 11400000, guid: 243ce5f31d9a0ba49a877bb9b84946fa, type: 2}
   stage:
-    animatorStateName: JumpAttack_01_Normal
+    animatorStateName: DiveAttack_Start_Normal
     entryVelocityRule:
-      overrideHorizontal: 0
+      overrideHorizontal: 1
       localHorizontalVelocity: 0
       overrideVertical: 0
       verticalVelocity: 0
     horizontalDeceleration: 0
-    cancelWindows:
-    - windowId: 0
-      allowedCommands:
-      - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
+    cancelWindows: []
     hitWindows:
-    - effects:
-      - {fileID: 11400000, guid: 1309ed52897919b4088e608fb0333c59, type: 2}
+    - effects: []
       windowId: 0
       shape: 0
-      localOffset: {x: 1.11, y: -0.24}
-      boxSize: {x: 3.45, y: 1.31}
+      localOffset: {x: 0.23, y: 0.29}
+      boxSize: {x: 1.77, y: 2.79}
       circleRadius: 0
   transitions:
   - conditions:
+    - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}
+    command: {fileID: 0}
+    targetAction: {fileID: 11400000, guid: 7a36f4b6c05ca3f40b4c7442d24f2eb3, type: 2}
+  - conditions:
     - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}
-    command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
-    targetAction: {fileID: 11400000, guid: 87a7d915b7b6b164b838fc69c72fb4e9, type: 2}
+    - {fileID: 11400000, guid: c05730d3f3e21b1439532cbf75e7e97c, type: 2}
+    command: {fileID: 0}
+    targetAction: {fileID: 11400000, guid: a5e9644271aaff640a44d800d5199115, type: 2}
   entryConditions:
   - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}
-  - {fileID: 11400000, guid: d4842590d18f34d42a796954a77e655a, type: 2}

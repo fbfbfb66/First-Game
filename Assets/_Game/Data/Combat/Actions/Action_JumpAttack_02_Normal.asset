@@ -33,9 +33,10 @@ MonoBehaviour:
       localOffset: {x: 1.91, y: 0.68}
       boxSize: {x: 2.17, y: 2.95}
       circleRadius: 0
-  transition:
-    conditions: []
-    command: {fileID: 0}
-    targetAction: {fileID: 0}
+  transitions:
+  - conditions:
+    - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}
+    command: {fileID: 11400000, guid: 243ce5f31d9a0ba49a877bb9b84946fa, type: 2}
+    targetAction: {fileID: 11400000, guid: 621171206551c9b4d916c859e35107be, type: 2}
   entryConditions:
   - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}

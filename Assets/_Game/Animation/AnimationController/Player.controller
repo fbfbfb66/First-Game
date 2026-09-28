@@ -775,7 +775,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: DiveAttack_Loop
+  m_Name: DiveAttack_Loop_Normal
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions: []
@@ -905,7 +905,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: DiveAttack_Land
+  m_Name: DiveAttack_Land_Normal
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions: []

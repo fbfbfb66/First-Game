@@ -20,7 +20,8 @@ public sealed class Player_CombatActionState : PlayerState
         if (TryHandleCancel()) return;
 
         CombatActionContext context = player.CreateCombatActionContext();
-        actionController.TryQueueTransition(context);
+        actionController.TryQueueTransition(in context);
+        actionController.TryQueueAutomaticTransition(in context);
         if (actionController.TryCommitTransition(out var targetAction))
         {
             actionController.BeginAction(targetAction);
@@ -80,7 +81,7 @@ public sealed class Player_CombatActionState : PlayerState
         if (groundSensor.CanEnterGrounded)
         {
             ChangeStateToMoveState();
-            return;
+            player.RestoreAirborneResources();
         }
         else
         {
