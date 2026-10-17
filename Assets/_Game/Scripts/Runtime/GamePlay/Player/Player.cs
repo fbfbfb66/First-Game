@@ -4,6 +4,9 @@ public class Player : Entity
 {
     private bool canDoubleJump = true;
     private bool canDash = true;
+    
+    [SerializeField] private PlayerSkills  playerSkills;
+    [SerializeField] private SkillData doubleJumpSkill;
 
     [Header("Data")]
     public PlayerBaseConfig playerBaseConfig;
@@ -70,6 +73,17 @@ public class Player : Entity
 
     public bool TryConsumeDoubleJump()
     {
+        if (doubleJumpSkill == null)
+        {
+            Debug.LogWarning("DoubleJumpSkill is null");
+            return false;
+        }
+
+        if (playerSkills.IsUnlocked(doubleJumpSkill) == false)
+        {
+            return false;
+        }
+        
         if (!canDoubleJump)
         {
             return false;

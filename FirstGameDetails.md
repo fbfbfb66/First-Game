@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-09-04。
+最后更新时间：2026-10-17。
 
 ## 1. 项目概览
 
@@ -1636,6 +1636,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：玩家实体入口，创建和驱动所有玩家状态。
 - 关键字段/属性：
   - `playerBaseConfig`：玩家参数。
+  - `playerSkills`、`doubleJumpSkill`：玩家技能集合与二段跳技能资源，由 Inspector 引用；当前已保存的 GameScene 和 Prefab 尚未配置这两个字段。
   - `playerMovement`、`playerInputReceiver`、`playerAnimationTrigger`、`interaction`、`timeTool`、`groundSensor`、`wallSensor`、`combatActionController`：玩家子系统引用。
   - `idleState`、`walkState`、`runState`、`runTurnState`、`runEndState`、`jumpStartState`、`jumpUpState`、`apexState`、`fallState`、`doubleJumpState`、`rollingLandState`、`wallSlideState`、`wallJumpState`、`dashState`、`combatActionState`：所有玩家状态实例。
   - `CanDoubleJump`：当前这一轮滞空是否还保留一次二段跳机会；初始可用并由 `Player` 持有，使额度可以跨越 JumpUp、Apex 与 Fall 状态。
@@ -1644,7 +1645,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `RequestDash()`：恢复一次冲刺机会；当前在成功落地和进入墙滑时调用。
   - `TryConsumeDash()`：原子检查并消耗冲刺机会；成功返回 `true`，已经使用时返回 `false`。
   - `ResetDoubleJump()`：恢复一次二段跳机会；`PlayerAir` 确认成功处理落地后统一调用，因此落到 Idle、Walk、Run 或 RollingLand 都不会遗漏。
-  - `TryConsumeDoubleJump()`：原子检查并消耗二段跳机会；成功返回 `true`，已经使用时返回 `false`。
+  - `TryConsumeDoubleJump()`：先检查二段跳技能资源及解锁状态，再检查并消耗本轮滞空额度；技能资源为空时警告并返回 `false`，未解锁或额度已用时返回 `false`。当前未对 `playerSkills` 空引用作保护。
   - `Awake()`：调用 `Entity.Awake()` 创建状态机，并实例化所有状态。
   - `Start()`：初始化默认状态。
   - `Update()`：驱动当前 FSM 状态逻辑更新，再尝试把缓冲的战斗 Request 准备为 Action 并进入通用 Combat State。
@@ -1652,6 +1653,13 @@ Canvas_Inventory (Screen Space - Overlay)
   - `TryEnterCombatAction()`：连接 Action Controller 与 Player FSM；用 Context 选择入口候选，FSM Cancel 转换允许后消费对应 Request，再 `BeginAction()` 并切换到 `Player_CombatActionState`。
   - `FixedUpdate()`：驱动状态机物理更新。
 - 关联：继承 `Entity`；把配置、输入、移动、交互、地面检测、动画触发器整合给各个 `PlayerState`。
+
+### Runtime/Systems/SkillSystem
+
+- `SkillData.cs`：技能静态配置，继承 `ScriptableObject`，只读属性 `DisplayName` 暴露显示名；创建菜单为 `Game/Skills/Skill`。
+- `PlayerSkills.cs`：通过运行时 `HashSet<SkillData>` 持有已解锁技能。`IsUnlocked(SkillData skill)` 检查资源是否已解锁；`TryUnlock(SkillData skill)` 尚未实现，调用会抛出 `NotImplementedException`。组件菜单 `Debug/Unlock Skill` 调用 `DebugUnlockSkill()`，将 Inspector 的 `debugSkill` 加入集合并输出显示名；当前未校验该引用，也未接入存档。
+- `Assets/_Game/Data/Skills/Skill_DoubleJump.asset`：二段跳技能资源，当前显示名为空。现有序列化场景和 Prefab 尚未发现技能组件及相关字段配置；后续需完成挂载与引用赋值并在 Play Mode 验证。
+- 当前调用链：空中状态 → `Player.TryConsumeDoubleJump()` → `PlayerSkills.IsUnlocked(doubleJumpSkill)` → 检查并消耗滞空额度 → 进入二段跳状态。
 
 ### Runtime/GamePlay/Player/Combat
 
