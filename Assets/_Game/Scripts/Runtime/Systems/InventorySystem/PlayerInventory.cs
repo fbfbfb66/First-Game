@@ -22,6 +22,21 @@ public class PlayerInventory : MonoBehaviour
     /// </summary>
     private InventoryGrid Grid => grid ??= new InventoryGrid(width, height);
 
+    public bool TryUseItem(InventoryItem item, int amount)
+    {
+        if (item == null || amount <= 0 || amount > item.Amount) return false;
+        if (!Grid.TryGetItemPosition(item, out _, out _)) return false;
+        if (!item.Data.CanBeConsumed) return false;
+        if (item.Data.Effect == null)
+        {
+            Debug.LogWarning($"{name} cannot use {item.Data.DisplayName}: no item effect is configured. Inventory unchanged.", this);
+            return false;
+        }
+        ItemEffectContext context = new ItemEffectContext(gameObject, item.Data);
+        if (!item.Data.Effect.TryApply(context, amount)) return false;
+        return TryRemove(item, amount);
+    }
+
     public bool TryAdd(ItemData data, int amount = 1)
     {
         if (data == null || amount <= 0) return false;

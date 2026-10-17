@@ -158,7 +158,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - `Player` Action Map：移动、跳跃、普通攻击、上挑攻击（`LauncherAttack`，绑定 <Keyboard>/e）、冲刺、交互、使用物品。
 - `Game` Action Map：暂停、打开背包、打开地图。
-- `UI` Action Map：导航、确认、取消、旋转物品（`RotateItem`，绑定 <Keyboard>/r）。`RotateItem` 放在 `UI` 而非 `Player` Map，因为背包打开时 `SetInputMode` 只启用 `UI`，放在别处这个键在背包里就是死的。
+- `UI` Action Map：导航、确认、取消、旋转物品（`RotateItem`，R）、使用所选物品（`UseItem`，F）、丢弃所选物品（`DropItem`，Q）。背包打开时 `SetInputMode` 只启用 `UI`；`Player/UseItem` 的 Q 是独立的 Gameplay 入口。
 
 `GameInputReader.SetInputMode(GameLayerType layerType)` 会按当前游戏层启用对应 Action Map：
 
@@ -255,6 +255,8 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Runtime/UI/InventoryView.cs`
 
+- 背包快捷操作：`UseItem()` 与 `DropItem()` 均要求已选中物品、没有进行拖拽、且选中物品与 `ItemDetailPanel.CurrentItem` 一致。数量来自 `CurrentAmount`。F 调用 `TryUseItem`，Q 复用已有 `DropItem(InventoryItem item, int amount)` → `TryRemove`。数量改变由 `ItemAmountUpdated` 更新显示并将面板数量重置为 1；整件移除由 `ItemRemoved` 清空选中与详情。
+
 - 脚本职责：背包数据层与屏幕像素之间的唯一翻译官。负责「格子坐标 ↔ 屏幕坐标」双向换算，并把 `InventoryItem` 生成为屏幕上的 `ItemView`。
 - 关键字段：
   - `itemLayer`：所有物品显示对象的父节点，同时是坐标换算的参照系与鼠标射线接收区。**其 pivot 必须为 (0, 1)（左上角）**，`TryGetCellAt` 依赖这一前提。
@@ -347,6 +349,9 @@ Canvas_Inventory (Screen Space - Overlay)
 - 关联：挂在 `GameScene` 的 `ItemLayer` 上。
 
 #### `Assets/_Game/Scripts/Runtime/UI/ItemDetailPanel.cs`
+
+- `CurrentItem` / `CurrentAmount`：只读公开当前展示物品与玩家选择的操作数量，供背包快捷使用与丢弃读取。
+- `useItemButton`：引用详情面板中的 `UseButton`。`Show(InventoryItem item)` 每次按 `item.Data.CanBeConsumed` 切换其显隐；当前仅 `Consumable` 分类显示。点击通过 `OnUseButton()` 发出无参数 `UseRequested`，由 `InventoryView` 在启用时订阅、禁用时退订，调用与 F 相同的 `UseItem()`；选中物品和数量由 View 从当前状态读取，最终限制由 `PlayerInventory.TryUseItem` 执行。
 
 - 脚本职责：把「当前选中的物品」显示成右侧那块**常驻**详情面板（图标 / 名字 / 类别 / 描述 / 数量选择 / 丢弃），并把玩家的点击翻译成一次「丢弃请求」。**纯 UI，不认识网格也不认识 `PlayerInventory`**。
 - 存在原因：`InventoryView` 的职责是「格子与物品在网格里的表现」——坐标换算、拖拽、放置预览、高亮，已背着三套状态；详情文字排版与它毫无关系，塞进去只会让它继续膨胀。面板的职责边界是**被动的**：它不决定谁被选中（那是 `InventoryView` 的事），也不负责自己的显隐（面板随 `Canvas_Inventory` 一起开关）；它可以**发出请求**（`DropRequested`），但不执行。
@@ -485,7 +490,25 @@ Canvas_Inventory (Screen Space - Overlay)
   - `TryGetItemPosition(InventoryItem item, out int x, out int y)`：`GetItemAt` 的**反方向**查询——由物品反查它的原点格。行优先扫描，**第一次撞到该引用的那一格必然是它的左上角**（占用区域是矩形），与 `GetPlacedItems` 依赖的是同一个前提，因此无需额外取最小值。存在原因：位置这本账属于 `InventoryGrid`，`InventoryItem` 自身**不知道也不该知道**它在网格的哪里；而 UI 要把选中框画在物品所占的整个矩形上，只有点击格是不够的（点 2×1 物品的右半格时，点击格与原点格差一整格）。
 - 关联：被 `PlayerInventory` 持有。尚未实现堆叠合并、旋转与网格的联动。
 
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemEffect.cs`
+
+- 脚本职责：物品即时效果的抽象 ScriptableObject 基类，不挂载到 GameObject，不负责库存扣除或 UI 刷新。
+- `public abstract bool TryApply(ItemEffectContext context, int amount)`：由具体效果实现。`context` 携带使用者与物品配置，`amount` 表示本次使用数量；返回 true 表示效果成功，库存扣除由调用者负责。`ItemData.Effect` 引用单个效果资源，由 `PlayerInventory.TryUseItem` 调用。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/HealItemEffect.cs`
+
+- 即时回血效果 ScriptableObject；菜单 `Game/Inventory/Heal Item Effect`，`HealAmountPerItem` 为每份物品的恢复量。
+- `bool TryApply(ItemEffectContext context, int amount)`：校验上下文、数量和恢复量，通过 `context.source.TryGetComponent<ItemEffectReceiver>` 找到使用者的接收组件，调用 `TryHeal(HealAmountPerItem * amount, context)`。无接收组件时返回 false，不扣库存。
+- `Assets/_Game/Data/Items/Effects/GreenHerbHeal.asset`：每株 25 HP，被现有 `GreenHerb.asset` 的 `Effect` 引用；草药仍为 1×1、最大堆叠 3。
+
+#### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemEffectReceiver.cs`
+
+- 挂在 `GameScene` 的 `Player`（与 `PlayerInventory` 同对象）上，作为物品效果进入角色运行时系统的入口。
+- `bool TryHeal(float amount, ItemEffectContext context)`：确认使用者为自身且参数有效；当前输出包含角色、物品和恢复量的模拟回血日志并返回 true，尚无生命值数据变化。将来在此接生命组件，效果资源不保存角色生命值。
+
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/PlayerInventory.cs`
+
+- `bool TryUseItem(InventoryItem item, int amount)`：先校验非空、正数量、不超库存、归属本网格、可消耗且配置了 `Effect`，再创建 `ItemEffectContext(gameObject, item.Data)` 并调用 `Effect.TryApply(context, amount)`；只有效果成功才 `TryRemove`。当前适用于不修改背包的同步效果；失败不扣库存。按钮与 F 共用此链路，Q 丢弃保持直接 `TryRemove`，不执行效果。
 
 - 脚本职责：把 `InventoryGrid` 接入游戏运行时。玩家身上的背包组件。
 - 关键字段：
@@ -527,7 +550,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Runtime/GameFlow/GameBootstrap.cs`
 
-- 脚本职责：启动流程入口，确保启动场景中的核心服务存在，并跳转到主菜单。
+- 脚本职责：启动流程入口，持久化 BootScene 中的 GameRoot；正常启动进入主菜单，编辑器快捷启动请求则直接加载 GameScene 并将游戏层设为 Gameplay。
 - 关键字段：
   - `sceneLoader`：启动后加载主菜单。
   - `layerStack`：启动时建立初始层。
@@ -536,9 +559,18 @@ Canvas_Inventory (Screen Space - Overlay)
   - `Start()`：重置当前层并加载主菜单场景。
 - 关联：BootScene 中的启动对象使用它把项目从启动场景导入 `MainMenuScene`。
 
+#### `Assets/_Game/Scripts/Editor/DirectGameScenePlay.cs`
+
+- 编辑器开发开关：`Tools/Game/Direct Play From GameScene`，默认开启，偏好按项目路径保存在 EditorPrefs 中，不影响构建。
+- `OnPlayModeStateChanged(PlayModeStateChange state)`：从 GameScene 开始 Play 时，将本次 Play 起始场景临时设为 BootScene，通过 SessionState 请求 GameBootstrap 跳过主菜单。复用原有输入、游戏层、事件、Flag、任务配置，避免直接运行时缺少常驻服务。
+- 停止 Play 后恢复原先的 `playModeStartScene` 并清理临时请求；Unity 恢复编辑中的 GameScene。从 BootScene 正常启动仍进入主菜单。关闭菜单开关后恢复原行为。
+- 已在 Play Mode 验证：GameScene 直启进入 Gameplay，GameBootstrap 与 GameInputReader 各一份，InputRouter 的关键引用有效，I 打开背包、Escape 返回 Gameplay，停止后恢复 GameScene 与原起始场景设置。
+
 ### Runtime/Input
 
 #### `Assets/_Game/Scripts/Runtime/Input/GameInputReaders.cs`
+
+- 背包 UI 输入：`UI.UseItem.performed` 发出 `UseItemInInventoryPressed`；`UI.DropItem.performed` 发出 `DropItemInInventoryPressed`。按键沿用 Input Actions 资源中的 F/Q 配置。
 
 - 脚本职责：包装 Unity Input System 生成类，把输入回调转换为项目内部事件和输入缓存。
 - 关键字段/事件：
@@ -560,6 +592,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 关联：`InputRouter` 订阅这些事件，并根据 `GameLayerStack.CurrentLayer` 决定分发目标。
 
 #### `Assets/_Game/Scripts/Runtime/Input/InputRouter.cs`
+
+- `OnUsingItemInInventory()` / `OnDropItemInInventory()`：在 `OnEnable` 订阅对应输入事件、`OnDisable` 退订；仅当前层为 `Inventory` 且 `inventoryView` 已赋值时调用其 `UseItem()` / `DropItem()`。选中物品、数量和拖拽判断由 View 承担。
 
 - 脚本职责：输入路由层，把 `GameInputReader` 的原始事件分发到玩家、对话、UI 或系统。
 - 关键字段：
@@ -625,6 +659,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - 脚本职责：Action 内部单个动画阶段的静态序列化数据。当前保存 Animator State、进入速度规则、水平减速度、多个 Cancel Window 与 Hit Window；通过 Window ID 为 Animation Event 查找静态配置，不保存窗口是否打开等运行状态。
 
 #### `CombatHitWindowDefinition.cs`
+
+- `damageMultiplier` / `DamageMultiplier`：每个命中窗口单独配置的伤害倍率，默认 1，Inspector 最小值为 0。PlayerCombatHitDetector 将其用于计算本次攻击伤害。
 
 - 脚本职责：嵌入 Stage 的单个命中窗口配置，保存 Window ID、`Box` / `Circle` 查询几何和一组命中效果资源。首次确认目标时依次 `ApplyEffects()`；窗口关闭、Action 被取消或检测器禁用时，对本窗口实际命中过的上下文调用 `EndEffects()`。
 
@@ -1538,6 +1574,66 @@ Canvas_Inventory (Screen Space - Overlay)
   - `Run`：跑步速度。
 - 关联：`PlayerMovement.GetMoveVelocity()` 根据它返回不同速度。
 
+#### `Assets/_Game/Scripts/Runtime/GamePlay/GameplayCalculator.cs`
+
+- 通用纯计算静态类，不继承 MonoBehaviour，不查找场景对象，不修改角色或 UI；后续其他 Gameplay 数值计算可按实际需求添加。
+- `public static DamageResult CalculateOutgoingDamage(CharacterStats attackerStats, float damageMultiplier)`：正常调用入口，在计算器内部通过 UnityEngine.Random.value 生成暴击抽签值，再委托确定性重载。暴击率本身始终从攻击者 Stats 读取。
+- `public static DamageResult CalculateOutgoingDamage(CharacterStats attackerStats, float damageMultiplier, float criticalRoll)`：保留用于固定抽签值的验证入口，接受 [0,1]；计算基础攻击 × 命中倍率，再按暴击结果乘暴伤总倍率。暴击率限制到 [0,1]，0% 必不暴击、100% 必暴击，攻击不低于 0，暴伤倍率不低于 1；不修改属性。
+- `public static float CalculateIncomingDamage(CharacterStats targetStats, float incomingDamage)`：只读取受击方当前防御，返回 `incomingDamage * 100 / (100 + defense)`；防御小于 0 时按 0 计算，防御 100 时减半，不修改属性或生命值。
+- 非法输入返回零伤害并输出警告。打出伤害由 PlayerCombatHitDetector 调用，承受伤害由 Health.TryTakeDamage 调用；旧 CalculateBaseDamage 已移除。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/IDamageable.cs`
+
+- 统一受伤接口，声明 `bool TryTakeDamage(DamageContext context)`；由攻击入口调用，当前 Health 实现只有实际减少生命值才返回 true。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Health.cs`
+
+- 通用生命组件，实现 `IDamageable`。`Stats` 引用角色已有的 CharacterStats，`CurrentHealth` 为自身持有的当前生命值，初始化后生命值为 0 时 `IsDead` 为 true。
+- 不包含初始化函数；Stats 和 CurrentHealth 提供 protected setter，由具体角色的 Health 子类完成初始化，对外保持只读。
+- `bool CanBeAttacked(GameObject attacker)`：检查攻击者非空、不是自身且其根对象 Layer 属于 acceptedAttackerLayers。字段默认允许全部 Layer，GameScene 的 PlayerHealth 配置为只接受 Enemy Layer。该函数仅判断攻击来源；生命初始化、目标归属和死亡检查仍在 TryTakeDamage 中执行。
+- `bool TryTakeDamage(DamageContext context)`：检查初始化状态、目标归属、死亡与 CanBeAttacked，随后调用 CalculateIncomingDamage 读取自身当前防御，扣除生命值并限制最低为 0。实际生命值减少时输出受击 Debug（双方名字、原始伤害、实际扣血、暴击与生命变化）并返回 true，包括致命伤害；被拒绝或零伤害返回 false，不输出成功受击日志。当前不处理死亡表现、动画、UI 或草药治疗。
+- GameScene 的 Player 挂载其子类 PlayerHealth，继承受伤与死亡判定。PlayerCombatHitDetector 通过 IDamageable 调用该接口；其他目标也必须实现接口并完成初始化。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Enemy/Enemy.cs`
+
+- 当前敌人实体入口，MonoBehaviour，不添加 AI 或状态机行为。RequireComponent 声明 EnemyHealth 依赖；`Awake()` 从 characterStatsData 创建独立 CharacterStats，再把同一实例传给 EnemyHealth.Initialize。通过 Stats 和 Health 只读属性访问运行时数据。
+- GameScene 已有 Enemy 和 Enemy (1) 使用 `Assets/_Game/Data/Character/EnemyStats.asset`，每个敌人在 Awake 各自创建独立属性；与玩家资源及运行时属性分离。保留 Enemy 的 Enemy Layer 与 Enemy (1) 的 Player Layer，不改变原有敌我过滤测试设置。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Enemy/EnemyHealth.cs`
+
+- 继承 Health，通过 `void Initialize(CharacterStats stats)` 设置运行时属性和初始满血；拒绝空配置、非正最大生命值和重复初始化。复用基类受伤、攻击者检查、Debug 和死亡判定。
+- GameScene 中 EnemyHealth 仅接受 Player Layer 攻击，CombatHurtbox.Owner 指向对应根对象。Play Mode 已验证两个敌人初始化满血且 Stats 独立；实际 Enemy 经玩家 HeavyAttack 物理检测受伤 100 -> 80，同窗口重复查询不重复扣血，成功受击输出 Health Debug。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerHealth.cs`
+
+- 玩家生命组件，继承 Health。`void Initialize(CharacterStats stats)` 从 Player 创建的同一份运行时属性设置 Stats 和初始满血；拒绝空属性、非正最大生命值和重复初始化。
+- 由 Player.Awake 在创建 CharacterStats 后显式调用，不使用独立 Awake 读取 Player.Stats，避免跨组件生命周期顺序问题。GameScene 中原 Health 组件已原位迁移为 PlayerHealth，保持组件引用与序列化生命字段。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/DamageContext.cs`
+
+- 不可变伤害上下文 `readonly struct`，构造函数 `DamageContext(GameObject attacker, GameObject target, DamageResult damage)` 保存攻击者根对象、受击者根对象和攻击方计算出的减伤前结果。
+- 只读属性 Attacker、Target、Damage；保留伤害数值和暴击标记，不计算、不扣血。PlayerCombatHitDetector 创建后传入目标的 TryTakeDamage。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/DamageResult.cs`
+
+- 不可变伤害结果，`Damage` 为攻击方打出的减伤前伤害，`IsCritical` 标记是否暴击。由打出伤害计算返回；之后调用方将 Damage 交给目标的承伤计算，并可保留暴击标记用于表现。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Stat.cs`
+
+- 单项运行时属性的纯逻辑类；`Stat(float baseValue)` 保存不可变的有限基础值，`FlatBonus` 为累计固定加成，`Value` 为两者之和。
+- `void AddFlatBonus(float amount)` / `void RemoveFlatBonus(float amount)`：增加或撤销相同的有符号数值，拒绝非有限结果并保留原值。当前由调用方记住自己的贡献，不跟踪来源，不支持百分比加成，也不统一限制各属性的取值范围。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/CharacterStats.cs`
+
+- 角色独立持有的运行时属性纯逻辑集合。构造函数 `CharacterStats(CharacterStatsData data)` 校验配置非空，并为六项配置分别创建新的 `Stat`；不同角色不会共享可变属性，配置资源不会被修改。
+- 暴露 `MaxHealth`、`BaseAttack`、`CriticalChance`、`CriticalDamageMultiplier`、`Defense`、`BaseMana` 六个只读 Stat 引用。由 `Player.Awake()` 创建、通过 `Player.Stats` 读取，不包含当前生命值或当前法力值。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/CharacterStatsData.cs`
+
+- 角色基础数值 ScriptableObject，仅配置六个 float 字段并提供只读属性：`MaxHealth`、`BaseAttack`、`CriticalChance`、`CriticalDamageMultiplier`、`Defense`、`BaseMana`。
+- 暴击率以 0–1 表示，默认 0.05；暴击伤害为总伤害倍率，默认 1.5（150% 伤害）。默认最大生命值 100、基础攻击 10、防御 0、基础法力值 100。
+- 创建菜单 `Game/Character/Character Stats Data`；默认玩家资源为 `Assets/_Game/Data/Character/PlayerStats.asset`，由 GameScene 中 Player 的 `characterStatsData` 引用。
+
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerBaseConfig.cs`
 
 - 脚本职责：玩家基础参数配置资源。
@@ -1634,6 +1730,7 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/Player.cs`
 
 - 脚本职责：玩家实体入口，创建和驱动所有玩家状态。
+- `characterStatsData` 为基础属性配置；CharacterStats Stats 暴露该角色独立的运行时属性。Awake 在 base.Awake 后创建实例，并将同一实例传给 PlayerHealth.Initialize(Stats)；PlayerHealth Health 属性暴露同对象的玩家生命组件，RequireComponent 声明 PlayerHealth 依赖。缺配置时输出警告，保持 Stats 为空且 PlayerHealth 未初始化，继续原有状态初始化。
 - 关键字段/属性：
   - `playerBaseConfig`：玩家参数。
   - `playerSkills`、`doubleJumpSkill`：玩家技能集合与二段跳技能资源，由 Inspector 引用；当前已保存的 GameScene 和 Prefab 尚未配置这两个字段。
@@ -1690,7 +1787,8 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `PlayerCombatHitDetector.cs`
 
 - 脚本职责：Player 侧的 Physics2D 命中候选查询器。仅在 Controller 的 Hit Window 开放时读取当前 Stage 配置，通过 `Visual.TransformPoint(localOffset)` 把局部偏移转换为可自动镜像的世界坐标，再执行 Box 或 Circle 查询。
-- 当前阶段：使用 `Enemy` Layer 过滤候选 Collider，通过 `CombatHurtbox.Owner` 取得战斗身份；同一 Action、同一 Window 内按 Owner 去重，并把首次确认命中交给 Controller 的 Chain Runtime。检测器同时保存本窗口已经应用效果的 Context；窗口关闭、Action 切换或组件禁用时逐一结束效果并清空列表。Gizmo 长期保留用于校准不同 Action 的 Hit Window；正式伤害结算尚未实现。
+- 当前阶段：使用 Enemy Layer 过滤候选 Collider，通过 CombatHurtbox.Owner 取得战斗身份并排除自身；同一 Action、同一 Window 内按 Owner 去重。读取攻击者 Player.Stats 和窗口倍率，由 GameplayCalculator 自动抽签并计算打出伤害，创建 DamageContext，通过目标的 IDamageable.TryTakeDamage 提交；只有返回 true 才 NotifyHitConfirmed 并 ApplyEffects。没有受伤接口或拒绝伤害的目标不再触发本次命中确认和效果；拒绝的目标同一窗口内也不会重复尝试。
+- 检测器保存已应用效果的 Context；窗口关闭、Action 切换或组件禁用时逐一 EndEffects 并清空列表。场景 Enemy 已由 Enemy.Awake 初始化 EnemyHealth，可通过玩家命中链路接收伤害；死亡仅更新 IsDead，暂不销毁对象或播放死亡表现。
 
 ### Runtime/GamePlay/Player/PlayerState
 

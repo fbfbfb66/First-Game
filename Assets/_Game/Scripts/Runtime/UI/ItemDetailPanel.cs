@@ -13,14 +13,19 @@ public class ItemDetailPanel : MonoBehaviour
     [SerializeField] private GameObject fallBack;
     [Space]
     [SerializeField] private Button dropButton;
+    [SerializeField] private Button useItemButton;
     [SerializeField] private Button minusButton;
     [SerializeField] private Button plusButton;
     [SerializeField] private GameObject amountRow;
     [SerializeField] private TMP_Text amountLabel;
 
     public event Action<InventoryItem, int> DropRequested;
+    public event Action UseRequested;
     private InventoryItem currentItem;
     private int currentAmount;
+
+    public int CurrentAmount => currentAmount;
+    public InventoryItem  CurrentItem => currentItem;
 
     private void Awake()
     {
@@ -34,6 +39,8 @@ public class ItemDetailPanel : MonoBehaviour
         dropButton.onClick.AddListener(OnDropButton);
         minusButton.onClick.AddListener(OnMinusButton);
         plusButton.onClick.AddListener(OnPlusButton);
+        if (useItemButton != null)
+            useItemButton.onClick.AddListener(OnUseButton);
     }
 
     private void OnDisable()
@@ -42,6 +49,8 @@ public class ItemDetailPanel : MonoBehaviour
         dropButton.onClick.RemoveListener(OnDropButton);
         minusButton.onClick.RemoveListener(OnMinusButton);
         plusButton.onClick.RemoveListener(OnPlusButton);
+        if (useItemButton != null)
+            useItemButton.onClick.RemoveListener(OnUseButton);
     }
 
     public void Show(InventoryItem item)
@@ -52,6 +61,8 @@ public class ItemDetailPanel : MonoBehaviour
         nameLabel.text = item.Data.DisplayName;
         categoryLabel.text = item.Data.Category.ToString();
         descriptionLabel.text = item.Data.Description;
+        if (useItemButton != null)
+            useItemButton.gameObject.SetActive(item.Data.CanBeConsumed);
 
         currentItem = item;
         currentAmount = 1;
@@ -70,6 +81,11 @@ public class ItemDetailPanel : MonoBehaviour
     private void SetAmountRow(bool enable)
     {
         amountRow.SetActive(enable);
+    }
+
+    private void OnUseButton()
+    {
+        UseRequested?.Invoke();
     }
 
     private void OnDropButton()

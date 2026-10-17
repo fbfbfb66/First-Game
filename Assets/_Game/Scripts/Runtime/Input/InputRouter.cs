@@ -76,10 +76,13 @@ public class InputRouter : MonoBehaviour
         inputReader.UISubmitPressed += OnUISubmitPressed;
         inputReader.UICancelPressed += OnUICancelPressed;
         inputReader.UIRotateItemPressed += OnUIRotateItemPressed;
+        inputReader.UseItemInInventoryPressed += OnUsingItemInInventory;
+        inputReader.DropItemInInventoryPressed += OnDropItemInInventory;
     }
 
     private void OnDisable()
     {
+        if (inputReader == null) return;
         if(gameLayerStack != null)
             gameLayerStack.CurrentLayerChanged -= OnCurrentLayerChanged;
 
@@ -100,6 +103,30 @@ public class InputRouter : MonoBehaviour
         inputReader.UISubmitPressed -= OnUISubmitPressed;
         inputReader.UICancelPressed -= OnUICancelPressed;
         inputReader.UIRotateItemPressed -= OnUIRotateItemPressed;
+        inputReader.UseItemInInventoryPressed -= OnUsingItemInInventory;
+        inputReader.DropItemInInventoryPressed -= OnDropItemInInventory;
+    }
+
+    private void OnDropItemInInventory()
+    {
+        if (!IsCurrentLayer(GameLayerType.Inventory)) return;
+        if (inventoryView == null)
+        {
+            Debug.LogWarning("InputRouter cannot drop inventory item: InventoryView is not assigned.", this);
+            return;
+        }
+        inventoryView.DropItem();
+    }
+
+    private void OnUsingItemInInventory()
+    {
+        if (!IsCurrentLayer(GameLayerType.Inventory)) return;
+        if (inventoryView == null)
+        {
+            Debug.LogWarning("inventoryView not set");
+            return;
+        }
+        inventoryView.UseItem();
     }
 
     private void OnDiveAttackHeld()

@@ -32,13 +32,11 @@ MonoBehaviour:
     - effects:
       - {fileID: 11400000, guid: d69d909b2070859439d1713dc9150819, type: 2}
       windowId: 0
+      damageMultiplier: 0.8
       shape: 0
       localOffset: {x: 1.75, y: 0.8}
       boxSize: {x: 2.17, y: 3.46}
       circleRadius: 0
-  transition:
-    conditions: []
-    command: {fileID: 0}
-    targetAction: {fileID: 0}
+  transitions: []
   entryConditions:
   - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}

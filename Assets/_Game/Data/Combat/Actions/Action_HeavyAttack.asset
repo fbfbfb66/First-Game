@@ -29,14 +29,13 @@ MonoBehaviour:
       allowedCommands:
       - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
     hitWindows:
-    - windowId: 0
+    - effects: []
+      windowId: 0
+      damageMultiplier: 2
       shape: 0
       localOffset: {x: 5.02, y: 0.42}
       boxSize: {x: 6.71, y: 3.93}
       circleRadius: 0
-  transition:
-    conditions: []
-    command: {fileID: 0}
-    targetAction: {fileID: 0}
+  transitions: []
   entryConditions:
   - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}

@@ -19,6 +19,15 @@ public class GameBootstrap : MonoBehaviour
 
     private void Start()
     {
+#if UNITY_EDITOR
+        if (UnityEditor.SessionState.GetBool("FirstGame.DirectPlay.Request", false))
+        {
+            UnityEditor.SessionState.SetBool("FirstGame.DirectPlay.Request", false);
+            sceneLoader.LoadGameScene();
+            layerStack.ResetTo(GameLayerType.Gameplay);
+            return;
+        }
+#endif
         sceneLoader.LoadMainMenu();
         layerStack.ResetTo(GameLayerType.MainMenu);
     }

@@ -21,6 +21,8 @@ public class GameInputReader : MonoBehaviour
     public event Action PausePressed;
     public event Action OpenInventoryPressed;
     public event Action OpenMapPressed;
+    public event Action UseItemInInventoryPressed;
+    public event Action DropItemInInventoryPressed;
 
     public event Action<Vector2> UINavigateChanged;
     public event Action UISubmitPressed;
@@ -132,6 +134,8 @@ public class GameInputReader : MonoBehaviour
 
         inputActions.UI.Submit.performed += ctx => UISubmitPressed?.Invoke();
         inputActions.UI.Cancel.performed += ctx => UICancelPressed?.Invoke();
+        inputActions.UI.UseItem.performed+= ctx => UseItemInInventoryPressed?.Invoke();
+        inputActions.UI.DropItem.performed += ctx => DropItemInInventoryPressed?.Invoke();
         inputActions.UI.RotateItem.performed += ctx => UIRotateItemPressed?.Invoke();
     }
 }

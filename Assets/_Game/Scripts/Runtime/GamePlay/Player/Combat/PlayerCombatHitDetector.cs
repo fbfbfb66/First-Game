@@ -13,6 +13,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
     [SerializeField] private LayerMask targetLayers;
 
     private bool IsOnGamePlaye = false;
+    private Player player;
     private readonly HashSet<GameObject> hitOwners = new();
     private CombatActionDefinition trackedAction;
     private CombatHitWindowDefinition trackedHitWindow;
@@ -21,6 +22,9 @@ public class PlayerCombatHitDetector : MonoBehaviour
 
     private void Awake()
     {
+        player = GetComponent<Player>();
+        if (player == null)
+            Debug.LogWarning($"{name} cannot deal damage: Player is missing. Hit detection disabled.", this);
         if (actionController == null)
             actionController = GetComponent<PlayerCombatActionController>();
         IsOnGamePlaye = true;
@@ -33,7 +37,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (actionController == null || hitboxRoot == null) return;
+        if (player == null || player.Stats == null || actionController == null || hitboxRoot == null) return;
         if (actionController.IsHitWindowOpen == false)
         {
             StopTrackingHitWindow();
@@ -51,6 +55,10 @@ public class PlayerCombatHitDetector : MonoBehaviour
         foreach(Collider2D target in targets)
         {
             if (TryRegisterTarget(target, out var hurtbox) == false) continue;
+            if (!hurtbox.Owner.TryGetComponent<IDamageable>(out var damageable)) continue;
+            DamageResult damage = GameplayCalculator.CalculateOutgoingDamage(player.Stats, hitWindow.DamageMultiplier);
+            DamageContext damageContext = new DamageContext(player.gameObject, hurtbox.Owner, damage);
+            if (!damageable.TryTakeDamage(damageContext)) continue;
             actionController.NotifyHitConfirmed(hurtbox.Owner);
             CombatHitEffectContext context = new CombatHitEffectContext(transform.gameObject, hurtbox.Owner);
             hitWindow.ApplyEffects(context);
@@ -88,7 +96,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
         if(candidate == null) return false;
         if (candidate.TryGetComponent(out hurtbox) == false) return false;
         GameObject target = hurtbox.Owner;
-        if(target == null) return false;
+        if(target == null || target == gameObject) return false;
         return hitOwners.Add(target);
     }
 

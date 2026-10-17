@@ -628,7 +628,7 @@
                     "name": "Submit",
                     "type": "Button",
                     "id": "7607c7b6-cd76-4816-beef-bd0341cfe950",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -646,6 +646,24 @@
                     "name": "RotateItem",
                     "type": "Button",
                     "id": "cce25ecc-f4f9-4e6b-ad9a-88ffce251411",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "UseItem",
+                    "type": "Button",
+                    "id": "0f1dbe20-8b8e-48e2-811c-1a65f119d36d",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "DropItem",
+                    "type": "Button",
+                    "id": "48b12003-9335-4f53-a44b-5b99b968774e",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -947,6 +965,28 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "RotateItem",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "59582d4d-2760-4923-96bb-5e7a6d7dbd73",
+                    "path": "<Keyboard>/f",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "UseItem",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "73ea05b8-e9ff-4cbd-bf59-bf2718bcb372",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "DropItem",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

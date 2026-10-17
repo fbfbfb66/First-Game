@@ -48,6 +48,7 @@ public class InventoryView : MonoBehaviour
         inventory.ItemAmountUpdated += UpdateItemAmount;
         inventory.ItemRemoved += OnItemRemoved;
         detailPanel.DropRequested += DropItem;
+        detailPanel.UseRequested += UseItem;
     }
 
     private void OnDisable()
@@ -58,6 +59,7 @@ public class InventoryView : MonoBehaviour
         inventory.ItemAmountUpdated -= UpdateItemAmount;
         inventory.ItemRemoved -= OnItemRemoved;
         detailPanel.DropRequested -= DropItem;
+        detailPanel.UseRequested -= UseItem;
 
         // dragItem 为 null 时不能进 TryGetValue —— Dictionary 对 null 键抛
         // ArgumentNullException，而「没在拖东西时关闭背包」是最常见的路径。
@@ -72,6 +74,30 @@ public class InventoryView : MonoBehaviour
         SetSelectedItem(null);
         dragItem = null;
         allowToHeighlight = true;
+    }
+
+    public void UseItem()
+    {
+        if (selectedItem == null) return;
+        if (dragItem != null) return;
+        if (selectedItem != detailPanel.CurrentItem)
+        {
+            Debug.LogWarning("selectedItem not equal detailPanel.CurrentItem");
+            return;
+        }
+        inventory.TryUseItem(selectedItem, detailPanel.CurrentAmount);
+    }
+
+    public void DropItem()
+    {
+        if (selectedItem == null) return;
+        if (dragItem != null) return;
+        if (selectedItem != detailPanel.CurrentItem)
+        {
+            Debug.LogWarning("InventoryView cannot drop selected item: selection does not match ItemDetailPanel.", this);
+            return;
+        }
+        DropItem(selectedItem, detailPanel.CurrentAmount);
     }
 
     private void SetSelectedItem(InventoryItem item)

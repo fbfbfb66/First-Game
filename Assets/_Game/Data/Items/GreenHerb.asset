@@ -21,3 +21,4 @@ MonoBehaviour:
   height: 1
   maxStack: 3
   canRotate: 0
+  effect: {fileID: 11400000, guid: 11db5dbc27e3c4a408b7f8fc32c9e729, type: 2}

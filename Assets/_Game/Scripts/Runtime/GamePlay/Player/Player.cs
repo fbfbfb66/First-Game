@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(PlayerHealth))]
 public class Player : Entity
 {
     private bool canDoubleJump = true;
@@ -10,6 +11,9 @@ public class Player : Entity
 
     [Header("Data")]
     public PlayerBaseConfig playerBaseConfig;
+    [SerializeField] private CharacterStatsData characterStatsData;
+    public CharacterStats Stats { get; private set; }
+    public PlayerHealth Health { get; private set; }
     [Space]
     public PlayerMovement playerMovement;
     public PlayerInputReceiver playerInputReceiver;
@@ -96,6 +100,15 @@ public class Player : Entity
     protected override void Awake()
     {
         base.Awake();
+        Health = GetComponent<PlayerHealth>();
+        if (characterStatsData == null)
+            Debug.LogWarning($"{name} cannot initialize runtime stats: CharacterStatsData is not assigned. Stats remain unavailable.", this);
+        else
+        {
+            Stats = new CharacterStats(characterStatsData);
+            Health.Initialize(Stats);
+        }
+
         if (playerMovement == null)
             playerMovement = GetComponent<PlayerMovement>();
         if (playerInputReceiver == null)
