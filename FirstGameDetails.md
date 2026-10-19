@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-10-17。
+最后更新时间：2026-10-19。
 
 ## 1. 项目概览
 
@@ -24,7 +24,7 @@
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
   - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView` + `ItemDetailPanel`。已打通「显示 → 悬停高亮 → 拖拽 → 旋转 → 落格改数据」与「左键选中 → 选中框 + 常驻详情面板 → 按数量丢弃 → 移除数据并销毁显示对象」。
   - Falling Sand：已完成 CPU Grid 数据、逐 Tick 重力/斜滑模拟、动态 Texture 渲染，以及首次触底时按外圈/内部概率执行的一次性撞击破碎；当前高处沙块仍是临时测试入口。
-  - 其他 UI：`UI_HPBarView`。
+  - 其他 UI：`UI_HPBarView`；`UIPolygonMask` 借用 `PolygonCollider2D` 原生轮廓编辑工具生成 UI 遮罩。
 
 ## 2. Unity Git 提交规则
 
@@ -251,7 +251,25 @@ Canvas_Inventory (Screen Space - Overlay)
   - `fullWidth`：血条满值宽度，当前固定为 `600f`。
 - 函数：
   - `UpdateHpBar(float value)`：接收 0 到 1 的血量比例；比例非法时输出错误日志，合法时把 `fillClip` 横向宽度设置为 `fullWidth * value`。
-- 关联：`GameScene.unity` 中的 `HPBar` 对象挂载该脚本，并绑定 `FillClip` 节点作为裁剪填充区域。
+- 当前绑定状态：新版 `GameScene.unity` 已用 `Canvas_HUD/HUD` 替代旧 `HPBar/FillClip`，当前 HUD 未挂载该脚本，HP/MP 填充尚未接入血量或魔法值数据。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UIPolygonMask.cs`
+
+- 职责：从同物体的 `PolygonCollider2D` 读取单条闭合轮廓，生成 `MaskableGraphic` 网格，再由同物体的 UGUI `Mask` 裁剪子 UI；不负责血量计算或填充比例。
+- 添加：在 Canvas 下选中父物体，右键 `UI/Polygon Mask` 创建 `PolygonMask`（初始 600 × 60）；也可在一个没有 Image/其他 Graphic 的 UI 物体上添加 `UI/Polygon Mask` 组件。自动依赖 `CanvasRenderer`、`PolygonCollider2D`、`Mask`。
+- 编辑：在 `Polygon Collider 2D` 组件点击 `Edit Collider`，在 Scene 拖动顶点。Collider 保持禁用，仅存储轮廓，不参与物理碰撞；`Update()` 检测 `GetShapeHash()` 的变化后请求 UI 重建。
+- `protected override void OnPopulateMesh(VertexHelper vh)`：Unity 重建 UI 时调用；读取路径和 offset，检查边交叉，以耳切法三角化凹/凸多边形，把顶点和三角形写入 Unity 提供的 `vh`。
+- `public void FitToRect()`：由 Inspector 的 `Fit Outline To Rect` 按钮或创建菜单调用，将轮廓重置成当前 RectTransform 矩形。按钮支持 Undo。
+- `public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)`：由 UI 射线链调用，以遮罩三角形过滤轮廓外的指针命中。
+- 默认取消 `Mask.Show Mask Graphic`，仅裁剪，不绘制遮罩自身。子节点中的 Image 保持 `Maskable`；Frame 应放在遮罩外，作为同级装饰。
+- 后续连接数值时，完整槽轮廓应固定，只改变子节点 Fill 的显示宽度或填充比例，使剩余量与槽轮廓相交；当前未接入该数值更新链。
+- 限制：仅单路径，不支持洞、多路径、自交和接触自身的轮廓；非法形状清空网格并警告。顶点使用本地 UI 单位，RectTransform 尺寸改变不会自动缩放轮廓；应先定尺寸，再编辑点。父级 Transform/Canvas 缩放会正常作用于整个轮廓。
+- 验证：Unity 临时 Preview Scene 中实际渲染五顶点切角（5 顶点、3 三角形），采样确认内部红色、切角及外部黑色；凹轮廓三角化及重置 Undo 通过。
+- 当前已保存的场景配置：`Canvas_HUD/HUD` 下包含 `HP/MaskArea/Fill`、`MP/MaskArea/Fill` 及装饰 `Frame`。两处 MaskArea 均挂载 `UIPolygonMask`、禁用的 `PolygonCollider2D`、隐藏自身图形的 `Mask` 和 `CanvasRenderer`；HP 轮廓为 6 点，MP 为 9 点。Frame 使用 `Assets/_Game/Art/UI/HUD.png` 中的 Sprite，位于两处遮罩外。
+
+#### `Assets/_Game/Scripts/Editor/UIPolygonMaskEditor.cs`
+
+- 职责：提供轮廓重置按钮、使用提示及 `GameObject/UI/Polygon Mask` 创建菜单；顶点编辑直接复用 Unity 原生 PolygonCollider2D 编辑工具。
 
 #### `Assets/_Game/Scripts/Runtime/UI/InventoryView.cs`
 
