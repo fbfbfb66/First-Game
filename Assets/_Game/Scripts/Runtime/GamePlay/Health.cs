@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -7,6 +8,8 @@ public class Health : MonoBehaviour, IDamageable
 {
     [SerializeField] private float currentHealth;
     [SerializeField] private LayerMask acceptedAttackerLayers = ~0;
+
+    public event Action Damaged;
 
     public CharacterStats Stats { get; protected set; }
     public float CurrentHealth
@@ -44,6 +47,7 @@ public class Health : MonoBehaviour, IDamageable
         if (currentHealth >= previousHealth) return false;
 
         Debug.Log($"[Health] {name} 收到 {context.Attacker.name} 的攻击：原始伤害 {context.Damage.Damage}，实际扣血 {previousHealth - currentHealth}，暴击 {context.Damage.IsCritical}，生命值 {previousHealth} -> {currentHealth}。", this);
+        Damaged?.Invoke();
         return true;
     }
 }

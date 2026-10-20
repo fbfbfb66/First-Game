@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-10-19。
+最后更新时间：2026-10-20。
 
 ## 1. 项目概览
 
@@ -24,7 +24,7 @@
   - 剧情序列：`StoryTrigger` + `StorySequenceRunner` + `StorySequence` + `StoryStepAction` + `StorySceneBindings` + `StoryCameraDirector` + `StoryContext`。
   - 背包系统：数据层 `ItemData` + `ItemCategory` + `InventoryItem` + `InventoryGrid` + `PlayerInventory`；表现层 `InventoryView` + `InventoryPointerHandler` + `ItemView` + `ItemDetailPanel`。已打通「显示 → 悬停高亮 → 拖拽 → 旋转 → 落格改数据」与「左键选中 → 选中框 + 常驻详情面板 → 按数量丢弃 → 移除数据并销毁显示对象」。
   - Falling Sand：已完成 CPU Grid 数据、逐 Tick 重力/斜滑模拟、动态 Texture 渲染，以及首次触底时按外圈/内部概率执行的一次性撞击破碎；当前高处沙块仍是临时测试入口。
-  - 其他 UI：`UI_HPBarView`；`UIPolygonMask` 借用 `PolygonCollider2D` 原生轮廓编辑工具生成 UI 遮罩。
+  - 其他 UI：`UI_HPBarView`、`UI_MPBarView` 继承可配置的 `UI_ResourceBarView` 并重写比例更新入口；`UIPolygonMask` 借用 `PolygonCollider2D` 原生轮廓编辑工具生成 UI 遮罩。
 
 ## 2. Unity Git 提交规则
 
@@ -108,6 +108,28 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 | 0 | `Assets/_Game/Scenes/BootScene.unity` | 启动场景，承载启动流程对象 |
 | 1 | `Assets/_Game/Scenes/MainMenuScene.unity` | 主菜单场景 |
 | 2 | `Assets/_Game/Scenes/GameScene.unity` | 游戏主场景 |
+
+### `GameScene` 场景环境容器
+
+- Hierarchy 根节点 `Environment`：收纳场景环境，其中 `Forest` 挂载 `ParallaxController`，通过 `Main Camera` 的水平位移带动 `F_S1`、`F_S2`、`F_S3`，对应系数为 0.5、0.7、0.9。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/ParallaxController.cs`
+
+- 原名 `ParallaxControl.cs`，文件与类统一改为 `ParallaxController`，保留原 `.meta` GUID 和已有相机、背景引用。
+- `Awake()` 保存相机初始 X；`LateUpdate()` 计算相机 X 增量并调用 `Backgrounds.Move(float dx)`，各层以 `dx * factor` 更新世界位置。
+- 执行顺序：当前已设置 `[DefaultExecutionOrder(200)]`，排在 `CinemachineBrain` 的 100 之后。此前未指定顺序时，Play Mode 采样曾发现视差使用上一帧相机位置。
+- `Backgrounds.Move(float dx)` 当前使用 `Vector2` 暂存世界坐标，首次非零移动会把 Z 清零；当前三层背景的世界 Z 原本均为 0，因此不是本次跳动的已证实原因。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/BackgroundLoopController.cs`
+
+- 分别挂载于 `GameScene/Environment/Forest/F_S1`、`F_S2`、`F_S3`，各自负责本层水平循环；Forest 根节点只保留 `ParallaxController` 负责三层连续视差，不再挂载整体循环组件。各层视差系数不同，必须独立判断和瞬移，避免长距离移动后相对位置累积导致露边。
+- Inspector 引用：三个组件的 `targetCamera` 均为 `Main Camera`；`middleImage` 分别拖入本层中间图片 `F_S1/background_layer_3_0`、`F_S2/background_layer_2_0`、`F_S3/background_layer_1_0` 的 SpriteRenderer；场景中三个 offset 均为 1.5 世界单位。
+- `private void LateUpdate()` 由 Unity 每帧调用，执行顺序 300，在相机 100、视差 200 之后执行。每帧从 `middleImage.bounds` 读取世界宽度 w 和边界；左触发边界为 `min.x + offset`，右触发边界为 `max.x - offset`。相机半宽为 `orthographicSize * aspect`，适用于当前无旋转的正交 2D 相机。
+- 相机左边界到达或越过本层中间图片右触发边界时，该层根节点向右瞬移 w；相机右边界到达或越过本层中间图片左触发边界时，向左瞬移 w。大幅越界时一次补齐整数个 w，只改变本层世界 X，不影响其他层。
+- 引用缺失、非正交相机、中间图片不属于当前组件所在层级，或两倍 offset 不小于图片宽度/相机视野宽度时，输出一次含对象和原因的警告并跳过。`private static bool IsLoopRangeValid(float imageWidth, float inset, float cameraHalfWidth)` 由运行逻辑和 Gizmos 共用：要求图片左右触发边界不交叉，并保证瞬移后相反触发条件仍有 `相机视野宽度 - 2 * offset` 的正间隔。不再要求收缩后的图片范围能容纳整个视野。
+- `private void OnDrawGizmosSelected()`：选中 F_S1、F_S2 或 F_S3 并开启 Scene 窗口 Gizmos 时，黄色线框显示本层中间图片原始范围，绿色竖线显示 offset 向内收缩后的左右触发边界，横向短线显示收缩距离，标签显示 offset 数值；配置无效时触发线变红。编辑和运行时均可查看，不修改运行数据。
+- 验证：Play Mode 中受控调用实际组件 `LateUpdate()`，offset = 0.02 和修正后的 offset = 1.5 均通过视野内、右边界前、右边界对齐、左边界前、左边界对齐、跨多张图片共 6 个用例，检查移动距离、再次调用不重复跳、Y/Z 不变。另确认 offset 达到相机半宽或图片半宽时被共用校验拒绝。当前 w = 24.27328，offset = 1.5 时触发线为 X = -10.63664 / 10.63664（各层初始位置）。
+- 长距离回归：按实际相机位移依次调用视差和循环组件，路线为起点→右500→左1000→右500，每0.5世界单位检查各层三张图片组成的连续区间是否覆盖整个相机视野。旧整体循环在4000个采样中，F_S2/F_S3分别有1943/2988次覆盖不足；改为三层独立循环后，编辑态及Play Mode均为三层0次覆盖不足。验证后恢复位置/相机缓存并删除临时验证脚本。这是受控调用和几何覆盖验证，未验证纹理接缝的逐帧视觉效果。
 
 ### `GameScene` 背包 UI 结构
 
@@ -243,33 +265,101 @@ Canvas_Inventory (Screen Space - Overlay)
   - `OnQuitGameClicked()`：调用退出游戏逻辑。
 - 关联：依赖 `SceneLoader` 切换到 `GameScene`，依赖 `GameLayerStack` 让输入系统进入菜单/UI 模式。
 
-#### `Assets/_Game/Scripts/Runtime/UI/UI_HPBarView.cs`
+#### `Assets/_Game/Scripts/Editor/HudFillInspectorLock.cs`
 
-- 脚本职责：控制 UI 血条填充区域的显示宽度。
+- Editor 专用：加载脚本和层级变化后，`private static void ApplyToLoadedScenes()` 查找已加载场景的 `Canvas_HUD/HUD/HP/MaskArea/Fill`、`Canvas_HUD/HUD/MP/MaskArea/Fill`，只给 RectTransform 添加 `HideFlags.NotEditable`，使其 Inspector 只读。
+- Image 等其他组件仍可编辑，脚本仍可更新 RectTransform 的位置和尺寸；无需挂载组件，不主动标脏或保存场景，每次打开后自动应用。不参与游戏构建。
+- 验证：HP、MP 两个目标均具有 NotEditable 标记，受控脚本调用仍能改变宽度并恢复原尺寸；Image 未被锁定，MP Fill 的 Inspector 已目视确认 RectTransform 灰显、Image 可编辑。临时验证脚本已移除。
+
+#### `Assets/_Game/Scripts/Editor/UnityMcpSerializationGuard.cs`
+
+- Editor 专用 Unity MCP 兼容补丁，不参与游戏构建。当前 `com.unity.ai.assistant` 2.6.0-pre.1 的组件读取工具通过反射展开 UI 组件属性，可能递归序列化 `TransformHandle` 和 `Matrix4x4` 的派生属性，触发 `StackOverflowException` 并使 Editor 崩溃；连接重试可使重开项目后再次触发。
+- `[InitializeOnLoad]` 在 Editor 更新回调处理请求前，定位 `Unity.AI.MCP.Editor.Helpers.GameObjectSerializer` 的 `_outputSerializer`，注册有界输出转换器。矩阵仅输出 m00 至 m33 共16个标量；内部 TransformHandle 输出不透明标记，不继续展开引擎句柄。
+- 未安装 MCP 时不执行；包结构变化导致找不到输出序列化器时给出警告。补丁使用包的私有字段，升级 AI Assistant 包后应重新验证并在上游修复后移除。
+- 2026-10-20 验证：恢复启动完成并可操作 Editor；连续5次通过实际 MCP `GetComponentData` 序列化 RectTransform 和场景血条 Fill 的全部组件，结果正常返回，矩阵16个数值正确，无再次栈溢出。临时测试脚本已删除。故障与恢复日志保存在忽略目录 `Logs/Diagnostics/UnityCrash-20261020/`，未改血条实现。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UI_ResourceBarView.cs`
+
+- 脚本职责：资源条父类，保留共享的序列化配置、校验、默认宽度更新与 Inspector 预览，不读取角色生命值/魔法值、不计算资源比例，也不订阅角色事件。HP、MP 使用各自子类，允许独立改变更新行为。
 - 关键字段：
   - `fillClip`：血条填充裁剪区域的 `RectTransform`，由场景 UI 绑定。
-  - `fullWidth`：血条满值宽度，当前固定为 `600f`。
+  - `fullWidth`：序列化的满值宽度，可在 Inspector 配置；HP 为155，MP 为160。
+  - `fillPercent`：Inspector 中0至1的预览比例，保留原 `fill` 序列化字段的迁移标记。
 - 函数：
-  - `UpdateHpBar(float value)`：接收 0 到 1 的血量比例；比例非法时输出错误日志，合法时把 `fillClip` 横向宽度设置为 `fullWidth * value`。
-- 当前绑定状态：新版 `GameScene.unity` 已用 `Canvas_HUD/HUD` 替代旧 `HPBar/FillClip`，当前 HUD 未挂载该脚本，HP/MP 填充尚未接入血量或魔法值数据。
+  - `public virtual void SetPercent(float percent)`：校验Fill引用和0至1的比例，通过后保存目标fillPercent并调用虚方法 `BarEffects(float percent)`。默认BarEffects立即设置fullWidth * percent；缓冲条重写该方法实现动画。HP通过PlayerHealth的Damaged事件读取角色血量。
+  - `protected void OnValidate()`：按用户选择直接调用虚方法 `SetPercent(fillPercent)`，在修改 Inspector 值时立即更新预览；已移除 delayCall、额外重绘和取消排队逻辑。HP、MP 和 Energy 的 override 均由同一入口分派。
+- 预览刷新：此前 delayCall 加主动重绘仍被用户确认拖动卡顿，现改为 OnValidate 直接更新。保留用户为 Energy 高度更新而调整的 protected 字段及 override。
+- 直接预览验证：修改已编译，拖动HP比例至0.468时填充随之变化；Unity同时输出 `SendMessage cannot be called during Awake, CheckConsistency, or OnValidate (Fill: OnRectTransformDimensionsChange)`，栈为 OnValidate→HP.SetPercent→父类SetPercent。当前按用户选择保留直接OnValidate方案，不能声称警告已解决或连续拖动已无卡顿。
+- 当前绑定状态：`Canvas_HUD/HUD/HP` 挂载 `UI_HPBarView`，`MP` 挂载 `UI_MPBarView`，均继承本类配置并分别绑定自身的 `MaskArea/Fill`，宽度、引用及预览比例已迁移，场景已保存。Fill 的 Inspector 只读规则保留，脚本更新不受影响。
+- 迁移备份：通用组件迁移前的源码/场景位于忽略目录 `Logs/Diagnostics/ResourceBarBefore/`，继承调整前的父类源码/场景位于 `Logs/Diagnostics/ResourceBarInheritanceBefore/`。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UI_HPBarView.cs` / `UI_MPBarView.cs`
+
+- MP编辑器调试入口 `private void DebugConsumeMP()`：Play Mode下通过组件右键菜单 `Debug/Consume 10% MP`，将目标fillPercent减少0.1并限制最低0，调用SetPercent触发主条速度曲线动画。只修改UI目标比例，不扣角色运行时MP；当前尚无当前MP数据组件。编辑态调用会警告并保持原值，入口不进入玩家构建。
+
+- 分别继承 `UI_ResourceBarView`，SetPercent调用父类进行目标比例校验。HP使用默认BarEffects立即更新；MP重写BarEffects，通过BarFillTransition让主条宽度按速度曲线过渡，不增加Buffer。MP的OnEnable同步初始比例，OnDisable清除动画。
+- 两个脚本保留最初 HP、MP 脚本的 GUID；场景已替换为对应子类，HP 满值宽度155，MP为160。通过父类引用调用仍进入实际子类 override；Inspector 预览也走同一虚方法。
+- HP额外通过序列化的 playerHealth 引用场景Player的PlayerHealth：OnEnable订阅Damaged并刷新，OnDisable解除订阅；Start在角色Awake初始化完成后同步初始比例。`protected virtual void RefreshHealth()` 读取CurrentHealth / Stats.MaxHealth.Value，Clamp01后调用SetPercent更新宽度；角色未初始化或最大生命值非正时不更新。受伤事件发生前生命值已经扣除，因此回调读取的是受伤后的比例。
+- HP受伤绑定本次仅做代码与场景引用检查，未运行Unity；可在Play Mode让Player实际受伤，确认生命值变化与血条比例一致，再禁用/启用HP对象确认显示同步。
+- 验证：编辑态和 Play Mode 均确认两个 SetPercent 的 DeclaringType 为各自子类、GetBaseDefinition 指向父类；通过父类引用调用0%、50%、100%时宽度正确，高度和引用不变，测试后恢复原比例。临时迁移/验证脚本已删除，场景已保存。
+
+#### `Assets/_Game/Scripts/Runtime/UI/BarFillTransition.cs`
+
+- HPBuffer、MP、Energy共用的纯动画逻辑，不持有UI或角色引用。`void SetTarget(float percent, AnimationCurve speedCurve, bool immediate)` 从当前Value向目标过渡；相同目标不重启动画。`bool Tick(float deltaTime, float duration)` 推进时间并更新Value，返回是否需要刷新显示；`void Reset()` 在禁用时清除状态。
+- 使用64段梯形积分，将速度曲线累计面积归一化为位移进度。负速度按0处理，无曲线或零总面积退回匀速。首次赋值立即同步，曲线在新目标开始时采样，使用Time.deltaTime，暂停时停止推进。
+- MP与Energy的场景duration和完整speedCurve数据复制自用户当前保存的HPBuffer（1秒，中间关键点0.5055542 / 0.009593964），之后可独立调节。MP和Energy增加、减少均平滑变化；HPBuffer仅减少时动画。未使用computer use，未运行Unity测试，由用户在Play Mode调整MP/Energy的Fill Percent观察。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UI_HPBufferView.cs`
+
+- 继承UI_HPBarView，复用PlayerHealth的Damaged订阅和RefreshHealth；场景HPBuffer的playerHealth已绑定Player组件，fillClip沿用其自身Fill。HP主条仍立即更新，缓冲条重写 `protected override void BarEffects(float percent)`，在扣血时从当前显示比例追向新目标，连续受伤时从当前可见位置重新开始。
+- Inspector的duration默认1秒；speedCurve横轴为归一化时间，纵轴为非负相对速度。当前场景保存的三个关键点为(0,0)、(0.5055542,0.009593964)、(1,0)。动画计算交给BarFillTransition，每帧将当前显示比例应用到自身Fill宽度。
+- 初始同步、回血、编辑态预览和禁用状态赋值立即显示；禁用时清除动画并解除受伤订阅，重启后同步当前生命值。使用Time.deltaTime，暂停时动画也暂停。fillPercent保存目标比例，BarFillTransition.Value保存当前显示比例，动画不会修改角色生命值。
+- 本次按用户要求未进行Unity运行测试。用户可在Play Mode通过PlayerHealth的 `Debug/Take 10 Damage` 观察HP立即减少而HPBuffer逐渐追上，并在动画中连续扣血检查衔接。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UI_EnergyBarView.cs`
+
+- Energy编辑器调试入口 `private void DebugConsumeEnergy()`：Play Mode下通过组件右键菜单 `Debug/Consume 10% Energy`，将目标fillPercent减少0.1并限制最低0，调用SetPercent触发Shader填充速度曲线动画。只修改UI目标比例，当前尚无独立Energy资源数据。编辑态调用会警告并保持原值，入口不进入玩家构建。两项调试入口未进行Unity运行测试。
+
+- 继承UI_ResourceBarView，SetPercent保存目标比例并分派到重写的BarEffects；BarFillTransition驱动Energy主条的增减动画。`private void ApplyFill(float percent)` 通过fillClip找到Graphic，把当前显示比例写入引用材质及materialForRendering的_FillAmount，保持Fill矩形不变。
+- `private void OnEnable()` 应用当前比例。继承的OnValidate通过SetPercent→BarEffects分派，编辑态即时预览；Play Mode按速度曲线过渡。OnDisable清除动画状态。
+- 已删除 fullHeight 和按比例缩短高度的逻辑。场景 `Energy/MaskArea/Fill` 的 Image 已设置为Simple，并使用 M_UIEnergyFlow；Fill矩形保持100×42.5，比例仅控制Shader裁剪，纹理不再因比例改变而压缩。
+- 当前直接更新所引用的材质；若增加多个独立Energy显示，应为它们配置独立材质，避免共享比例。
+- 验证：编辑态和Play Mode下，0%、25%、50%、100%均同步到源材质、Stencil派生材质和CanvasRenderer实际材质；Fill尺寸始终为100×42.5。验证后恢复原比例，临时验证脚本已删除。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UI_SkillBeanView.cs`
+
+- 继承UI_EnergyBarView，复用SetPercent和Inspector的Fill Percent，通过Shader裁剪显示比例；重写AnimateFill返回false，维持即时更新，四个独立材质不变。
+- `GameScene/Canvas_HUD/HUD/SkillBeans` 下的 Bean1～Bean4，其 Fill Image 分别引用 `Assets/_Game/Materials/M_UISkillBean1Flow.mat`～`M_UISkillBean4Flow.mat`。四份材质复制自 M_UIEnergyFlow，使用同一Shader、纹理和初始参数，但各自保存独立的 `_FillAmount`；Energy保留原材质。
+- 本次仅检查场景引用与材质资源的一致性；Unity导入、Inspector预览及Play Mode由用户测试。检查方式：在Hierarchy依次选择Bean1～Bean4，将各自组件的Fill Percent设为0.25、0.5、0.75、1，观察四个豆分别显示对应高度，Energy不受影响。
+
+#### `Assets/_Game/Shaders/UIEnergyFlow.shader` / `Assets/_Game/Materials/M_UIEnergyFlow.mat`
+
+- Shader 菜单名 `Game/UI/Energy Flow`，用于 UGUI Image/RawImage 的独立能量纹理，不依赖 Image 自动传入的 `_MainTex`。材质的 `_EnergyTex` 已绑定原始 `WindEnergyTexture.png`，默认 Tiling 为2×2，便于用户检查接缝；未修改原图或导入设置。
+- 使用显式 Linear + Repeat 采样器，`_FlowVelocity.xy` 为每秒UV流动速度，正值表示纹理向对应正方向移动。`_EnergyTex` Tiling/Offset 只影响纹理采样，不影响填充高度。
+- `_FillAmount` 控制由底部向上的可见区域，0全空、1全满；中间值的顶部由两条正弦波形成细微波动。`_WaveAmplitude`、`_WaveFrequency`、`_WaveSpeed` 分别控制幅度、频率和速度，`_EdgeSoftness` 控制边缘软化。Fill矩形保持固定，不通过压缩纹理表示比例。
+- 包含UGUI标准Stencil比较/读写字段、透明混合、UI裁剪矩形和Alpha Clip变体，兼容现有多边形Mask。建议测试Image不使用Sprite（Source Image=None），Type=Simple，颜色为白色；避免SpriteAtlas UV影响归一化的填充高度。
+- 当前已连接场景Energy的Fill Percent与Shader Fill Amount：从Energy组件调整比例即可；材质继续控制流动、平铺和波浪参数，Fill的Image使用Simple以保持固定UV范围。
+- 验证：在独立Preview Scene同步编译Shader，实际渲染检查满/半/空值像素，并验证双区域UIPolygonMask的两块内部可见、中间空隙被遮挡；预览图位于 `Logs/Diagnostics/EnergyTexture-2x2-preview.png`、`EnergyTexture-half-fill-preview.png`。临时验证脚本已删除。原图是否无缝平铺由用户检查，尚未做连续时间动画回归。
 
 #### `Assets/_Game/Scripts/Runtime/UI/UIPolygonMask.cs`
 
-- 职责：从同物体的 `PolygonCollider2D` 读取单条闭合轮廓，生成 `MaskableGraphic` 网格，再由同物体的 UGUI `Mask` 裁剪子 UI；不负责血量计算或填充比例。
+- 填充素材：`Assets/_Game/Art/UI/WindEnergyTexture.png`，淡青白风丝与雾气组成的矩形风元素纹理，按 Single Sprite / Full Rect 导入，供子节点 Image 的 Source Image 使用；尚未绑定场景对象。当前为静态纹理，未验证无缝平铺。
+- 职责：从同物体的 `PolygonCollider2D` 读取多条闭合轮廓，逐条三角化后合并为同一个 `MaskableGraphic` 网格，再由同物体的 UGUI `Mask` 裁剪子 UI；各区域取并集，不负责血量计算或填充比例。
 - 添加：在 Canvas 下选中父物体，右键 `UI/Polygon Mask` 创建 `PolygonMask`（初始 600 × 60）；也可在一个没有 Image/其他 Graphic 的 UI 物体上添加 `UI/Polygon Mask` 组件。自动依赖 `CanvasRenderer`、`PolygonCollider2D`、`Mask`。
-- 编辑：在 `Polygon Collider 2D` 组件点击 `Edit Collider`，在 Scene 拖动顶点。Collider 保持禁用，仅存储轮廓，不参与物理碰撞；`Update()` 检测 `GetShapeHash()` 的变化后请求 UI 重建。
-- `protected override void OnPopulateMesh(VertexHelper vh)`：Unity 重建 UI 时调用；读取路径和 offset，检查边交叉，以耳切法三角化凹/凸多边形，把顶点和三角形写入 Unity 提供的 `vh`。
-- `public void FitToRect()`：由 Inspector 的 `Fit Outline To Rect` 按钮或创建菜单调用，将轮廓重置成当前 RectTransform 矩形。按钮支持 Undo。
-- `public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)`：由 UI 射线链调用，以遮罩三角形过滤轮廓外的指针命中。
+- 编辑：在 `UI Polygon Mask` 组件点击 `Add Closed Region`，在 RectTransform 中心新增一条小矩形路径，支持 Undo；随后在 `Polygon Collider 2D` 组件点击 `Edit Collider`，在 Scene 拖动新路径顶点。也可在 Collider 的 Paths 中管理各条路径。Collider 保持禁用，仅存储轮廓，不参与物理碰撞；`Update()` 检测 `GetShapeHash()` 的变化后请求 UI 重建。
+- `protected override void OnPopulateMesh(VertexHelper vh)`：Unity 重建 UI 时调用 `private bool BuildPolygons()`，遍历所有路径，交给 `private bool BuildPath(int pathIndex)` 按路径读取 offset、检查自交并以耳切法三角化凹/凸多边形。合并时为每条路径的索引加上顶点起始偏移，避免在独立区域间生成连接三角形；UV 使用同一个 RectTransform 坐标空间。
+- `public void FitToRect()`：由 Inspector 的 `Fit Outline To Rect (Replaces All Regions)` 按钮或创建菜单调用，替换所有区域为当前 RectTransform 的单个矩形。按钮支持 Undo。
+- `public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)`：由 UI 射线链调用，使用所有区域的合并三角形过滤指针命中，区域之间空隙不接受命中。
 - 默认取消 `Mask.Show Mask Graphic`，仅裁剪，不绘制遮罩自身。子节点中的 Image 保持 `Maskable`；Frame 应放在遮罩外，作为同级装饰。
 - 后续连接数值时，完整槽轮廓应固定，只改变子节点 Fill 的显示宽度或填充比例，使剩余量与槽轮廓相交；当前未接入该数值更新链。
-- 限制：仅单路径，不支持洞、多路径、自交和接触自身的轮廓；非法形状清空网格并警告。顶点使用本地 UI 单位，RectTransform 尺寸改变不会自动缩放轮廓；应先定尺寸，再编辑点。父级 Transform/Canvas 缩放会正常作用于整个轮廓。
+- 限制：支持多个实心区域及区域重叠，不支持孔洞、单条路径自交和接触自身；任一路径非法时清空整个合并网格和射线区域，并警告具体 Path 索引。顶点使用本地 UI 单位，RectTransform 尺寸改变不会自动缩放轮廓；应先定尺寸，再编辑点。父级 Transform/Canvas 缩放会正常作用于整个轮廓。
 - 验证：Unity 临时 Preview Scene 中实际渲染五顶点切角（5 顶点、3 三角形），采样确认内部红色、切角及外部黑色；凹轮廓三角化及重置 Undo 通过。
+- 多路径变更验证边界：运行时代码已在 Unity 的 Assembly-CSharp 中编译，代码差异检查通过；本次新增的多区域实际渲染、射线、offset 和单路径回归脚本已准备于 `Logs/Diagnostics/UIPolygonMaskCheckpoint.cs`，尚未执行。手动导入测试脚本被自动审批以场景仍有未保存状态为由拦截，临时入口已移出 Assets，避免自动改动现场；不能把此前的单路径验证视为本次多路径运行验证。
 - 当前已保存的场景配置：`Canvas_HUD/HUD` 下包含 `HP/MaskArea/Fill`、`MP/MaskArea/Fill` 及装饰 `Frame`。两处 MaskArea 均挂载 `UIPolygonMask`、禁用的 `PolygonCollider2D`、隐藏自身图形的 `Mask` 和 `CanvasRenderer`；HP 轮廓为 6 点，MP 为 9 点。Frame 使用 `Assets/_Game/Art/UI/HUD.png` 中的 Sprite，位于两处遮罩外。
 
 #### `Assets/_Game/Scripts/Editor/UIPolygonMaskEditor.cs`
 
-- 职责：提供轮廓重置按钮、使用提示及 `GameObject/UI/Polygon Mask` 创建菜单；顶点编辑直接复用 Unity 原生 PolygonCollider2D 编辑工具。
+- 职责：提供区域数量、新增闭合区域按钮、替换全部区域的重置按钮、使用提示及 `GameObject/UI/Polygon Mask` 创建菜单；顶点编辑直接复用 Unity 原生 PolygonCollider2D 编辑工具。`private static void AddClosedRegion(UIPolygonMask graphic)` 由按钮调用，保留已有路径并在新索引写入矩形，支持 Undo 和脏标记。
 
 #### `Assets/_Game/Scripts/Runtime/UI/InventoryView.cs`
 
@@ -1608,6 +1698,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 通用生命组件，实现 `IDamageable`。`Stats` 引用角色已有的 CharacterStats，`CurrentHealth` 为自身持有的当前生命值，初始化后生命值为 0 时 `IsDead` 为 true。
 - 不包含初始化函数；Stats 和 CurrentHealth 提供 protected setter，由具体角色的 Health 子类完成初始化，对外保持只读。
+- `public event Action Damaged`：TryTakeDamage 实际扣血后触发一次，订阅者此时可读取更新后的 CurrentHealth。包括致命伤害；零伤害、已死亡或被拒绝的攻击不触发。事件无参数，仅由 Health 内部调用。
 - `bool CanBeAttacked(GameObject attacker)`：检查攻击者非空、不是自身且其根对象 Layer 属于 acceptedAttackerLayers。字段默认允许全部 Layer，GameScene 的 PlayerHealth 配置为只接受 Enemy Layer。该函数仅判断攻击来源；生命初始化、目标归属和死亡检查仍在 TryTakeDamage 中执行。
 - `bool TryTakeDamage(DamageContext context)`：检查初始化状态、目标归属、死亡与 CanBeAttacked，随后调用 CalculateIncomingDamage 读取自身当前防御，扣除生命值并限制最低为 0。实际生命值减少时输出受击 Debug（双方名字、原始伤害、实际扣血、暴击与生命变化）并返回 true，包括致命伤害；被拒绝或零伤害返回 false，不输出成功受击日志。当前不处理死亡表现、动画、UI 或草药治疗。
 - GameScene 的 Player 挂载其子类 PlayerHealth，继承受伤与死亡判定。PlayerCombatHitDetector 通过 IDamageable 调用该接口；其他目标也必须实现接口并完成初始化。
@@ -1623,6 +1714,8 @@ Canvas_Inventory (Screen Space - Overlay)
 - GameScene 中 EnemyHealth 仅接受 Player Layer 攻击，CombatHurtbox.Owner 指向对应根对象。Play Mode 已验证两个敌人初始化满血且 Stats 独立；实际 Enemy 经玩家 HeavyAttack 物理检测受伤 100 -> 80，同窗口重复查询不重复扣血，成功受击输出 Health Debug。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerHealth.cs`
+
+- 编辑器调试入口 `private void DebugTakeDamage()`：Play Mode下通过PlayerHealth组件右键菜单 `Debug/Take 10 Damage` 调用。临时创建Enemy层攻击来源，直接向自身TryTakeDamage提交10点非暴击伤害，跳过命中检测，仍保留防御、生命状态和攻击层检查；实际扣血后触发Damaged，供HPBar验证。临时来源在finally中销毁，入口不包含在玩家构建中。未进行Unity运行测试。
 
 - 玩家生命组件，继承 Health。`void Initialize(CharacterStats stats)` 从 Player 创建的同一份运行时属性设置 Stats 和初始满血；拒绝空属性、非正最大生命值和重复初始化。
 - 由 Player.Awake 在创建 CharacterStats 后显式调用，不使用独立 Awake 读取 Player.Stats，避免跨组件生命周期顺序问题。GameScene 中原 Health 组件已原位迁移为 PlayerHealth，保持组件引用与序列化生命字段。
@@ -2206,7 +2299,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 玩家下落状态已接入完整的墙滑/墙跳纵向切片：持续朝墙输入时按配置速度滑落，向下输入可加速，松开墙面方向会恢复下落，墙滑中再次按跳跃会翻转并施加 `WallJumpForce`；墙滑使用独立动画，墙跳复用 `JumpUp` 动画。
 - 跑步过渡状态移动到 `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Run/`。
 - `GameScene.unity` 已加入 `StorySceneBindings`、`StoryCameraDirector`、`StoryCanvas`、剧情文本视图、剧情相机绑定和 Input System UI EventSystem。
-- `GameScene.unity` 已加入 `HPBar` 血条 UI，挂载 `UI_HPBarView` 并绑定 `FillClip` 裁剪节点。
+- `GameScene.unity` 的 HUD 中 HP、MP 分别使用 `UI_HPBarView`、`UI_MPBarView`，继承 `UI_ResourceBarView` 的共有配置，各自绑定 `MaskArea/Fill` 并配置满值宽度。
 - `GameScene.unity` 已加入 `Canvas_Inventory` 背包界面雏形，当前包含滚动视图和多个 Slot 图像节点。
 - 新增 UI 图片资源目录 `Assets/_Game/Art/UI/`，包含 `04.png`、`06.png`、`07.png` 及对应 `.meta`。
 - 背包系统脚本目录 `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/` 已扩展为 `ItemData`、`ItemCategory`、`InventoryItem` 和 `InventoryGrid`。
@@ -2251,7 +2344,6 @@ Canvas_Inventory (Screen Space - Overlay)
 - `StoryCameraDirector` 中 `lowerPreviousCameera` 字段存在拼写问题；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `StopPlayerStoryStepAction` 中 `playerkey` 字段命名大小写不一致；因为是序列化字段，改名前应考虑 `[FormerlySerializedAs]`。
 - `HideStoryTextStepAction` 和 `ShowStoryTextStepAction` 中缺失 `StorySceneBindings` 时的警告文本仍写成了设置玩家移动模式，后续可统一改文案。
-- `UI_HPBarView` 中 `fullWidth` 当前硬编码为 `600f`，如果血条尺寸改为响应式或换图，需要改为从 `fillClip` 初始宽度或配置读取。
 - `InventoryGrid` 已实现边界判断、空区域判断、放置和取格；仍缺移除、堆叠合并、旋转与网格联动、查找空位。
 - `InventoryItem` 目前只支持初始化校验和旋转，后续需要根据交互需求补充数量变化、拆分堆叠或使用消耗逻辑。
 - `InventoryItem.Rotate()` 是 public 的，物品已放入 `InventoryGrid` 之后再调用它，会让 `CurrentWidth`/`CurrentHeight` 与 `cells` 中的实际占用不一致。实现旋转交互前必须先决定旋转的归属（大概率要改由 `InventoryGrid` 提供 `TryRotate`）。

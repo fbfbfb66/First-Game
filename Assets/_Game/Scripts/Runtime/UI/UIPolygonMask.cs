@@ -16,6 +16,8 @@ public sealed class UIPolygonMask : MaskableGraphic, ICanvasRaycastFilter
     private readonly List<int> remaining = new List<int>();
     private readonly List<int> triangles = new List<int>();
     private readonly List<Vector2> path = new List<Vector2>();
+    private readonly List<Vector2> meshPoints = new List<Vector2>();
+    private readonly List<int> meshTriangles = new List<int>();
     private string lastWarning;
 
     public PolygonCollider2D Polygon => polygon != null ? polygon : polygon = GetComponent<PolygonCollider2D>();
@@ -64,30 +66,50 @@ public sealed class UIPolygonMask : MaskableGraphic, ICanvasRaycastFilter
     protected override void OnPopulateMesh(VertexHelper vh)
     {
         vh.Clear();
-        if (!BuildPolygon()) return;
+        if (!BuildPolygons()) return;
         Rect rect = rectTransform.rect;
-        foreach (Vector2 point in points)
+        foreach (Vector2 point in meshPoints)
         {
             Vector2 uv = new Vector2(
                 rect.width == 0 ? 0 : (point.x - rect.xMin) / rect.width,
                 rect.height == 0 ? 0 : (point.y - rect.yMin) / rect.height);
             vh.AddVert(point, color, uv);
         }
-        for (int i = 0; i < triangles.Count; i += 3)
-            vh.AddTriangle(triangles[i], triangles[i + 1], triangles[i + 2]);
+        for (int i = 0; i < meshTriangles.Count; i += 3)
+            vh.AddTriangle(meshTriangles[i], meshTriangles[i + 1], meshTriangles[i + 2]);
     }
 
-    private bool BuildPolygon()
+    private bool BuildPolygons()
+    {
+        meshPoints.Clear();
+        meshTriangles.Clear();
+        for (int pathIndex = 0; pathIndex < Polygon.pathCount; pathIndex++)
+        {
+            if (!BuildPath(pathIndex))
+            {
+                meshPoints.Clear();
+                meshTriangles.Clear();
+                return false;
+            }
+
+            int vertexOffset = meshPoints.Count;
+            meshPoints.AddRange(points);
+            foreach (int index in triangles) meshTriangles.Add(vertexOffset + index);
+        }
+        lastWarning = null;
+        return meshTriangles.Count > 0;
+    }
+
+    private bool BuildPath(int pathIndex)
     {
         points.Clear();
         triangles.Clear();
         remaining.Clear();
-        if (Polygon.pathCount != 1) return Warn("Only one closed path is supported. Separate regions need separate masks.");
-        Polygon.GetPath(0, path);
+        Polygon.GetPath(pathIndex, path);
         foreach (Vector2 point in path)
         {
             Vector2 value = point + Polygon.offset;
-            if (!float.IsFinite(value.x) || !float.IsFinite(value.y)) return Warn("Outline contains a non-finite point.");
+            if (!float.IsFinite(value.x) || !float.IsFinite(value.y)) return Warn(pathIndex, "Outline contains a non-finite point.");
             if (points.Count == 0 || (points[points.Count - 1] - value).sqrMagnitude > 0.000001f)
                 points.Add(value);
         }
@@ -109,7 +131,7 @@ public sealed class UIPolygonMask : MaskableGraphic, ICanvasRaycastFilter
                 break;
             }
         }
-        if (points.Count < 3) return Warn("Outline needs at least three distinct points.");
+        if (points.Count < 3) return Warn(pathIndex, "Outline needs at least three distinct points.");
         for (int i = 0; i < points.Count; i++)
         {
             int nextI = (i + 1) % points.Count;
@@ -118,12 +140,12 @@ public sealed class UIPolygonMask : MaskableGraphic, ICanvasRaycastFilter
                 int nextJ = (j + 1) % points.Count;
                 if (nextI == j || nextJ == i) continue;
                 if (SegmentsIntersect(points[i], points[nextI], points[j], points[nextJ]))
-                    return Warn("Outline crosses or touches itself. Move the points so edges do not intersect.");
+                    return Warn(pathIndex, "Outline crosses or touches itself. Move the points so edges do not intersect.");
             }
         }
         float area = 0;
         for (int i = 0; i < points.Count; i++) area += Cross(points[i], points[(i + 1) % points.Count]);
-        if (Mathf.Abs(area) < 0.00001f) return Warn("Outline has no usable area.");
+        if (Mathf.Abs(area) < 0.00001f) return Warn(pathIndex, "Outline has no usable area.");
         for (int i = 0; i < points.Count; i++) remaining.Add(area > 0 ? i : points.Count - 1 - i);
         while (remaining.Count > 3)
         {
@@ -148,10 +170,9 @@ public sealed class UIPolygonMask : MaskableGraphic, ICanvasRaycastFilter
                 found = true;
                 break;
             }
-            if (!found) return Warn("Outline could not be triangulated. Check for overlapping or extremely close points.");
+            if (!found) return Warn(pathIndex, "Outline could not be triangulated. Check for overlapping or extremely close points.");
         }
         triangles.AddRange(remaining);
-        lastWarning = null;
         return true;
     }
 
@@ -159,14 +180,15 @@ public sealed class UIPolygonMask : MaskableGraphic, ICanvasRaycastFilter
     {
         if (!isActiveAndEnabled) return true;
         if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, screenPoint, eventCamera, out Vector2 local)) return false;
-        for (int i = 0; i < triangles.Count; i += 3)
-            if (InsideTriangle(local, points[triangles[i]], points[triangles[i + 1]], points[triangles[i + 2]])) return true;
+        for (int i = 0; i < meshTriangles.Count; i += 3)
+            if (InsideTriangle(local, meshPoints[meshTriangles[i]], meshPoints[meshTriangles[i + 1]], meshPoints[meshTriangles[i + 2]])) return true;
         return false;
     }
 
-    private bool Warn(string reason)
+    private bool Warn(int pathIndex, string reason)
     {
         triangles.Clear();
+        reason = $"Path {pathIndex}: {reason}";
         if (lastWarning != reason)
             Debug.LogWarning($"UIPolygonMask '{name}': {reason} Mask geometry is empty until corrected.", this);
         lastWarning = reason;

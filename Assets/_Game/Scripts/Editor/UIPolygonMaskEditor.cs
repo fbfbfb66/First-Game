@@ -10,9 +10,12 @@ public sealed class UIPolygonMaskEditor : GraphicEditor
     {
         base.OnInspectorGUI();
         EditorGUILayout.Space();
-        EditorGUILayout.HelpBox("Edit the outline with Polygon Collider 2D > Edit Collider. The disabled collider only stores UI points; leave it disabled. One simple closed path is supported (concave is OK, crossing edges are not). Points use local UI units; resizing the RectTransform does not rescale the outline.", MessageType.Info);
+        EditorGUILayout.HelpBox("Use Add Closed Region to add a path, then edit it with Polygon Collider 2D > Edit Collider. Paths are combined as filled regions (concave is OK; self-crossing paths and holes are not supported). The disabled collider only stores UI points; leave it disabled. Points use local UI units; resizing the RectTransform does not rescale the outlines.", MessageType.Info);
         UIPolygonMask graphic = (UIPolygonMask)target;
-        if (GUILayout.Button("Fit Outline To Rect"))
+        EditorGUILayout.LabelField("Closed Regions", graphic.Polygon.pathCount.ToString());
+        if (GUILayout.Button("Add Closed Region"))
+            AddClosedRegion(graphic);
+        if (GUILayout.Button("Fit Outline To Rect (Replaces All Regions)"))
         {
             Undo.RecordObject(graphic.Polygon, "Fit polygon mask to rect");
             graphic.FitToRect();
@@ -23,6 +26,24 @@ public sealed class UIPolygonMaskEditor : GraphicEditor
             Selection.activeGameObject = graphic.gameObject;
             EditorGUIUtility.PingObject(graphic.Polygon);
         }
+    }
+
+    private static void AddClosedRegion(UIPolygonMask graphic)
+    {
+        PolygonCollider2D polygon = graphic.Polygon;
+        Undo.RecordObject(polygon, "Add polygon mask region");
+        Rect rect = graphic.rectTransform.rect;
+        Vector2 center = rect.center - polygon.offset;
+        Vector2 half = new Vector2(Mathf.Max(1f, rect.width * 0.1f), Mathf.Max(1f, rect.height * 0.25f));
+        int index = polygon.pathCount;
+        polygon.pathCount = index + 1;
+        polygon.SetPath(index, new[]
+        {
+            center + new Vector2(-half.x, -half.y), center + new Vector2(half.x, -half.y),
+            center + new Vector2(half.x, half.y), center + new Vector2(-half.x, half.y)
+        });
+        graphic.SetVerticesDirty();
+        EditorUtility.SetDirty(polygon);
     }
 
     [MenuItem("GameObject/UI/Polygon Mask", false, 2060)]

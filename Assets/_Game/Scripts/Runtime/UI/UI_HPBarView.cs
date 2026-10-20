@@ -1,19 +1,47 @@
 using UnityEngine;
 
-public class UI_HPBarView : MonoBehaviour
+public  class UI_HPBarView : UI_ResourceBarView
 {
-    [SerializeField] private RectTransform fillClip;
-    private float fullWidth = 600f;
+    [SerializeField] protected PlayerHealth playerHealth;
 
-    public void UpdateHpBar(float value)
+    public PlayerHealth PlayerHealth => playerHealth;
+
+    private void OnEnable()
     {
-        if(fillClip == null) return;
-        if(value < 0f || value > 1f)
+        if (playerHealth == null)
         {
-            Debug.LogError("Value must be between 0 and 1");
+            Debug.LogWarning($"{name} HP bar needs a PlayerHealth reference; health updates are not bound.", this);
             return;
-        } 
-            
-        fillClip.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, fullWidth * value);
+        }
+
+        playerHealth.Damaged += RefreshHealth;
+        RefreshHealth();
+    }
+
+    private void Start()
+    {
+        RefreshHealth();
+    }
+
+    protected virtual void OnDisable()
+    {
+        if (playerHealth != null)
+            playerHealth.Damaged -= RefreshHealth;
+    }
+
+
+    protected virtual void RefreshHealth()
+    {
+        if (playerHealth == null || playerHealth.Stats == null) return;
+
+        float maxHealth = playerHealth.Stats.MaxHealth.Value;
+        if (maxHealth <= 0f) return;
+
+        SetPercent(Mathf.Clamp01(playerHealth.CurrentHealth / maxHealth));
+    }
+
+    public override void SetPercent(float percent)
+    {
+        base.SetPercent(percent);
     }
 }
