@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-10-20。
+最后更新时间：2026-10-25。
 
 ## 1. 项目概览
 
@@ -42,6 +42,21 @@
 - Build 输出、录屏、崩溃日志和本机缓存。
 
 当前 `.gitattributes` 使用 Git LFS 管理常见二进制资源，例如图片、音频、Aseprite、FBX、视频和 Blender 文件。
+
+### 在另一台电脑继续开发
+
+- 安装 Git、Git LFS 和 Unity Hub，并通过 Hub 安装 `ProjectSettings/ProjectVersion.txt` 指定的 Unity `6000.4.6f1`。
+- 首次获取项目：执行 `git lfs install`、`git clone https://github.com/fbfbfb66/First-Game.git`，进入 `First-Game` 后执行 `git lfs pull`。
+- 已有克隆：先保存并提交当地改动，再执行 `git pull --ff-only origin main` 和 `git lfs pull`。
+- 在 Unity Hub 的 Projects 中添加克隆目录，等待资源导入与 Package Manager 恢复依赖，然后打开 `Assets/_Game/Scenes/GameScene.unity` 检查 Console 并进入 Play Mode。
+- `Library/` 等缓存由 Unity 重建；`.codex-remote-attachments/` 为本机聊天附件，不属于游戏资源，不提交。
+
+### 当前地图与物品资源
+
+- `Assets/_Game/TileMaps/GroundPhysics.prefab` 保存 Grid 与地面 Tilemap 配置；`TileMaps/TileSet/` 保存 oak woods Tile 资源及对应 `.meta`。
+- `Assets/_Game/Art/UI/oak_woods_v1.0/` 包含角色、装饰和 tileset；同目录下的建筑图集、商店建造屋图集、秋林树木图集和 `SkillStone_DoubleJump.png` 一同纳入版本管理。
+- 物品预制体位于 `Assets/_Game/Prefabs/Items/GreenHerb.prefab`、`Assets/_Game/Prefabs/Items/ItemView.prefab` 和 `Assets/_Game/Prefabs/KuroganeKatana.prefab`；旧的根目录 `Item.prefab` 已移除，`ItemView` 移动时保留原 GUID。
+- `Assets/_Game/Data/Skills/Skill_DoubleJump.asset` 的显示名为“二段跳”。
 
 ## 3. 根目录结构
 

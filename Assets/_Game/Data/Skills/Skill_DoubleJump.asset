@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cbb7775a481ee03409ab84b36c9f383e, type: 3}
   m_Name: Skill_DoubleJump
   m_EditorClassIdentifier: Assembly-CSharp::SkillData
-  displayName: 
+  displayName: "\u4E8C\u6BB5\u8DF3"
