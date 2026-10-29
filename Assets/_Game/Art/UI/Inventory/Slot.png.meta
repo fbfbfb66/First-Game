@@ -156,10 +156,10 @@ TextureImporter:
       name: ChatGPT Image Aug 30, 2026, 08_16_19 PM_2
       rect:
         serializedVersion: 2
-        x: 720
-        y: 23
-        width: 683
-        height: 687
+        x: 851
+        y: 182
+        width: 379
+        height: 375
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
