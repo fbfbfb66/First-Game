@@ -28,7 +28,9 @@ MonoBehaviour:
     hitWindows:
     - effects:
       - {fileID: 11400000, guid: 628d8deb01817a44b8d4e45f48fd391b, type: 2}
+      - {fileID: 11400000, guid: fbdf4a446d400664abf61910ab003c9a, type: 2}
       windowId: 0
+      damageMultiplier: 1
       shape: 0
       localOffset: {x: 1.91, y: 0.68}
       boxSize: {x: 2.17, y: 2.95}

@@ -31,6 +31,7 @@ MonoBehaviour:
     hitWindows:
     - effects:
       - {fileID: 11400000, guid: d69d909b2070859439d1713dc9150819, type: 2}
+      - {fileID: 11400000, guid: fbdf4a446d400664abf61910ab003c9a, type: 2}
       windowId: 0
       damageMultiplier: 0.8
       shape: 0

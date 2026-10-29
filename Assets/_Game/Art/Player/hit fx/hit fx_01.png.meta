@@ -46,7 +46,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -84,7 +84,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -125,12 +125,12 @@ TextureImporter:
       name: hit fx_01_0
       rect:
         serializedVersion: 2
-        x: 60
-        y: 18
-        width: 191
-        height: 46
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 0
+        y: 0
+        width: 125
+        height: 87
+      alignment: 9
+      pivot: {x: 0.68, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -147,12 +147,12 @@ TextureImporter:
       name: hit fx_01_1
       rect:
         serializedVersion: 2
-        x: 284
-        y: 17
-        width: 88
-        height: 48
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 125
+        y: 0
+        width: 125
+        height: 87
+      alignment: 9
+      pivot: {x: 0.68, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -169,12 +169,12 @@ TextureImporter:
       name: hit fx_01_2
       rect:
         serializedVersion: 2
-        x: 427
-        y: 17
-        width: 56
-        height: 49
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 250
+        y: 0
+        width: 125
+        height: 87
+      alignment: 9
+      pivot: {x: 0.68, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -191,12 +191,12 @@ TextureImporter:
       name: hit fx_01_3
       rect:
         serializedVersion: 2
-        x: 558
-        y: 19
-        width: 32
-        height: 43
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 375
+        y: 0
+        width: 125
+        height: 87
+      alignment: 9
+      pivot: {x: 0.68, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -209,11 +209,33 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: hit fx_01_4
+      rect:
+        serializedVersion: 2
+        x: 500
+        y: 0
+        width: 125
+        height: 87
+      alignment: 9
+      pivot: {x: 0.68, y: 0.45}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d065c539eed738e4089fb26ed7e0fe18
+      internalID: -1589751390
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 5dfc774f835eac64884fda5bb30de79b
     internalID: 0
     vertices: []
     indices: 
@@ -221,12 +243,15 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries: []
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":125.0,"y":87.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.6800000071525574,"y":0.44999998807907107},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":9,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
       hit fx_01_0: 8253112812946685408
       hit fx_01_1: -3311191699021111406
       hit fx_01_2: 6326792527275123958
       hit fx_01_3: -6318715484452715979
+      hit fx_01_4: -1589751390
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

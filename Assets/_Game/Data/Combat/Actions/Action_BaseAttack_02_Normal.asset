@@ -26,8 +26,10 @@ MonoBehaviour:
       allowedCommands:
       - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
     hitWindows:
-    - effects: []
+    - effects:
+      - {fileID: 11400000, guid: fbdf4a446d400664abf61910ab003c9a, type: 2}
       windowId: 0
+      damageMultiplier: 1
       shape: 0
       localOffset: {x: 2.13, y: 0.16}
       boxSize: {x: 3.68, y: 1.51}

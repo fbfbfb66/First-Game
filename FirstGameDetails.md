@@ -1,8 +1,8 @@
-﻿# First Game Project Details
+# First Game Project Details
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-10-25。
+最后更新时间：2026-10-29。
 
 ## 1. 项目概览
 
@@ -53,8 +53,16 @@
 
 ### 当前地图与物品资源
 
+- 秋季水井与工坊素材（本批上传顺序）：`Assets/_Game/Art/Environment/Props/Prop_Autumn_Well.png`（带顶棚的石砌水井，1366×1151）、`Assets/_Game/Art/Environment/Buildings/Building_Autumn_CarpenterWorkshop.png`（木工作坊，1671×941）、`Assets/_Game/Art/Environment/Buildings/Building_Autumn_FruitShop.png`（水果商店，1672×941）。三张原件均为带有假棋盘格背景的 JPG，已逐张使用原图作为图像编辑目标去底并另存为真实透明 PNG；灰底检查包括水井支架、水桶提手、工具架与工作台下方等镂空区域。导入配置为 Single Sprite / Full Rect、100 PPU、Point 过滤、无压缩，未绑定场景；上传原件仍保留在聊天附件目录。
+
+- 秋季单体建筑位于 `Assets/_Game/Art/Environment/Buildings/`，按本次上传顺序命名：`Building_Autumn_CottagePorch.png`（带左侧门廊的小屋）、`Building_Autumn_Hall.png`（双旗帜大厅）、`Building_Autumn_ShopAwning.png`（条纹遮阳棚商店）、`Building_Autumn_CottageWide.png`（宽屋檐小屋）。第一张上传原件为 JPG，棋盘格属于实际图像背景，已使用原图作为编辑目标去底并另存为透明 PNG（输出 1536×1024）；后三张原件已有真实透明通道，直接复制保留原始像素与 alpha。四张均经灰底合成检查，按 Single Sprite / Full Rect、100 PPU、Point 过滤、无压缩导入，尚未切片或绑定场景。
+
+- 秋季树木透明素材（按上传顺序）：`Assets/_Game/Art/Environment/Trees/Autumn/Tree_Autumn_RoundCanopy.png`（圆叶树冠）、`Tree_Autumn_Tall.png`（高树）、`Tree_Autumn_Curved.png`（弯曲树干）、`Tree_Autumn_Wide.png`（宽树冠）。四张原图均已有透明通道，已通过灰底合成检查；保留原始 PNG，按 Single Sprite / Full Rect、Point 过滤、无压缩导入，尚未绑定场景。
+
+- UI 装备栏素材：`Assets/_Game/Art/UI/Equipment/EquipmentSlotsAndIcons.png`，包含普通框、红色选中框，以及剑、护甲、靴子、手套、项链和戒指图标；保留上传原图，按 Single Sprite 导入，尚未切分或绑定场景。
+
 - `Assets/_Game/TileMaps/GroundPhysics.prefab` 保存 Grid 与地面 Tilemap 配置；`TileMaps/TileSet/` 保存 oak woods Tile 资源及对应 `.meta`。
-- `Assets/_Game/Art/UI/oak_woods_v1.0/` 包含角色、装饰和 tileset；同目录下的建筑图集、商店建造屋图集、秋林树木图集和 `SkillStone_DoubleJump.png` 一同纳入版本管理。
+- `Assets/_Game/Art/Environment/oak_woods_v1.0/` 作为完整素材包保留角色、背景、装饰、tileset 与来源说明的内部结构；独立建筑图集归入 `Art/Environment/Buildings/`，秋林树木归入 `Art/Environment/Trees/Autumn/`，二段跳技能石归入 `Art/Items/SkillStones/`。
 - 物品预制体位于 `Assets/_Game/Prefabs/Items/GreenHerb.prefab`、`Assets/_Game/Prefabs/Items/ItemView.prefab` 和 `Assets/_Game/Prefabs/KuroganeKatana.prefab`；旧的根目录 `Item.prefab` 已移除，`ItemView` 移动时保留原 GUID。
 - `Assets/_Game/Data/Skills/Skill_DoubleJump.asset` 的显示名为“二段跳”。
 
@@ -82,6 +90,11 @@ First Game/
 Assets/_Game/
 |-- Animation/
 |-- Art/
+|   |-- Environment/    Buildings、Props、Trees/Autumn、oak_woods_v1.0 完整素材包
+|   |-- Items/          Icons、SkillStones
+|   |-- NPC/            NPC 动作序列图
+|   |-- Player/         按动作保留 Aseprite 源文件与 sprite sheets
+|   `-- UI/             HUD、Panels、Buttons、Inventory、Equipment
 |-- Audio/
 |-- Data/
 |   |-- Core/
@@ -150,13 +163,17 @@ Unity 的 `.meta` 文件保存资源 GUID 和导入设置，必须和对应资�
 
 ```text
 Canvas_Inventory (Screen Space - Overlay)
+|-- BackgroundDim                       <- 黑色半透明遮罩
 |-- BackGround
 |-- InventoryPart
 |   |-- InventoryBG
+|   |-- CharacterEquipment              <- 静态角色预览，左右各 3 个装备槽
+|   |   |-- CharacterPortrait (RawImage) <- idle.png 第一帧，不驱动角色动画
+|   |   `-- Equipment*Slot / Frame / Icon
 |   |-- Inventory                        <- InventoryView
 |   |   `-- InventoryArea (ScrollRect)
 |   |       `-- Viewport (Mask)          <- 裁剪来源
-|   |           `-- Content              <- GridLayoutGroup (Cell 240, Spacing 5) + ContentSizeFitter
+|   |           `-- Content              <- GridLayoutGroup (Cell 156, Spacing 12，固定 4 列) + ContentSizeFitter
 |   |               |-- Slot .. Slot (31) <- 32 个静态格子底图
 |   |               `-- ItemLayer        <- InventoryPointerHandler
 |   |                   |-- PlacementPreview <- 拖放预览框（默认隐藏）
@@ -172,14 +189,22 @@ Canvas_Inventory (Screen Space - Overlay)
 |       |       |-- DropButton
 |       |       `-- AmountRow (＋ / − / AmountLabel)
 |       `-- FallBackLabel                <- 无选中项时显示
+|-- CharacterStatsPanel                  <- 右侧半透明黑灰属性面板
+|   `-- Health / Attack / Defense / CriticalChance / CriticalDamage / BaseMana Row
 `-- DragLayer                            <- 拖拽期间物品的临时父节点
 ```
 
 要点：
 
+- 右侧 `CharacterStatsPanel` 使用双向拉伸，左偏移为 1354，右、上、下偏移均为 0，背景与边框贴满屏幕右边及上下边缘；使用 Alpha 0.8 的黑灰底板，含生命值、攻击力、防御、暴击率、暴击伤害和基础法力六行。目前仅完成布局，数值使用占位符，尚未绑定运行时数据。当前项目没有运行时当前法力或等级字段；不能把 HUD MP 图形比例当作角色法力数据。
+- 背包 Canvas 使用 `Scale With Screen Size`，参考分辨率 1920×1080、宽高匹配 0.5。主体宽 1330，贴齐屏幕左边并通过垂直拉伸填满上下，右侧保留空白；左侧装备与背包区宽 800，右侧物品简介宽 514，中间留 16 间隔。黑灰底板配灰色细框、暗红选中框。
+- `EquipmentSlotsAndIcons.png` 已切成灰框、红色选中框与剑/胸甲/手套/项链/戒指/靴子六个图标。装备槽为 128×128，图标区域 80×84，左右各三个，行间距 16；装备区尺寸 800×416。装备槽目前仅作视觉展示，不包含装备逻辑；角色通过 334×400 的 `RawImage` 与 UV (0, 0, 0.1, 1) 显示现有待机图集第一帧。
+- 保留 4×8 共 32 个背包格；可视区域 660×492，显示 3 行，其余行通过滚轮浏览。`InventoryView` 的序列化 `cellSize=156`、`spacing=12` 与布局组件一致，预览偏移归零；交互脚本未因本次美术调整而修改。
+- 静态格子使用灰黑底色与独立灰框子节点；`ItemView.prefab` 使用 `InventoryCharcoal.asset` 中的纯色 Sprite 作为底板、独立灰框子节点作为边缘，兼容现有拖拽时隐藏底板的行为。框线使用 Sliced，`Pixels Per Unit Multiplier=4`。
+- 物品简介与按钮文字的旧负边距已清零，数量加减按钮使用文本符号；选中框和拖放预览框均引用装备资产中的红框。
 - `ItemLayer` 是 `Content` 的**最后一个子物体**，因此在渲染与射线顺序上位于所有 Slot 之上。
 - `ItemLayer` 挂 `LayoutElement`（勾选 `Ignore Layout`），否则会被 `GridLayoutGroup` 当成第 33 个格子摆走。
-- `ItemLayer` 锚点为 stretch/stretch、pivot 为 (0, 1)，并挂一个 `Alpha = 0` 且开启 `Raycast Target` 的 `Image` 作为隐形鼠标热区。**pivot 一旦被改动，`TryGetCellAt` 的换算结果会整体偏移。**
+- `ItemLayer` 的 anchor/pivot 均为 (0, 1)，尺寸为 660×1332，与 Content 的 4×8 网格范围一致；挂一个 `Alpha = 0` 且开启 `Raycast Target` 的 `Image` 作为隐形鼠标热区。**pivot 一旦被改动，`TryGetCellAt` 的换算结果会整体偏移。**
 - 物品显示对象不是 Slot 的子物体——多格物品无法塞进单个 Slot，只能由 `ItemLayer` 统一按坐标摆放。
 - `Canvas_Inventory` 默认**未启用**，由 `InventoryScreen` 根据 `GameLayerType.Inventory` 开关。
 - `PlacementPreview` 是一张半透明 `Image`，anchor/pivot 同为 (0, 1)，**关闭 `Raycast Target`**（否则会挡住 `ItemLayer` 的鼠标射线，拖动直接失灵），默认 `SetActive(false)`。它必须是 `ItemLayer` 的子物体：预览框要吸附到格子，就得和格子共用同一套坐标系，且背包滚动时会跟着内容一起走。拖拽开始时 `SetAsLastSibling()` 把它排到所有 `ItemView` **之后**——同一 Canvas 下渲染顺序即 Hierarchy 顺序，排在后面才画在上面。若排在前面（`SetAsFirstSibling`），红色预览恰好会被"挡路的那件物品"的底板完全盖住，而那正是它唯一需要被看见的时刻。
@@ -358,7 +383,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Runtime/UI/UIPolygonMask.cs`
 
-- 填充素材：`Assets/_Game/Art/UI/WindEnergyTexture.png`，淡青白风丝与雾气组成的矩形风元素纹理，按 Single Sprite / Full Rect 导入，供子节点 Image 的 Source Image 使用；尚未绑定场景对象。当前为静态纹理，未验证无缝平铺。
+- 填充素材：`Assets/_Game/Art/UI/HUD/WindEnergyTexture.png`，淡青白风丝与雾气组成的矩形风元素纹理，按 Single Sprite / Full Rect 导入，供子节点 Image 的 Source Image 使用；尚未绑定场景对象。当前为静态纹理，未验证无缝平铺。
 - 职责：从同物体的 `PolygonCollider2D` 读取多条闭合轮廓，逐条三角化后合并为同一个 `MaskableGraphic` 网格，再由同物体的 UGUI `Mask` 裁剪子 UI；各区域取并集，不负责血量计算或填充比例。
 - 添加：在 Canvas 下选中父物体，右键 `UI/Polygon Mask` 创建 `PolygonMask`（初始 600 × 60）；也可在一个没有 Image/其他 Graphic 的 UI 物体上添加 `UI/Polygon Mask` 组件。自动依赖 `CanvasRenderer`、`PolygonCollider2D`、`Mask`。
 - 编辑：在 `UI Polygon Mask` 组件点击 `Add Closed Region`，在 RectTransform 中心新增一条小矩形路径，支持 Undo；随后在 `Polygon Collider 2D` 组件点击 `Edit Collider`，在 Scene 拖动新路径顶点。也可在 Collider 的 Paths 中管理各条路径。Collider 保持禁用，仅存储轮廓，不参与物理碰撞；`Update()` 检测 `GetShapeHash()` 的变化后请求 UI 重建。
@@ -370,7 +395,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 限制：支持多个实心区域及区域重叠，不支持孔洞、单条路径自交和接触自身；任一路径非法时清空整个合并网格和射线区域，并警告具体 Path 索引。顶点使用本地 UI 单位，RectTransform 尺寸改变不会自动缩放轮廓；应先定尺寸，再编辑点。父级 Transform/Canvas 缩放会正常作用于整个轮廓。
 - 验证：Unity 临时 Preview Scene 中实际渲染五顶点切角（5 顶点、3 三角形），采样确认内部红色、切角及外部黑色；凹轮廓三角化及重置 Undo 通过。
 - 多路径变更验证边界：运行时代码已在 Unity 的 Assembly-CSharp 中编译，代码差异检查通过；本次新增的多区域实际渲染、射线、offset 和单路径回归脚本已准备于 `Logs/Diagnostics/UIPolygonMaskCheckpoint.cs`，尚未执行。手动导入测试脚本被自动审批以场景仍有未保存状态为由拦截，临时入口已移出 Assets，避免自动改动现场；不能把此前的单路径验证视为本次多路径运行验证。
-- 当前已保存的场景配置：`Canvas_HUD/HUD` 下包含 `HP/MaskArea/Fill`、`MP/MaskArea/Fill` 及装饰 `Frame`。两处 MaskArea 均挂载 `UIPolygonMask`、禁用的 `PolygonCollider2D`、隐藏自身图形的 `Mask` 和 `CanvasRenderer`；HP 轮廓为 6 点，MP 为 9 点。Frame 使用 `Assets/_Game/Art/UI/HUD.png` 中的 Sprite，位于两处遮罩外。
+- 当前已保存的场景配置：`Canvas_HUD/HUD` 下包含 `HP/MaskArea/Fill`、`MP/MaskArea/Fill` 及装饰 `Frame`。两处 MaskArea 均挂载 `UIPolygonMask`、禁用的 `PolygonCollider2D`、隐藏自身图形的 `Mask` 和 `CanvasRenderer`；HP 轮廓为 6 点，MP 为 9 点。Frame 使用 `Assets/_Game/Art/UI/HUD/HUD.png` 中的 Sprite，位于两处遮罩外。
 
 #### `Assets/_Game/Scripts/Editor/UIPolygonMaskEditor.cs`
 
@@ -1721,12 +1746,19 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Enemy/Enemy.cs`
 
 - 当前敌人实体入口，MonoBehaviour，不添加 AI 或状态机行为。RequireComponent 声明 EnemyHealth 依赖；`Awake()` 从 characterStatsData 创建独立 CharacterStats，再把同一实例传给 EnemyHealth.Initialize。通过 Stats 和 Health 只读属性访问运行时数据。
-- GameScene 已有 Enemy 和 Enemy (1) 使用 `Assets/_Game/Data/Character/EnemyStats.asset`，每个敌人在 Awake 各自创建独立属性；与玩家资源及运行时属性分离。保留 Enemy 的 Enemy Layer 与 Enemy (1) 的 Player Layer，不改变原有敌我过滤测试设置。
+- GameScene 当前测试敌人为根对象 `Enemy_TestCapsule`，位于玩家出生点右侧（3, -4.74, 0），使用 `Assets/_Game/Data/Character/EnemyStats.asset`，初始生命 100。外观使用 `Assets/_Game/Art/Enemy_TestCapsule.png` 的红色胶囊 Sprite，尺寸 1.6 × 2.5；配置 Enemy Layer、CapsuleCollider2D、动态 Rigidbody2D（冻结旋转）和 CombatEffectReceiver，支持受击、挑起与运动暂停，不包含 AI。Enemy 在 Awake 创建独立运行时属性。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Enemy/EnemyHealth.cs`
 
 - 继承 Health，通过 `void Initialize(CharacterStats stats)` 设置运行时属性和初始满血；拒绝空配置、非正最大生命值和重复初始化。复用基类受伤、攻击者检查、Debug 和死亡判定。
-- GameScene 中 EnemyHealth 仅接受 Player Layer 攻击，CombatHurtbox.Owner 指向对应根对象。Play Mode 已验证两个敌人初始化满血且 Stats 独立；实际 Enemy 经玩家 HeavyAttack 物理检测受伤 100 -> 80，同窗口重复查询不重复扣血，成功受击输出 Health Debug。
+- GameScene 中 `Enemy_TestCapsule` 的 EnemyHealth 仅接受 Player Layer 攻击，CombatHurtbox.Owner 指向胶囊根对象。Play Mode 已验证满血初始化和落地；通过调试调用打开普攻第一段命中窗口并运行真实 PlayerCombatHitDetector，生命 100 -> 90，生成一个 VFX，同窗口重复检测不重复扣血。Animator 引用修正后，用户已在游戏内测试并确认攻击特效效果良好。死亡仅更新 IsDead，重新进入 Play Mode 可恢复满血。
+
+#### 攻击命中 VFX
+
+- `Assets/_Game/Scripts/Runtime/GamePlay/Combat/Effects/CombatHitVFXEffect.cs`：成功受伤后由命中窗口调用 `Apply(CombatHitEffectContext context)`，在 TargetOwner 附近按配置的 X/Y 随机偏移生成特效 Prefab；拒绝伤害的目标不触发特效。
+- `Assets/_Game/Scripts/Runtime/GamePlay/VFX/VFXData.cs` 保存 Animator 状态名称；`VFXPlayer.cs` 在 Awake 补取缺失的 Animator 引用，Start 根据 VFXData 播放对应状态，`Destory()` 销毁自身 GameObject。两个 Prefab 显式引用 Visual 上的 Animator，根物体不再保留空 Animator。
+- `VFXAnimationEvent.cs` 接收动画末尾的 `DestoryVFX()` 事件，调用所属 VFXPlayer 的销毁入口。`Animation/AnimationStates/VFX/HitFX_01.anim` 与 `HitFX_02.anim` 均关闭循环并配置结束事件；共用 `Animation/AnimationController/VFX.controller`。
+- 资源：`Data/VFX/VFX_Hit_01.asset`、`VFX_Hit_02.asset`，`Data/Combat/Effects/Effect_VFX_Hit01.asset`、`Effect_VFX_Hit02.asset`，以及 `Prefabs/VFX/Hit FX_01.prefab`、`Hit FX_02.prefab`（以上均位于 `Assets/_Game/`）。普攻第一、三段及跳攻第一段、下劈循环使用 Hit01；普攻第二段、重攻、挑起与跳攻第二段使用 Hit02。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerHealth.cs`
 
@@ -2316,7 +2348,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - `GameScene.unity` 已加入 `StorySceneBindings`、`StoryCameraDirector`、`StoryCanvas`、剧情文本视图、剧情相机绑定和 Input System UI EventSystem。
 - `GameScene.unity` 的 HUD 中 HP、MP 分别使用 `UI_HPBarView`、`UI_MPBarView`，继承 `UI_ResourceBarView` 的共有配置，各自绑定 `MaskArea/Fill` 并配置满值宽度。
 - `GameScene.unity` 已加入 `Canvas_Inventory` 背包界面雏形，当前包含滚动视图和多个 Slot 图像节点。
-- 新增 UI 图片资源目录 `Assets/_Game/Art/UI/`，包含 `04.png`、`06.png`、`07.png` 及对应 `.meta`。
+- UI 状态条图集 `04.png`、`06.png`、`07.png` 现归档于 `Assets/_Game/Art/UI/HUD/`，保留对应 `.meta`。
 - 背包系统脚本目录 `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/` 已扩展为 `ItemData`、`ItemCategory`、`InventoryItem` 和 `InventoryGrid`。
 - `ItemData` 已加入物品 ID、显示名、描述、图标、分类、占格尺寸、最大堆叠和旋转配置，并提供 `Game/Inventory/Item Data` 资源创建入口。
 - 新增物品资源目录 `Assets/_Game/Data/Items/`，包含第一个物品 `GreenHerb.asset`（1×1，Consumable，最大堆叠 3）。
@@ -2329,7 +2361,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - `InputRouter` 删除了确认对话选项时的调试日志输出。
 - 背包详情由右键弹出菜单改为常驻面板：新增 `Assets/_Game/Scripts/Runtime/UI/ItemDetailPanel.cs`，删除 `ItemContextMenu.cs` 与 `ContextMenuBlocker.cs`；`GameScene.unity` 中删除 `Blocker` 与 `ItemContextMenu` 两个对象，新增 `InventoryPart`（含 `InventoryBG` / `Inventory` / `ItemDetailPanel`）与 `ItemLayer/SelectedBoard` 选中框。
 - `InventoryGrid` 新增 `TryGetItemPosition`，`PlayerInventory` 同步新增转发方法。
-- `Assets/_Game/Art/UI/` 新增背包与面板用图：`Slot.png`（32 个格子底图共用）、`Inventory Slots and Selection Frame Set.png`（选中框来源）以及四张 `ChatGPT Image Aug 30, 2026, *.png` 面板底板，均连同 `.meta` 一起提交。同目录的 `Icy Fantasy RPG UI Asset Sheet.png` 是尚未被任何场景引用的素材原图，暂未纳入版本库。
+- 背包用图 `Slot.png`（32 个格子底图共用）与 `Inventory Slots and Selection Frame Set.png`（选中框来源）现归档于 `Assets/_Game/Art/UI/Inventory/`；三张 `ChatGPT Image Aug 30, 2026, *.png` 面板底板归入 `UI/Panels/`；另一张 `10_46_38 PM.png` 实际为三角按钮，归入 `UI/Buttons/`。所有移动保留原 `.meta` 和 Sprite 切片。历史记录中的 `Icy Fantasy RPG UI Asset Sheet.png` 当前不在 Art 目录中。
 
 ## 12. 已处理事项与仍需留意
 

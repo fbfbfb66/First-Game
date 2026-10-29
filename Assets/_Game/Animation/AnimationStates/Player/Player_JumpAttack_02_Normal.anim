@@ -22,26 +22,26 @@ AnimationClip:
     curve:
     - time: 0
       value: {fileID: -8328107480272713517, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.06666667
+    - time: 0.04
       value: {fileID: 4141738532851969623, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.13333334
+    - time: 0.08
       value: {fileID: 4818750185286475463, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.2
+    - time: 0.12
       value: {fileID: 8360663014144616483, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.26666668
+    - time: 0.16
       value: {fileID: -4745036497509176049, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.33333334
+    - time: 0.2
       value: {fileID: -6708210291422950250, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.4
+    - time: 0.24
       value: {fileID: -2095045527147994976, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
-    - time: 0.46666667
+    - time: 0.28
       value: {fileID: 5369869714450617176, guid: 249c74fe747d1854a97341d0a3e060f3, type: 3}
     attribute: m_Sprite
     path: 
     classID: 212
     script: {fileID: 0}
     flags: 2
-  m_SampleRate: 15
+  m_SampleRate: 25
   m_WrapMode: 0
   m_Bounds:
     m_Center: {x: 0, y: 0, z: 0}
@@ -71,7 +71,7 @@ AnimationClip:
     m_AdditiveReferencePoseClip: {fileID: 0}
     m_AdditiveReferencePoseTime: 0
     m_StartTime: 0
-    m_StopTime: 0.53333336
+    m_StopTime: 0.32
     m_OrientationOffsetY: 0
     m_Level: 0
     m_CycleOffset: 0
@@ -98,42 +98,42 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.2
-    functionName: CloseCombatHitWindow
-    data: 
-    objectReferenceParameter: {fileID: 0}
-    floatParameter: 0
-    intParameter: 0
-    messageOptions: 0
-  - time: 0.2
-    functionName: OpenCombatCancelWindow
-    data: 
-    objectReferenceParameter: {fileID: 0}
-    floatParameter: 0
-    intParameter: 0
-    messageOptions: 0
-  - time: 0.2
+  - time: 0
     functionName: OpenCombatTransitionWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.4
+  - time: 0.12
+    functionName: CloseCombatHitWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.12
+    functionName: OpenCombatCancelWindow
+    data: 
+    objectReferenceParameter: {fileID: 0}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.24
     functionName: CommitCombatTransition
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.46666667
+  - time: 0.28
     functionName: CloseCombatCancelWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.53333336
+  - time: 0.32
     functionName: FinishCombatStage
     data: 
     objectReferenceParameter: {fileID: 0}

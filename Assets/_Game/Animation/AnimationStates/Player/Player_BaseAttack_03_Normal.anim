@@ -26,36 +26,36 @@ AnimationClip:
       value: {fileID: 3657238699872986722, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
     - time: 0
       value: {fileID: -8642194854193318198, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.04
+    - time: 0.033333335
       value: {fileID: 8441244259626001002, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.08
+    - time: 0.06666667
       value: {fileID: -3424394456952964927, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.12
+    - time: 0.1
       value: {fileID: 7346848401162682854, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.16
+    - time: 0.13333334
       value: {fileID: -2977259449196057552, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.2
+    - time: 0.16666667
       value: {fileID: -3205346230387234569, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.24
+    - time: 0.2
       value: {fileID: -3045266815782030944, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.28
+    - time: 0.23333333
       value: {fileID: 8201372987333759626, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.32
+    - time: 0.26666668
       value: {fileID: -2181790819058075240, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.36
+    - time: 0.3
       value: {fileID: 7660315450556621052, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.4
+    - time: 0.33333334
       value: {fileID: -3902447574591556091, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.44
+    - time: 0.36666667
       value: {fileID: -8670118643161888013, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
-    - time: 0.48
+    - time: 0.4
       value: {fileID: -8452770445560927814, guid: 0bb66be1328073b4bb4eaf1cff00c1ba, type: 3}
     attribute: m_Sprite
     path: 
     classID: 212
     script: {fileID: 0}
     flags: 2
-  m_SampleRate: 25
+  m_SampleRate: 30
   m_WrapMode: 0
   m_Bounds:
     m_Center: {x: 0, y: 0, z: 0}
@@ -92,7 +92,7 @@ AnimationClip:
     m_AdditiveReferencePoseClip: {fileID: 0}
     m_AdditiveReferencePoseTime: 0
     m_StartTime: 0
-    m_StopTime: 0.52
+    m_StopTime: 0.43333334
     m_OrientationOffsetY: 0
     m_Level: 0
     m_CycleOffset: 0
@@ -119,56 +119,56 @@ AnimationClip:
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.08
+  - time: 0.06666667
     functionName: OpenCombatCancelWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.16
+  - time: 0.13333334
     functionName: CloseCombatCancelWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.16
+  - time: 0.13333334
     functionName: OpenCombatTransitionWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.32
+  - time: 0.26666668
     functionName: OpenCombatCancelWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 1
     messageOptions: 0
-  - time: 0.32
+  - time: 0.26666668
     functionName: CloseCombatHitWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.48
+  - time: 0.4
     functionName: CloseCombatCancelWindow
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 1
     messageOptions: 0
-  - time: 0.48
+  - time: 0.4
     functionName: CommitCombatTransition
     data: 
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
-  - time: 0.52
+  - time: 0.43333334
     functionName: FinishCombatStage
     data: 
     objectReferenceParameter: {fileID: 0}

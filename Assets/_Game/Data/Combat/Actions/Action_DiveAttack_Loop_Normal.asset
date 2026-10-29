@@ -23,11 +23,13 @@ MonoBehaviour:
     horizontalDeceleration: 0
     cancelWindows: []
     hitWindows:
-    - effects: []
+    - effects:
+      - {fileID: 11400000, guid: e9218ab5bee2b574b85a964c58c39120, type: 2}
       windowId: 0
+      damageMultiplier: 1
       shape: 0
       localOffset: {x: 0.24, y: 0.86}
-      boxSize: {x: 1.48, y: 6.75}
+      boxSize: {x: 4, y: 6.75}
       circleRadius: 0
   transitions:
   - conditions:
