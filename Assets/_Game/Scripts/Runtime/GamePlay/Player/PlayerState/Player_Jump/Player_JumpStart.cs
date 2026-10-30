@@ -15,12 +15,12 @@ public class Player_JumpStart : PlayerState
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
-        if(!hadJumped && player.playerAnimationTrigger.canPerformAction)
+        if(!hadJumped && animationTrigger.CanPerformAction)
         {
             movement.HandleJump();
             hadJumped = true;
         }
-        if (player.playerAnimationTrigger.IsAnimationFinished)
+        if (animationTrigger.IsAnimationFinished)
         {
             stateMachine.ChangeState(player.jumpUpState);
         }

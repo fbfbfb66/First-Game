@@ -10,14 +10,15 @@ public class PlayerGround : PlayerState
     {
         base.Enter();
         movement.ClearYVelocity();
-        input.ClearDashRequset();
     }
 
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
 
-        if (input.ConsumeDash() && player.TryConsumeDash())
+        ActionContext context = CreateActionContext();
+        if (motionController.BufferedRequest.Command == player.DashCommand &&
+            motionController.TryStartAction(player.DashAction, in context))
         {
             stateMachine.ChangeState(player.dashState);
             return;
@@ -30,13 +31,13 @@ public class PlayerGround : PlayerState
             return;
         }
 
-        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
+        if (motionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;
         }
 
-        if (input.ConsumeWorldInteract())
+        if (motionController.TryConsumeBufferedRequest(player.InteractCommand))
         {
             player.interaction.TryInteract();
         }

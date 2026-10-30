@@ -1,7 +1,7 @@
 using UnityEngine;
 [CreateAssetMenu(
     fileName = "Effect_Launch_",
-    menuName = "Game/Combat/Effects/Launch")]
+    menuName = "Game/Actions/Combat/Effects/Launch")]
 public sealed class CombatLaunchHitEffect : CombatHitEffect
 {
     [SerializeField] private float targetVerticalVelocity;

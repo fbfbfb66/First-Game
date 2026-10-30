@@ -1,7 +1,7 @@
 using UnityEngine;
 [CreateAssetMenu(
     fileName = "Effect_VFX",
-    menuName = "Game/Combat/Effects/VFX")]
+    menuName = "Game/Actions/Combat/Effects/VFX")]
 public class CombatHitVFXEffect : CombatHitEffect
 {
     [SerializeField] private GameObject hitVFXPrefab;

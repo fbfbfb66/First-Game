@@ -1,76 +1,32 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerState : EntityState
 {
     protected Player player;
     protected PlayerMovement movement;
-    protected PlayerInputReceiver input;
+    protected PlayerCommandInput commandInput;
+    protected PlayerMotionController motionController;
     protected GroundSensor groundSensor;
     protected WallSensor wallSensor;
-    protected PlayerAnimationTrigger animationTrigger;
-    private int activeCancelWindowId = -1;
-    private readonly List<StateCancelTransitionRule> cancelTransitions = new();
+    protected PlayerMotionAnimationTrigger animationTrigger;
+    protected virtual MotionActionDefinition MotionAction => null;
 
-    public bool HasActiveCancelWindow => activeCancelWindowId >= 0;
-    public int ActiveCancelWindowId => activeCancelWindowId;
     public PlayerState(Player player,StateMachine stateMachine, int stateName, Animator anim) : base(stateMachine, stateName, anim)
     {
         this.player = player;
         movement = player.playerMovement;
-        input = player.playerInputReceiver;
-        animationTrigger = player.playerAnimationTrigger;
+        commandInput = player.CommandInput;
+        motionController = player.MotionController;
+        animationTrigger = player.MotionAnimationTrigger;
         groundSensor = player.groundSensor;
         wallSensor = player.wallSensor;
     }
 
-    public void AddCancelTransition(EntityState targetState,int requiredWindowId = -1)
+    public override void Enter()
     {
-        StateCancelTransitionRule rule = new StateCancelTransitionRule(targetState, requiredWindowId);
-        cancelTransitions.Add(rule);
-    }
-
-    public override bool CanTransitionTo(EntityState targetState, StateTransitionKind transitionKind)
-    {
-        if (transitionKind != StateTransitionKind.Cancel) return base.CanTransitionTo(targetState, transitionKind);
-        foreach(var transitionRule in cancelTransitions)
-        {
-            if (transitionRule == null) continue;
-            if (transitionRule.Allows(targetState, activeCancelWindowId)) return true;
-        }
-        return false;
-    }
-
-    public void OpenCancelWindow(int windowId)
-    {
-        if(windowId < 0)
-        {
-            Debug.LogWarning($"WindowId less 0");
-            return;
-        }
-        if (HasActiveCancelWindow)
-        {
-            Debug.LogWarning($"CancelWindow is Exit");
-            return;
-        }
-        activeCancelWindowId = windowId;
-        Debug.Log($"[FSM Window] Open | Source={GetType().Name} | Window={windowId}");
-    }
-
-    public void CloseCancelWindow(int windowId)
-    {
-        if (windowId != activeCancelWindowId)
-        {
-            Debug.LogWarning("windowId Not Equal to activeCancelWindowId ");
-            return;
-        }
-        if (HasActiveCancelWindow==false)
-        {
-            Debug.LogWarning($"CancelWindow Not Exit");
-            return;
-        }
-        activeCancelWindowId = -1;
-        Debug.Log($"[FSM Window] Close | Source={GetType().Name} | Window={windowId}");
+        motionController.BeginState(stateName, MotionAction);
+        animationTrigger.ResetAnimation();
+        base.Enter();
     }
 
     public override void LogicalUpdate()
@@ -81,9 +37,20 @@ public class PlayerState : EntityState
 
     }
 
+    protected ActionContext CreateActionContext()
+    {
+        return new ActionContext(
+            groundSensor.IsGrounded,
+            groundSensor.CanEnterGrounded,
+            groundSensor.transform.position,
+            player.CanDash,
+            player.CanDoubleJump,
+            player.Skills);
+    }
+
     protected void ChangeStateToMoveState()
     {
-        if(input.MoveInput.x == 0)
+        if(commandInput.MoveInput.x == 0)
         {
             stateMachine.ChangeState(player.idleState);
         }
@@ -107,7 +74,7 @@ public class PlayerState : EntityState
     protected bool isSameDirctionForWallandFacingDir(bool needToHandleKey = true)
     {
         if (wallSensor.IsTouchingWall == false) return false;
-        Vector2 move = input.MoveInput;
+        Vector2 move = commandInput.MoveInput;
         bool isSameDir = false;
         if (move.x > 0 && movement.facingRight)
         {
@@ -123,11 +90,7 @@ public class PlayerState : EntityState
 
     public override void Exit()
     {
+        motionController.EndState(stateName);
         base.Exit();
-        if (HasActiveCancelWindow)
-        {
-            Debug.Log("FSM| CleanUp");
-            activeCancelWindowId = -1;
-        }
     }
 }

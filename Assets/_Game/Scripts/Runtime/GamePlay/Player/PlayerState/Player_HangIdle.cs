@@ -10,7 +10,6 @@ public class Player_HangIdle : PlayerState
     public override void Enter()
     {
         base.Enter();
-        input.ClearJumpRequest();
         movement.ClearPlayerVelocity();
         Vector2 currentPos = movement.Rb.position;
         currentPos.y = wallSensor.HangBodyTargetY;
@@ -30,7 +29,7 @@ public class Player_HangIdle : PlayerState
             return;
         }
 
-        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
+        if (motionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.climbUpState);
             return;

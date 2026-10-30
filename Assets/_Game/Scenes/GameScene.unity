@@ -1027,6 +1027,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f626a3cc0554e9249b370f52b9a6431a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputRouter
+  jumpCommand: {fileID: 11400000, guid: 8e7e3244f783e6b4f8907059f1d5f20d, type: 2}
+  interactCommand: {fileID: 11400000, guid: 7e431581fac24ec4872eef7e089dece4, type: 2}
   diveAttackCommand: {fileID: 11400000, guid: 243ce5f31d9a0ba49a877bb9b84946fa, type: 2}
   attackCommand: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
   dashCommand: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
@@ -1034,10 +1036,9 @@ MonoBehaviour:
   inputReader: {fileID: 0}
   gameLayerStack: {fileID: 0}
   playerControlArbitration: {fileID: 0}
-  playerInputReceiver: {fileID: 0}
   inventoryView: {fileID: 0}
   dialogueManager: {fileID: 0}
-  playerCombatActionController: {fileID: 0}
+  player: {fileID: 2075136171}
 --- !u!4 &178392424
 Transform:
   m_ObjectHideFlags: 0
@@ -8223,6 +8224,7 @@ GameObject:
   - component: {fileID: 764046014}
   - component: {fileID: 764046015}
   - component: {fileID: 764046016}
+  - component: {fileID: 764046017}
   m_Layer: 0
   m_Name: Animator
   m_TagString: Untagged
@@ -8337,9 +8339,21 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 426a663afd0947a4fb15bbf11b165426, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimationTrigger
-  combatActionController: {fileID: 0}
-  player: {fileID: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatAnimationTrigger
+  combatActionController: {fileID: 2075136175}
+--- !u!114 &764046017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 764046012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 732dc8776b33b1846a6294e331e6f005, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMotionAnimationTrigger
+  motionController: {fileID: 2075136181}
 --- !u!1 &779952426
 GameObject:
   m_ObjectHideFlags: 0
@@ -23740,12 +23754,12 @@ GameObject:
   m_Component:
   - component: {fileID: 2075136166}
   - component: {fileID: 2075136171}
-  - component: {fileID: 2075136165}
   - component: {fileID: 2075136167}
   - component: {fileID: 2075136170}
   - component: {fileID: 2075136173}
   - component: {fileID: 2075136174}
   - component: {fileID: 2075136175}
+  - component: {fileID: 2075136181}
   - component: {fileID: 2075136176}
   - component: {fileID: 2075136177}
   - component: {fileID: 2075136178}
@@ -23760,18 +23774,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2075136165
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2075136164}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4af3998490f231d4cbd34a6a85e9e63a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerInputReceiver
 --- !u!4 &2075136166
 Transform:
   m_ObjectHideFlags: 0
@@ -23861,18 +23863,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player
   anim: {fileID: 0}
   playerSkills: {fileID: 2075136178}
-  doubleJumpSkill: {fileID: 11400000, guid: 64d733c7cb9c73841a1558ca5ae9123c, type: 2}
   playerBaseConfig: {fileID: 11400000, guid: b6bffea6f11b4484182ab1a1a8f98649, type: 2}
   characterStatsData: {fileID: 11400000, guid: ae3d13e6788f6b14abe288228dffc4a0, type: 2}
   playerMovement: {fileID: 0}
-  playerInputReceiver: {fileID: 0}
-  playerAnimationTrigger: {fileID: 0}
+  motionAnimationTrigger: {fileID: 764046017}
   interaction: {fileID: 0}
   timeTool: {fileID: 0}
   groundSensor: {fileID: 0}
   wallSensor: {fileID: 0}
+  motionController: {fileID: 2075136181}
   combatActionController: {fileID: 0}
   dashCommand: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
+  dashAction: {fileID: 11400000, guid: c4fe5b82708ac004598101b9f536fad4, type: 2}
+  jumpCommand: {fileID: 11400000, guid: 8e7e3244f783e6b4f8907059f1d5f20d, type: 2}
+  interactCommand: {fileID: 11400000, guid: 7e431581fac24ec4872eef7e089dece4, type: 2}
+  wallSlideAction: {fileID: 11400000, guid: 802e288941b2a7b43abd6bfdfb7b9717, type: 2}
+  doubleJumpVerticalAction: {fileID: 11400000, guid: 24fe9fb53566c7b4e99aeb7aa74d3885, type: 2}
+  doubleJumpForwardAction: {fileID: 11400000, guid: 8de0c601149c9f7409fc1c3f85962f3a, type: 2}
 --- !u!70 &2075136172
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -23948,12 +23955,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8fa14346c62519848b9a297c5a0d7ca0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatActionController
+  config: {fileID: 11400000, guid: d3f42bb2eaf94d147acadae16becfc61, type: 2}
   entryActions:
   - {fileID: 11400000, guid: ad24428fd1949f240a62995379427803, type: 2}
   - {fileID: 11400000, guid: 480a310550fc6c34e9ff99139735757d, type: 2}
   - {fileID: 11400000, guid: 435b0d0846158594d871a615af8b6636, type: 2}
   - {fileID: 11400000, guid: 621171206551c9b4d916c859e35107be, type: 2}
-  config: {fileID: 11400000, guid: d3f42bb2eaf94d147acadae16becfc61, type: 2}
 --- !u!114 &2075136176
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23988,6 +23995,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
   body: {fileID: 2075136168}
+  canBeKnockedBack: 1
+  deceleration: 50
   canBeLaunched: 1
 --- !u!114 &2075136178
 MonoBehaviour:
@@ -24030,6 +24039,19 @@ MonoBehaviour:
   acceptedAttackerLayers:
     serializedVersion: 2
     m_Bits: 2048
+--- !u!114 &2075136181
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2075136164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec581591a3ffd5e488cc94684243de17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMotionController
+  config: {fileID: 11400000, guid: d4965682a333769479ca00caba4e5c6d, type: 2}
 --- !u!1 &2076946868
 GameObject:
   m_ObjectHideFlags: 0

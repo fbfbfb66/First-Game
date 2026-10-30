@@ -11,7 +11,9 @@ public class Player_JumpUp : PlayerAir
         base.LogicalUpdate();
         if (stateMachine.currentState != this) return;
 
-        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration) && player.TryConsumeDoubleJump())
+        ActionContext context = CreateActionContext();
+        if (motionController.BufferedRequest.Command == player.JumpCommand &&
+            motionController.TryStartAction(player.DoubleJumpAction, in context))
         {
             stateMachine.ChangeState(player.doubleJumpState);
             return;
@@ -27,6 +29,6 @@ public class Player_JumpUp : PlayerAir
     public override void PhysicalUpdate()
     {
         base.PhysicalUpdate();
-        movement.HandleMoveAndFlip(input.MoveInput);
+        movement.HandleMoveAndFlip(commandInput.MoveInput);
     }
 }

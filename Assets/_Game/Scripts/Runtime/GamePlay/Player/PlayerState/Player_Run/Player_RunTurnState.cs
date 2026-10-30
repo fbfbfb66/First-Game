@@ -8,11 +8,11 @@ public class Player_RunTurnState : Player_RunTransition
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
-        if(animationTrigger.IsAnimationFinished && input.MoveInput.x == 0)
+        if(animationTrigger.IsAnimationFinished && commandInput.MoveInput.x == 0)
         {
             stateMachine.ChangeState(player.idleState);
         }
-        else if (animationTrigger.IsAnimationFinished && input.MoveInput.x != 0)
+        else if (animationTrigger.IsAnimationFinished && commandInput.MoveInput.x != 0)
         {
             stateMachine.ChangeState(player.runState);
         }
@@ -21,6 +21,6 @@ public class Player_RunTurnState : Player_RunTransition
     public override void Exit()
     {
         base.Exit();
-        movement.HandleFlip(input.MoveInput);
+        movement.HandleFlip(commandInput.MoveInput);
     }
 }

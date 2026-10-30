@@ -27,12 +27,12 @@ public class StopPlayerStoryStepAction : StoryStepAction
 
     private void ClearPlayerInput(GameObject player)
     {
-        if(!player.TryGetComponent(out PlayerInputReceiver inputReceiver))
+        if(!player.TryGetComponent(out Player playerEntity))
         {
-            Debug.LogWarning("Player object does not have PlayerInputReceiver component.");
+            Debug.LogWarning($"Stop Player: {player.name} has no Player component; movement input cannot be cleared.", player);
             return;
         }
-        inputReceiver.ClearMoveInput();
+        playerEntity.CommandInput.ClearMoveInput();
     }
     private void StopPlayerVelocity(GameObject player)
     {

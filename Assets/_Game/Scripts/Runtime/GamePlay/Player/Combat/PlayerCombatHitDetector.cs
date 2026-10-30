@@ -30,8 +30,16 @@ public class PlayerCombatHitDetector : MonoBehaviour
         IsOnGamePlaye = true;
     }
 
+    private void OnEnable()
+    {
+        if (actionController != null)
+            actionController.HitWindowEnded += StopTrackingHitWindow;
+    }
+
     private void OnDisable()
     {
+        if (actionController != null)
+            actionController.HitWindowEnded -= StopTrackingHitWindow;
         StopTrackingHitWindow();
     }
 
@@ -45,7 +53,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
         }
         CombatActionDefinition currentAction = actionController.CurrentAction;
         if (currentAction == null) return;
-        if (currentAction.Stage.TryGetHitWindow(actionController.ActiveHitWindowId, out var hitWindow) == false) return;
+        if (currentAction.CombatStage.TryGetHitWindow(actionController.ActiveHitWindowId, out var hitWindow) == false) return;
         if(currentAction != trackedAction || hitWindow != trackedHitWindow)
         {
             BeginTrackingHitWindow(currentAction,hitWindow);
@@ -137,7 +145,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
             if (actionController.IsHitWindowOpen == false) return;
             CombatActionDefinition currentAction = actionController.CurrentAction;
             if (currentAction == null) return;
-            if (currentAction.Stage.TryGetHitWindow(actionController.ActiveHitWindowId, out var hitWindow) == false) return;
+            if (currentAction.CombatStage.TryGetHitWindow(actionController.ActiveHitWindowId, out var hitWindow) == false) return;
             if (hitWindow == null) return;
             Vector2 center = hitboxRoot.TransformPoint(hitWindow.LocalOffset);
 

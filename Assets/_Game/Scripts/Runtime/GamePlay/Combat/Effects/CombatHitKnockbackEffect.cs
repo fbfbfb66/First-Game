@@ -1,7 +1,7 @@
 using UnityEngine;
 [CreateAssetMenu(
     fileName = "Effect_Hit_Knockback",
-    menuName = "Game/Combat/Effects/Knockback")]
+    menuName = "Game/Actions/Combat/Effects/Knockback")]
 public class CombatHitKnockbackEffect : CombatHitEffect
 {
     public override void Apply(CombatHitEffectContext context)

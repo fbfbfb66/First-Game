@@ -6,18 +6,17 @@ public class PlayerAir : PlayerState
     {
     }
 
-    public override void Enter()
-    {
-        base.Enter();
-        input.ClearJumpRequest();
-        input.ClearDashRequset();
-    }
-
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
 
-        if (TryHandleDash()) return;
+        ActionContext context = CreateActionContext();
+        if (motionController.BufferedRequest.Command == player.DashCommand &&
+            motionController.TryStartAction(player.DashAction, in context))
+        {
+            stateMachine.ChangeState(player.dashState);
+            return;
+        }
 
         if (TryHandleLanding())
         {
@@ -42,14 +41,6 @@ public class PlayerAir : PlayerState
         return false;
     }
 
-    protected virtual bool TryHandleDash()
-    {
-        if (input.ConsumeDash() && player.TryConsumeDash())
-        {
-            stateMachine.ChangeState(player.dashState);
-            return true;
-        }
-        return false;
-    }
+
 
 }

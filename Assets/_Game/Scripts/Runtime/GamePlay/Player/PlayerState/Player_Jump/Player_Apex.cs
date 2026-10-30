@@ -10,14 +10,16 @@ public class Player_Apex : PlayerAir
         base.LogicalUpdate();
         if (stateMachine.currentState != this) return;
 
-        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration) && player.TryConsumeDoubleJump())
+        ActionContext context = CreateActionContext();
+        if (motionController.BufferedRequest.Command == player.JumpCommand &&
+            motionController.TryStartAction(player.DoubleJumpAction, in context))
         {
             stateMachine.ChangeState(player.doubleJumpState);
             return;
         }
 
         float y = movement.GetCurrentVelocity().y;
-        if(!groundSensor.IsGrounded && player.playerAnimationTrigger.IsAnimationFinished && y <= -player.playerBaseConfig.ApexThreshold)
+        if(!groundSensor.IsGrounded && animationTrigger.IsAnimationFinished && y <= -player.playerBaseConfig.ApexThreshold)
         {
             stateMachine.ChangeState(player.fallState);
         }

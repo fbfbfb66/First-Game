@@ -24,26 +24,30 @@ public class Player_Fall : PlayerAir
             lastVelocityY = movement.Rb.linearVelocity.y;
         }
 
-        if (groundSensor.WasGroundedWithin(player.playerBaseConfig.CoyoteTimeDuration) && input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
+        if (groundSensor.WasGroundedWithin(player.playerBaseConfig.CoyoteTimeDuration) && motionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;
         }
 
-        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration) && player.TryConsumeDoubleJump())
+        ActionContext context = CreateActionContext();
+        if (motionController.BufferedRequest.Command == player.JumpCommand &&
+            motionController.TryStartAction(player.DoubleJumpAction, in context))
         {
             stateMachine.ChangeState(player.doubleJumpState);
             return;
         }
 
-        if (isSameDirctionForWallandFacingDir())
+        if (isSameDirctionForWallandFacingDir() && motionController.TryStartAction(player.WallSlideAction, in context))
+        {
             stateMachine.ChangeState(player.wallSlideState);
+        }
     }
 
     public override void PhysicalUpdate()
     {
         base.PhysicalUpdate();
-        movement.HandleMoveAndFlip(input.MoveInput);
+        movement.HandleMoveAndFlip(commandInput.MoveInput);
     }
 
     public override void Exit()

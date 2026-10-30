@@ -3,6 +3,7 @@ using UnityEngine;
 public class Player_Dash : PlayerState
 {
     private float originalGravity;
+    protected override MotionActionDefinition MotionAction => player.DashAction;
     public Player_Dash(Player player, StateMachine stateMachine, int stateName, Animator anim) : base(player, stateMachine, stateName, anim)
     {
     }
@@ -10,11 +11,12 @@ public class Player_Dash : PlayerState
     public override void Enter()
     {
         base.Enter();
-        animationTrigger.StartAnimation();
+        player.MarkDashUsed();
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
         
-        float speedX = movement.facingRight ? player.playerBaseConfig.DefaultDashSpeed + movement.Rb.linearVelocity.x * player.playerBaseConfig.DashFactor : -player.playerBaseConfig.DefaultDashSpeed + movement.Rb.linearVelocity.x * player.playerBaseConfig.DashFactor;
+        float speed = player.playerBaseConfig.DefaultDashSpeed + Mathf.Abs(movement.Rb.linearVelocity.x) * player.playerBaseConfig.DashFactor;
+        float speedX = movement.facingRight ? speed : -speed;
 
         if (isSameDirctionForWallandFacingDir())
         {
@@ -63,18 +65,19 @@ public class Player_Dash : PlayerState
 
     private bool TryCancelToJump()
     {
-        if (input.HasBufferedJump(player.playerBaseConfig.JumpBufferDuration) == false) return false;
-        PlayerState targetState = null;
-        if (groundSensor.IsGrounded) targetState = player.jumpStartState;
-        else targetState = player.doubleJumpState;
-        if(targetState == null) return false;
-        if (stateMachine.CanChangeState(targetState, StateTransitionKind.Cancel) == false) return false;
-        input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration);
-        if(targetState == player.doubleJumpState)
+        if (motionController.BufferedRequest.Command != player.JumpCommand) return false;
+        if (groundSensor.IsGrounded)
         {
-            if (player.TryConsumeDoubleJump() == false) return false;
+            if (!motionController.AllowsCancel(player.JumpCommand)) return false;
+            if (!motionController.TryConsumeBufferedRequest(player.JumpCommand)) return false;
+            stateMachine.ChangeState(player.jumpStartState);
         }
-        stateMachine.TryChangeState(targetState, StateTransitionKind.Cancel);
+        else
+        {
+            ActionContext context = CreateActionContext();
+            if (!motionController.TryStartAction(player.DoubleJumpAction, in context)) return false;
+            stateMachine.ChangeState(player.doubleJumpState);
+        }
         return true;
     }
 }

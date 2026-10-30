@@ -1,11 +1,8 @@
 using UnityEngine;
 [CreateAssetMenu(
     fileName = "CombatActionSystemConfig",
-    menuName = "Game/Combat/Action System Config")]
-public sealed class CombatActionSystemConfig : ScriptableObject
+    menuName = "Game/Actions/Action System Config/Combat Action Config")]
+public sealed class CombatActionSystemConfig : ActionSystemConfig
 {
-    [SerializeField, Min(0f)]
-    private float inputBufferDuration = .15f;
 
-    public float InputBufferDuration => inputBufferDuration;
 }

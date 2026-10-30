@@ -1,7 +1,7 @@
 using UnityEngine;
 [CreateAssetMenu(
     fileName = "Effect_MotionPause_",
-    menuName = "Game/Combat/Effects/Motion Pause")]
+    menuName = "Game/Actions/Combat/Effects/Motion Pause")]
 public class CombatMotionPauseHitEffect : CombatHitEffect
 {
     [SerializeField] private bool pauseSource = true;
@@ -28,14 +28,13 @@ public class CombatMotionPauseHitEffect : CombatHitEffect
     {
         GameObject target = context.TargetOwner;
         GameObject source = context.SourceOwner;
-        if (!target || !source) return;
-        if (pauseTarget)
+        if (pauseTarget && target)
         {
             if (target.TryGetComponent<CombatEffectReceiver>(out var targetReceiver))
                 targetReceiver.EndMotionPause();
         }
 
-        if (pauseSource)
+        if (pauseSource && source)
         {
             if (source.TryGetComponent<CombatEffectReceiver>(out var sourceReceiver))
                 sourceReceiver.EndMotionPause();

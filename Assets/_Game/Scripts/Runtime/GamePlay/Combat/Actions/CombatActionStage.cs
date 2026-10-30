@@ -1,34 +1,14 @@
 using UnityEngine;
 using System;
 [Serializable]
-public sealed class CombatActionStage
+public sealed class CombatActionStage : ActionStage
 {
-    [SerializeField] private string animatorStateName;
     [SerializeField] private CombatActionEntryVelocityRule entryVelocityRule = new();
     [SerializeField, Min(0f)] private float horizontalDeceleration;
-    [SerializeField] private CombatActionCancelWindowDefinition[] cancelWindows;
     [SerializeField] private CombatHitWindowDefinition[] hitWindows;
 
-    public float HorizontalDeceleration => horizontalDeceleration;
     public CombatActionEntryVelocityRule EntryVelocityRule => entryVelocityRule;
-    public int AnimatorStateHash => Animator.StringToHash(animatorStateName);
-    public string AnimatorStateName => animatorStateName;
-
-    public bool TryGetCancelWindow(int windowId,out CombatActionCancelWindowDefinition cancelWindow)
-    {
-        cancelWindow = null;
-        if (cancelWindows == null || cancelWindows.Length == 0) return false;
-        foreach(var window in cancelWindows)
-        {
-            if (window == null) continue;
-            if(window.WindowId == windowId)
-            {
-                cancelWindow = window;
-                return true;
-            }
-        }
-        return false;
-    }
+    public float HorizontalDeceleration => horizontalDeceleration;
 
     public bool TryGetHitWindow(int windowId, out CombatHitWindowDefinition hitWindow)
     {

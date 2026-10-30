@@ -18,8 +18,11 @@ public class Player_RunState : Player_RunTransition
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+        if (stateMachine.currentState != this) return;
 
-        if (input.ConsumeDash() && player.TryConsumeDash())
+        ActionContext context = CreateActionContext();
+        if (motionController.BufferedRequest.Command == player.DashCommand &&
+            motionController.TryStartAction(player.DashAction, in context))
         {
             stateMachine.ChangeState(player.dashState);
             return;
@@ -36,28 +39,28 @@ public class Player_RunState : Player_RunTransition
             stateMachine.ChangeState(player.walkState);
             return;
         }
-        if(input.MoveInput.x == 0 && isFirstTimeRelese)
+        if(commandInput.MoveInput.x == 0 && isFirstTimeRelese)
         {
             isFirstTimeRelese = false;
             player.timeTool.StartTimeCounter(player.playerBaseConfig.RunBufferDuration, RunBufferCoroutineID);
             return;
         }
 
-        if(input.MoveInput.x == 0 && !player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID) && !player.timeTool.timeCounterCoroutines.ContainsKey(RunBufferCoroutineID))
+        if(commandInput.MoveInput.x == 0 && !player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID) && !player.timeTool.timeCounterCoroutines.ContainsKey(RunBufferCoroutineID))
         {
             stateMachine.ChangeState(player.runEndState);
         }
-        else if(input.MoveInput.x == 0 && player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID) && !player.timeTool.timeCounterCoroutines.ContainsKey(RunBufferCoroutineID))
+        else if(commandInput.MoveInput.x == 0 && player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID) && !player.timeTool.timeCounterCoroutines.ContainsKey(RunBufferCoroutineID))
         {
             stateMachine.ChangeState(player.idleState);
         }
-        else if(!IsSameDirection() && input.MoveInput.x != 0 && !player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID))
+        else if(!IsSameDirection() && commandInput.MoveInput.x != 0 && !player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID))
         {
             stateMachine.ChangeState(player.runTurnState);
         }
-        else if(!IsSameDirection() && input.MoveInput.x != 0 && player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID))
+        else if(!IsSameDirection() && commandInput.MoveInput.x != 0 && player.timeTool.timeCounterCoroutines.ContainsKey(RunEndEarlyCoroutineID))
         {
-            movement.HandleFlip(input.MoveInput);
+            movement.HandleFlip(commandInput.MoveInput);
             isFirstTimeRelese = true;
             player.timeTool.StartTimeCounter(player.playerBaseConfig.CanEndRunEarlyDuration, RunEndEarlyCoroutineID);
         }
@@ -69,11 +72,11 @@ public class Player_RunState : Player_RunTransition
         {
             if (!IsSameDirection())
             {
-                movement.HandleFlip(input.MoveInput);
+                movement.HandleFlip(commandInput.MoveInput);
                 isFirstTimeRelese = true;
                 player.timeTool.StartTimeCounter(player.playerBaseConfig.CanEndRunEarlyDuration, RunEndEarlyCoroutineID);
             } 
-            movement.HandleMove(input.MoveInput);
+            movement.HandleMove(commandInput.MoveInput);
         }
         else
         {

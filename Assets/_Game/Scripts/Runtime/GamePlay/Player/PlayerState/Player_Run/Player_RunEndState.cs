@@ -16,12 +16,15 @@ public class Player_RunEndState : Player_RunTransition
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
-        if (input.MoveInput.x == 0)
+        if (stateMachine.currentState != this) return;
+        if (commandInput.MoveInput.x == 0)
         {
             HandleCoasting();
         }
 
-        if (input.ConsumeDash() && player.TryConsumeDash())
+        ActionContext context = CreateActionContext();
+        if (motionController.BufferedRequest.Command == player.DashCommand &&
+            motionController.TryStartAction(player.DashAction, in context))
         {
             stateMachine.ChangeState(player.dashState);
             return;
@@ -31,11 +34,11 @@ public class Player_RunEndState : Player_RunTransition
         {
             stateMachine.ChangeState(player.idleState);
         }
-        else if (input.MoveInput.x != 0 && IsSameDirection())
+        else if (commandInput.MoveInput.x != 0 && IsSameDirection())
         {
             stateMachine.ChangeState(player.runState);
         }
-        else if (input.MoveInput.x != 0 && !IsSameDirection())
+        else if (commandInput.MoveInput.x != 0 && !IsSameDirection())
         {
             stateMachine.ChangeState(player.runTurnState);
         }

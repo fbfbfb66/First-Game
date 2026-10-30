@@ -2,8 +2,8 @@ using UnityEngine;
 
 [CreateAssetMenu(
     fileName = "Condition_GroundClearance_",
-    menuName = "Game/Combat/Conditions/Ground Clearance")]
-public sealed class CombatActionGroundClearanceCondition : CombatActionCondition
+    menuName = "Game/Actions/Combat/Conditions/Ground Clearance")]
+public sealed class CombatActionGroundClearanceCondition : ActionCondition
 {
     [SerializeField, Min(0f)] private float minimumClearance = 5f;
     [SerializeField] private LayerMask groundLayers;
@@ -11,7 +11,7 @@ public sealed class CombatActionGroundClearanceCondition : CombatActionCondition
     public float MinimumClearance => minimumClearance;
     public LayerMask GroundLayers => groundLayers;
 
-    public override bool IsMet(in CombatActionContext context)
+    public override bool IsMet(in ActionContext context)
     {
         return HasMinimumClearance(context.GroundProbePosition, out _);
     }

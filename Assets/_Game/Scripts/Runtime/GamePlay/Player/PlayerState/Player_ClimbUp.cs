@@ -11,7 +11,6 @@ public class Player_ClimbUp : PlayerState
     {
         base.Enter();
         movement.ClearPlayerVelocity();
-        animationTrigger.StartAnimation();
         originalGravityScale = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0f;
     }

@@ -7,25 +7,40 @@ public class Player : Entity
     private bool canDash = true;
     
     [SerializeField] private PlayerSkills  playerSkills;
-    [SerializeField] private SkillData doubleJumpSkill;
+    public PlayerSkills Skills => playerSkills;
 
     [Header("Data")]
     public PlayerBaseConfig playerBaseConfig;
     [SerializeField] private CharacterStatsData characterStatsData;
     public CharacterStats Stats { get; private set; }
     public PlayerHealth Health { get; private set; }
+    public PlayerCommandInput CommandInput { get; } = new();
     [Space]
     public PlayerMovement playerMovement;
-    public PlayerInputReceiver playerInputReceiver;
-    public PlayerAnimationTrigger playerAnimationTrigger;
+    [SerializeField] private PlayerMotionAnimationTrigger motionAnimationTrigger;
+    public PlayerMotionAnimationTrigger MotionAnimationTrigger => motionAnimationTrigger;
     public InteractionDetector interaction;
     public TimeTool timeTool;
     public GroundSensor groundSensor;
     public WallSensor wallSensor;
+    [SerializeField] private PlayerMotionController motionController;
     [SerializeField] private PlayerCombatActionController combatActionController;
+    public PlayerMotionController MotionController => motionController;
     public PlayerCombatActionController CombatActionController => combatActionController;
-    [SerializeField] private CombatActionCommandKey dashCommand;
-    public CombatActionCommandKey DashCommand => dashCommand;
+    [SerializeField] private ActionCommandKey dashCommand;
+    public ActionCommandKey DashCommand => dashCommand;
+    [SerializeField] private MotionActionDefinition dashAction;
+    public MotionActionDefinition DashAction => dashAction;
+    [SerializeField] private ActionCommandKey jumpCommand;
+    public ActionCommandKey JumpCommand => jumpCommand;
+    [SerializeField] private ActionCommandKey interactCommand;
+    public ActionCommandKey InteractCommand => interactCommand;
+    [SerializeField] private MotionActionDefinition wallSlideAction;
+    public MotionActionDefinition WallSlideAction => wallSlideAction;
+    [SerializeField] private MotionActionDefinition doubleJumpVerticalAction;
+    [SerializeField] private MotionActionDefinition doubleJumpForwardAction;
+    public MotionActionDefinition DoubleJumpAction => Mathf.Approximately(CommandInput.MoveInput.x, 0f)
+        ? doubleJumpVerticalAction : doubleJumpForwardAction;
 
     #region 
     public Player_IdleState idleState { get; private set; }
@@ -56,7 +71,7 @@ public class Player : Entity
     public bool CanDash => canDash;
     #endregion
 
-    public void RequestDash()
+    public void ResetDash()
     {
         canDash = true;
     }
@@ -65,36 +80,14 @@ public class Player : Entity
         canDoubleJump = true;
     }
 
-    public bool TryConsumeDash()
+    public void MarkDashUsed()
     {
-        if (!canDash)
-        {
-            return false;
-        }
         canDash = false;
-        return true;
     }
 
-    public bool TryConsumeDoubleJump()
+    public void MarkDoubleJumpUsed()
     {
-        if (doubleJumpSkill == null)
-        {
-            Debug.LogWarning("DoubleJumpSkill is null");
-            return false;
-        }
-
-        if (playerSkills.IsUnlocked(doubleJumpSkill) == false)
-        {
-            return false;
-        }
-        
-        if (!canDoubleJump)
-        {
-            return false;
-        }
-
         canDoubleJump = false;
-        return true;
     }
 
     protected override void Awake()
@@ -111,10 +104,8 @@ public class Player : Entity
 
         if (playerMovement == null)
             playerMovement = GetComponent<PlayerMovement>();
-        if (playerInputReceiver == null)
-            playerInputReceiver = GetComponent<PlayerInputReceiver>();
-        if (playerAnimationTrigger == null)
-            playerAnimationTrigger = GetComponentInChildren<PlayerAnimationTrigger>();
+        if (motionAnimationTrigger == null)
+            motionAnimationTrigger = GetComponentInChildren<PlayerMotionAnimationTrigger>();
         if (interaction == null)
             interaction = GetComponentInChildren<InteractionDetector>();
         if (timeTool == null)
@@ -125,6 +116,8 @@ public class Player : Entity
             wallSensor = GetComponentInChildren<WallSensor>();
         if (combatActionController == null)
             combatActionController = GetComponent<PlayerCombatActionController>();
+        if(motionController == null)
+            motionController = GetComponent<PlayerMotionController>();
 
 
         idleState = new Player_IdleState(this, stateMachine, PlayerAnimationHash.Idle, anim);
@@ -147,15 +140,6 @@ public class Player : Entity
 
 
 
-        idleState.AddCancelTransition(combatActionState);
-        walkState.AddCancelTransition(combatActionState);
-        jumpUpState.AddCancelTransition(combatActionState);
-        apexState.AddCancelTransition(combatActionState);
-        fallState.AddCancelTransition(combatActionState);
-        runState.AddCancelTransition(combatActionState);
-        dashState.AddCancelTransition(combatActionState, 0);
-        dashState.AddCancelTransition(jumpStartState, 0);
-        dashState.AddCancelTransition(doubleJumpState, 0);
     }
 
     private void Start()
@@ -174,6 +158,11 @@ public class Player : Entity
         stateMachine.PhysicalUpdate();
     }
 
+    private void OnDisable()
+    {
+        CommandInput.ClearMoveInput();
+    }
+
     public CombatActionContext CreateCombatActionContext()
     {
         CombatActionContext context = new CombatActionContext(
@@ -181,7 +170,8 @@ public class Player : Entity
             groundSensor.CanEnterGrounded,
             groundSensor.transform.position,
             combatActionController.ChainRuntime,
-            combatActionController.UsageRuntime);
+            combatActionController.UsageRuntime,
+            playerSkills);
         return context;
     }
 
@@ -190,38 +180,19 @@ public class Player : Entity
         if (stateMachine.currentState == combatActionState) return;
         CombatActionContext context = CreateCombatActionContext();
         if (combatActionController.TryGetEntryActionCandidate(context, out var action) == false) return;
-        if (stateMachine.CanChangeState(combatActionState, StateTransitionKind.Cancel) == false) return;
+        if (!motionController.AllowsCancel(action.Command)) return;
+        if (!stateMachine.CanChangeState(combatActionState, StateTransitionKind.Natural)) return;
         if (combatActionController.TryConsumeBufferedRequest(action.Command) == false) return;
 
         combatActionController.BeginAction(action);
-        stateMachine.TryChangeState(combatActionState, StateTransitionKind.Cancel);
+        stateMachine.ChangeState(combatActionState);
     }
 
     public void RestoreAirborneResources()
     {
         ResetDoubleJump();
-        RequestDash();
+        ResetDash();
         combatActionController.ClearActionUsage();
     }
 
-    public void NotifyStateCancelWindowOpened(int windowId, int sourceStateHash)
-    {
-        if (stateMachine.currentState is PlayerState currentPlayerState)
-        {
-            if (currentPlayerState.AnimatorStateHash != sourceStateHash) return;
-            currentPlayerState.OpenCancelWindow(windowId);
-            return;
-        }
-        Debug.LogWarning($"{stateMachine.currentState} Not PlayerState");
-    }
-    public void NotifyStateCancelWindowClosed(int windowId, int sourceStateHash)
-    {
-        if (stateMachine.currentState is PlayerState currentPlayerState)
-        {
-            if (currentPlayerState.AnimatorStateHash != sourceStateHash) return;
-            currentPlayerState.CloseCancelWindow(windowId);
-            return;
-        }
-        Debug.LogWarning($"{stateMachine.currentState} Not PlayerState");
-    }
 }

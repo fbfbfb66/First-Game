@@ -1,8 +1,8 @@
 using UnityEngine;
 [CreateAssetMenu(
     fileName = "Condition_RequiredHits_",
-    menuName = "Game/Combat/Conditions/Required Hits")]
-public sealed class CombatActionRequiredHitsCondition : CombatActionCondition
+    menuName = "Game/Actions/Combat/Conditions/Required Hits")]
+public sealed class CombatActionRequiredHitsCondition : ActionCondition
 {
     [SerializeField] private CombatActionDefinition[] requiredActions;
 

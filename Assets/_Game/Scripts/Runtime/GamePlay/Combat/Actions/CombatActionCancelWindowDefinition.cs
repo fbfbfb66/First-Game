@@ -4,16 +4,16 @@ using UnityEngine;
 public sealed class CombatActionCancelWindowDefinition
 {
     [SerializeField] private int windowId;
-    [SerializeField] private CombatActionCommandKey[] allowedCommands;
+    [SerializeField] private ActionCommandKey[] allowedCommands;
 
     public int WindowId => windowId;
-    public CombatActionCommandKey[] AllowedCommands => allowedCommands;
+    public ActionCommandKey[] AllowedCommands => allowedCommands;
 
-    public bool Accepts(CombatActionCommandKey command)
+    public bool Accepts(ActionCommandKey command)
     {
         if (command == null) return false;
         if(allowedCommands == null || allowedCommands.Length == 0) return false;
-        foreach(CombatActionCommandKey commandKey in allowedCommands)
+        foreach(ActionCommandKey commandKey in allowedCommands)
         {
             if (commandKey == null) continue;
             if(commandKey == command) return true;

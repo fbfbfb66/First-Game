@@ -9,7 +9,6 @@ public class Player_RunTransition : PlayerState
     {
         base.Enter();
         movement.ClearYVelocity();
-        input.ClearDashRequset();
     }
 
     public override void LogicalUpdate()
@@ -24,23 +23,23 @@ public class Player_RunTransition : PlayerState
             return;
         }
 
-        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
+        if (motionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;
         }
-        if (input.ConsumeWorldInteract())
+        if (motionController.TryConsumeBufferedRequest(player.InteractCommand))
         {
             player.interaction.TryInteract();
         }
     }
     protected bool IsSameDirection()
     {
-        if (input.MoveInput.x > 0 && movement.facingRight)
+        if (commandInput.MoveInput.x > 0 && movement.facingRight)
         {
             return true;
         }
-        else if (input.MoveInput.x < 0 && !movement.facingRight)
+        else if (commandInput.MoveInput.x < 0 && !movement.facingRight)
         {
             return true;
         }

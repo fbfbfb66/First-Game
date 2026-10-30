@@ -2,17 +2,20 @@ using UnityEngine;
 
 public class InputRouter : MonoBehaviour
 {
-    [SerializeField] private CombatActionCommandKey diveAttackCommand;
-    [SerializeField] private CombatActionCommandKey attackCommand;
-    [SerializeField] private CombatActionCommandKey dashCommand;
-    [SerializeField] private CombatActionCommandKey launcherAttackCommand;
+    [SerializeField] private ActionCommandKey jumpCommand;
+    [SerializeField] private ActionCommandKey interactCommand;
+    [SerializeField] private ActionCommandKey diveAttackCommand;
+    [SerializeField] private ActionCommandKey attackCommand;
+    [SerializeField] private ActionCommandKey dashCommand;
+    [SerializeField] private ActionCommandKey launcherAttackCommand;
     [SerializeField] private GameInputReader inputReader;
     [SerializeField] private GameLayerStack gameLayerStack;
     [SerializeField] private PlayerControlArbitration playerControlArbitration;
-    [SerializeField] private PlayerInputReceiver playerInputReceiver;
     [SerializeField] private InventoryView inventoryView;
     [SerializeField] private DialogueManager dialogueManager;
-    [SerializeField] private PlayerCombatActionController playerCombatActionController;
+    [SerializeField] private Player player;
+    private PlayerCombatActionController playerCombatActionController => player != null ? player.CombatActionController : null;
+    private PlayerMotionController playerMotionController => player != null ? player.MotionController : null;
 
 
     private void Awake()
@@ -31,10 +34,10 @@ public class InputRouter : MonoBehaviour
         {
             playerControlArbitration = FindAnyObjectByType<PlayerControlArbitration>();
         }
-        if(playerInputReceiver == null)
-        {
-            playerInputReceiver = FindAnyObjectByType<PlayerInputReceiver>();
-        }
+        if (player == null)
+            player = FindAnyObjectByType<Player>();
+        if (player == null)
+            Debug.LogWarning($"InputRouter {name} has no Player; movement input will be ignored.", this);
         if(dialogueManager == null)
         {
             dialogueManager = GetComponent<DialogueManager>();
@@ -42,10 +45,6 @@ public class InputRouter : MonoBehaviour
         if(inventoryView == null)
         {
             inventoryView = FindAnyObjectByType<InventoryView>(FindObjectsInactive.Include);
-        }
-        if(playerCombatActionController == null)
-        {
-            playerCombatActionController = FindAnyObjectByType<PlayerCombatActionController>();
         }
     }
 
@@ -82,6 +81,7 @@ public class InputRouter : MonoBehaviour
 
     private void OnDisable()
     {
+        if (player != null) player.CommandInput.ClearMoveInput();
         if (inputReader == null) return;
         if(gameLayerStack != null)
             gameLayerStack.CurrentLayerChanged -= OnCurrentLayerChanged;
@@ -172,22 +172,38 @@ public class InputRouter : MonoBehaviour
 
     private void OnCurrentLayerChanged(GameLayerType previousLayer, GameLayerType currentLayer)
     {   
+        if (player != null && (currentLayer != GameLayerType.Gameplay || playerControlArbitration == null || !playerControlArbitration.CanMove))
+            player.CommandInput.ClearMoveInput();
         inputReader.SetInputMode(currentLayer);
+    }
+
+    private void Update()
+    {
+        if (player == null || player.CommandInput.MoveInput == Vector2.zero) return;
+        if (!IsCurrentLayer(GameLayerType.Gameplay) || playerControlArbitration == null || !playerControlArbitration.CanMove)
+            player.CommandInput.ClearMoveInput();
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus && player != null) player.CommandInput.ClearMoveInput();
     }
 
     private void OnMoveChanged(Vector2 moveInput)
     {
-        if (!IsCurrentLayer(GameLayerType.Gameplay))
+        if (player == null) return;
+        if (!IsCurrentLayer(GameLayerType.Gameplay) || playerControlArbitration == null || !playerControlArbitration.CanMove)
         {
+            player.CommandInput.ClearMoveInput();
             return;
         }
 
-        if (!playerControlArbitration.CanMove)
+        if (playerMotionController == null)
         {
+            Debug.LogWarning("Missed actionController");
             return;
         }
-
-        playerInputReceiver.SetMoveInput(moveInput);
+        player.CommandInput.SetMoveInput(moveInput);
     }
 
     private void OnJumpPressed()
@@ -202,7 +218,12 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        playerInputReceiver.RequestJump();
+        if (playerMotionController == null)
+        {
+            Debug.LogWarning($"InputRouter {name} has no ActionController; Jump request ignored.", this);
+            return;
+        }
+        playerMotionController.RequestAction(jumpCommand);
     }
 
     private void OnAttackPressed()
@@ -237,12 +258,12 @@ public class InputRouter : MonoBehaviour
         {
             return;
         }
-        if(playerCombatActionController && playerCombatActionController.IsActionRunning)
+        if (playerMotionController == null)
         {
-            playerCombatActionController.RequestAction(dashCommand);
+            Debug.LogWarning($"InputRouter {name} has no ActionController; Dash request ignored.", this);
             return;
         }
-        playerInputReceiver.RequestDash();
+        playerMotionController.RequestAction(dashCommand);
     }
 
     private void OnInteractPressed()
@@ -257,7 +278,12 @@ public class InputRouter : MonoBehaviour
             case GameLayerType.Gameplay:
                 if (playerControlArbitration.CanWorldInteract)
                 {
-                    playerInputReceiver.RequestWorldInteract();
+                    if (playerMotionController == null)
+                    {
+                        Debug.LogWarning($"InputRouter {name} has no MotionController; world interaction request ignored.", this);
+                        return;
+                    }
+                    playerMotionController.RequestAction(interactCommand);
                 }
                 break;
 

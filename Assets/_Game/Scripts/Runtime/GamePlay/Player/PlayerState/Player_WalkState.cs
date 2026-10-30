@@ -9,6 +9,6 @@ public class Player_WalkState : PlayerGround
     public override void PhysicalUpdate()
     {
         base.PhysicalUpdate();
-        movement.HandleMoveAndFlip(input.MoveInput);
+        movement.HandleMoveAndFlip(commandInput.MoveInput);
     }
 }

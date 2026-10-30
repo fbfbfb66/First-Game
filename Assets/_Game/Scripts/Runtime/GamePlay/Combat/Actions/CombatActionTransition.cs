@@ -3,12 +3,12 @@ using UnityEngine;
 [Serializable]
 public sealed class CombatActionTransition
 {
-    [SerializeField] private CombatActionCondition[] conditions;
-    [SerializeField] private CombatActionCommandKey command;
+    [SerializeField] private ActionCondition[] conditions;
+    [SerializeField] private ActionCommandKey command;
     [SerializeField] private CombatActionDefinition targetAction;
 
 
-    public CombatActionCommandKey Command => command;
+    public ActionCommandKey Command => command;
     public CombatActionDefinition TargetAction => targetAction;
 
     public bool AreConditionsMet(in CombatActionContext context)

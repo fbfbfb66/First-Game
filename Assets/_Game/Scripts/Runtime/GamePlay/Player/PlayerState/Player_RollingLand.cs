@@ -11,7 +11,6 @@ public class Player_RollingLand : PlayerState
     {
         base.Enter();
         movement.ClearYVelocity();
-        animationTrigger.StartAnimation();
         rollingLandSpeed = Mathf.Abs(movement.Rb.linearVelocity.x) <= player.playerBaseConfig.RollingLandDefaultVelocity ? player.playerBaseConfig.RollingLandDefaultVelocity : Mathf.Abs(movement.Rb.linearVelocity.x);
         rollingLandSpeed = movement.facingRight ? rollingLandSpeed : -rollingLandSpeed;
     }

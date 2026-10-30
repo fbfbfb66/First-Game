@@ -3,6 +3,7 @@ using UnityEngine;
 public class Player_WallSlide : PlayerAir
 {
     private float originalGravity;
+    protected override MotionActionDefinition MotionAction => player.WallSlideAction;
 
     public Player_WallSlide(Player player, StateMachine stateMachine, int stateName, Animator anim) : base(player, stateMachine, stateName, anim)
     {
@@ -24,17 +25,18 @@ public class Player_WallSlide : PlayerAir
         if (isSameDirctionForWallandFacingDir() == false)
         {
             stateMachine.ChangeState(player.fallState);
-            movement.HandleFlip(input.MoveInput);
+            movement.HandleFlip(commandInput.MoveInput);
             return;
         }
 
-        if (input.ConsumeJump(player.playerBaseConfig.JumpBufferDuration))
+        if (motionController.AllowsCancel(player.JumpCommand) &&
+            motionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.wallJumpState);
             return;
         }
 
-        Vector2 move = player.playerInputReceiver.MoveInput;
+        Vector2 move = commandInput.MoveInput;
         if(move.y < 0)
         {
             movement.SetRigibodyVelocity(new Vector2(0,player.playerBaseConfig.WallSlideFastSpeed));

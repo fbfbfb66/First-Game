@@ -13,6 +13,12 @@ public sealed class Player_CombatActionState : PlayerState
         PlayCurrentActionStage();
     }
 
+    public override void Exit()
+    {
+        actionController.CancelCurrentAction();
+        base.Exit();
+    }
+
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
@@ -38,14 +44,14 @@ public sealed class Player_CombatActionState : PlayerState
     public override void PhysicalUpdate()
     {
         base.PhysicalUpdate();
-        ApplyHorizontalDeceleration(actionController.CurrentAction.Stage.HorizontalDeceleration);
+        ApplyHorizontalDeceleration(actionController.CurrentAction.CombatStage.HorizontalDeceleration);
     }
 
     private void PlayCurrentActionStage()
     {
         stateName = actionController.CurrentAction.Stage.AnimatorStateHash;
         anim.CrossFade(stateName, 0);
-        ApplyEntryVelocity(actionController.CurrentAction.Stage.EntryVelocityRule);
+        ApplyEntryVelocity(actionController.CurrentAction.CombatStage.EntryVelocityRule);
     }
 
     private void ApplyHorizontalDeceleration(float deceleration)
@@ -65,11 +71,12 @@ public sealed class Player_CombatActionState : PlayerState
 
     private bool TryHandleCancel()
     {
-        if (actionController.TryPrepareCancel(out var request) == false) return false;
+        if (!motionController.TryGetValidBufferedRequest(out var request)) return false;
+        if (!actionController.AllowsCancel(request.Command)) return false;
         if (request.Command == player.DashCommand)
         {
-            if (player.TryConsumeDash() == false) return false;
-            actionController.CancelCurrentAction();
+            ActionContext context = CreateActionContext();
+            if (!motionController.TryStartAction(player.DashAction, in context)) return false;
             stateMachine.ChangeState(player.dashState);
             return true;
         }
