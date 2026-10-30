@@ -60,7 +60,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
             DamageContext damageContext = new DamageContext(player.gameObject, hurtbox.Owner, damage);
             if (!damageable.TryTakeDamage(damageContext)) continue;
             actionController.NotifyHitConfirmed(hurtbox.Owner);
-            CombatHitEffectContext context = new CombatHitEffectContext(transform.gameObject, hurtbox.Owner);
+            CombatHitEffectContext context = new CombatHitEffectContext(transform.gameObject, hurtbox.Owner,hitWindow);
             hitWindow.ApplyEffects(context);
             appliedEffectContexts.Add(context);
         }

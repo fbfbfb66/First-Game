@@ -2332,6 +2332,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
   body: {fileID: 312469628}
+  canBeKnockedBack: 1
+  deceleration: 32
   canBeLaunched: 1
 --- !u!114 &312469624
 MonoBehaviour:

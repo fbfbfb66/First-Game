@@ -809,6 +809,7 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `CombatHitWindowDefinition.cs`
 
 - `damageMultiplier` / `DamageMultiplier`：每个命中窗口单独配置的伤害倍率，默认 1，Inspector 最小值为 0。PlayerCombatHitDetector 将其用于计算本次攻击伤害。
+- `knockback` / `Knockback`：本窗口的击退初速度（世界单位/秒）；X 为水平大小，由击退 Effect 根据双方位置确定正负，Y 为世界竖直速度。只有 Effects 列表包含击退资源时才执行。
 
 - 脚本职责：嵌入 Stage 的单个命中窗口配置，保存 Window ID、`Box` / `Circle` 查询几何和一组命中效果资源。首次确认目标时依次 `ApplyEffects()`；窗口关闭、Action 被取消或检测器禁用时，对本窗口实际命中过的上下文调用 `EndEffects()`。
 
@@ -828,7 +829,13 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `CombatHitEffect.cs` / `CombatHitEffectContext.cs`
 
 - `CombatHitEffect` 是命中效果 ScriptableObject 的抽象入口：`Apply()` 在目标首次被本窗口确认时执行，`End()` 在该命中窗口结束时执行；默认 `End()` 为空，因此瞬时效果无需伪造收尾逻辑。
-- `CombatHitEffectContext` 是只读上下文，明确携带本次效果的 `SourceOwner` 与 `TargetOwner`。效果资源只读取上下文，不把某次命中的运行时对象保存在自身字段中。
+- `CombatHitEffectContext` 是只读上下文，携带本次效果的 `SourceOwner`、`TargetOwner` 和 `WindowDefinition`。PlayerCombatHitDetector 创建上下文时传入本次命中的窗口引用，效果从窗口读取参数；效果资源不保存某次命中的运行时对象。
+
+#### `CombatHitKnockbackEffect.cs`
+
+- 从 `context.WindowDefinition.Knockback` 读取击退速度，按双方 X 位置决定水平方向，仅翻转 X，保留 Y；调用目标 Owner 的 `CombatEffectReceiver.TryApplyKnockback(Vector2 knockback)`。所有配置共用 `Assets/_Game/Data/Combat/Effects/Effect_Hit_Knockback.asset`，无需逐招创建效果资源。
+- 当前地面三连击窗口 0 的速度分别为 `(4, 0)`、`(5, 0)`、`(7, 0)`；HeavyAttack 为 `(10, 0)`，DiveAttack_Loop 为 `(7, 0)`。LauncherAttack、JumpAttack02 不加击退以保留挑飞，JumpAttack01 保留原暂停效果；Dive Start / Land 未添加击退。
+- 不覆盖 `End()`：窗口关闭后，目标 Receiver 仍继续减速。GameScene 的 Enemy_TestCapsule 减速度为 32 世界单位/秒²。以固定步长 0.02 秒在 Play Mode 关闭碰撞干扰测得，速度 4 / 5 / 7 / 10 对应水平位移约 0.211 / 0.342 / 0.696 / 1.464，停止时间 0.14 / 0.16 / 0.22 / 0.32 秒；实际接触地面或障碍时还会受摩擦和碰撞影响。这是初始调参基线，尚未完整验证动画连段的手感。
 
 #### `CombatLaunchHitEffect.cs`
 
@@ -842,7 +849,8 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `CombatEffectReceiver.cs`
 
-- 挂在能够接收战斗物理效果的 Owner 上，集中处理“是否可被挑起”和“暂停/恢复 Rigidbody2D 运动”。暂停开始时只保存一次速度与重力快照，`FixedUpdate()` 在暂停期间持续把速度压为零，结束时恢复快照；Player 与可受影响的 Enemy 各持有自己的 Receiver，互不共享状态。
+- 挂在能够接收战斗物理效果的 Owner 上，集中处理击退、挑起和暂停/恢复 Rigidbody2D 运动。`TryApplyKnockback()` 根据 `canBeKnockedBack` 决定是否接受，接受后替换刚体速度并开启击退状态。`FixedUpdate()` 在未暂停且击退中时调用 `TickKnockback(Time.fixedDeltaTime)`，以 `Mathf.MoveTowards` 匀减水平速度至零，保留当前 Y；到零后结束击退。脚本默认减速度仍为 50，GameScene 测试敌人单独配置为 32。
+- 暂停开始时只保存一次速度与重力快照，暂停期间持续清零刚体速度且不更新击退，结束时恢复快照；Player 与 Enemy 各持有自己的 Receiver。已知限制：暂停后再收到击退仍可能被旧快照覆盖，因此当前新配击退的窗口均不混用运动暂停；尚未协调敌人 AI 移动与击退对速度的共同控制。
 
 ### Runtime/Core
 
