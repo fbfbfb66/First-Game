@@ -44,14 +44,14 @@ public sealed class Player_CombatActionState : PlayerState
     public override void PhysicalUpdate()
     {
         base.PhysicalUpdate();
-        ApplyHorizontalDeceleration(actionController.CurrentAction.CombatStage.HorizontalDeceleration);
+        ApplyHorizontalDeceleration(actionController.CurrentCombatStage.HorizontalDeceleration);
     }
 
     private void PlayCurrentActionStage()
     {
-        stateName = actionController.CurrentAction.Stage.AnimatorStateHash;
+        stateName = actionController.CurrentStage.AnimatorStateHash;
         anim.CrossFade(stateName, 0);
-        ApplyEntryVelocity(actionController.CurrentAction.CombatStage.EntryVelocityRule);
+        ApplyEntryVelocity(actionController.CurrentCombatStage.EntryVelocityRule);
     }
 
     private void ApplyHorizontalDeceleration(float deceleration)

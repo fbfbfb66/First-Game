@@ -1027,6 +1027,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f626a3cc0554e9249b370f52b9a6431a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputRouter
+  backDodgeCommand: {fileID: 11400000, guid: f39fdcd9f84c751409065530089be756, type: 2}
   jumpCommand: {fileID: 11400000, guid: 8e7e3244f783e6b4f8907059f1d5f20d, type: 2}
   interactCommand: {fileID: 11400000, guid: 7e431581fac24ec4872eef7e089dece4, type: 2}
   diveAttackCommand: {fileID: 11400000, guid: 243ce5f31d9a0ba49a877bb9b84946fa, type: 2}
@@ -23893,13 +23894,13 @@ MonoBehaviour:
   wallSensor: {fileID: 0}
   motionController: {fileID: 2075136181}
   combatActionController: {fileID: 0}
-  dashCommand: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
   dashAction: {fileID: 11400000, guid: c4fe5b82708ac004598101b9f536fad4, type: 2}
+  backDodgeAction: {fileID: 11400000, guid: 943f897202e5058478262e870eb7702b, type: 2}
+  wallSlideAction: {fileID: 11400000, guid: 802e288941b2a7b43abd6bfdfb7b9717, type: 2}
+  doubleJumpAction: {fileID: 11400000, guid: 24fe9fb53566c7b4e99aeb7aa74d3885, type: 2}
+  dashCommand: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
   jumpCommand: {fileID: 11400000, guid: 8e7e3244f783e6b4f8907059f1d5f20d, type: 2}
   interactCommand: {fileID: 11400000, guid: 7e431581fac24ec4872eef7e089dece4, type: 2}
-  wallSlideAction: {fileID: 11400000, guid: 802e288941b2a7b43abd6bfdfb7b9717, type: 2}
-  doubleJumpVerticalAction: {fileID: 11400000, guid: 24fe9fb53566c7b4e99aeb7aa74d3885, type: 2}
-  doubleJumpForwardAction: {fileID: 11400000, guid: 8de0c601149c9f7409fc1c3f85962f3a, type: 2}
 --- !u!70 &2075136172
 CapsuleCollider2D:
   m_ObjectHideFlags: 0

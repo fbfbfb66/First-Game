@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [RequireComponent(typeof(PlayerHealth))]
 public class Player : Entity
@@ -27,20 +28,27 @@ public class Player : Entity
     [SerializeField] private PlayerCombatActionController combatActionController;
     public PlayerMotionController MotionController => motionController;
     public PlayerCombatActionController CombatActionController => combatActionController;
-    [SerializeField] private ActionCommandKey dashCommand;
-    public ActionCommandKey DashCommand => dashCommand;
+    [Space]
+    [Header("Actions Settings")]
     [SerializeField] private MotionActionDefinition dashAction;
-    public MotionActionDefinition DashAction => dashAction;
-    [SerializeField] private ActionCommandKey jumpCommand;
-    public ActionCommandKey JumpCommand => jumpCommand;
-    [SerializeField] private ActionCommandKey interactCommand;
-    public ActionCommandKey InteractCommand => interactCommand;
+    [SerializeField] private MotionActionDefinition backDodgeAction;
     [SerializeField] private MotionActionDefinition wallSlideAction;
+    [FormerlySerializedAs("doubleJumpVerticalAction")]
+    [SerializeField] private MotionActionDefinition doubleJumpAction;
+
+    [SerializeField] private ActionCommandKey dashCommand;
+    [SerializeField] private ActionCommandKey jumpCommand;
+    [SerializeField] private ActionCommandKey interactCommand;
+
+    public MotionActionDefinition DashAction => dashAction;
+    public MotionActionDefinition BackDodgeAction => backDodgeAction;
+    public ActionCommandKey BackDodgeCommand => backDodgeAction != null ? backDodgeAction.Command : null;
     public MotionActionDefinition WallSlideAction => wallSlideAction;
-    [SerializeField] private MotionActionDefinition doubleJumpVerticalAction;
-    [SerializeField] private MotionActionDefinition doubleJumpForwardAction;
-    public MotionActionDefinition DoubleJumpAction => Mathf.Approximately(CommandInput.MoveInput.x, 0f)
-        ? doubleJumpVerticalAction : doubleJumpForwardAction;
+    public MotionActionDefinition DoubleJumpAction => doubleJumpAction;
+
+    public ActionCommandKey DashCommand => dashCommand;
+    public ActionCommandKey JumpCommand => jumpCommand;
+    public ActionCommandKey InteractCommand => interactCommand;
 
     #region 
     public Player_IdleState idleState { get; private set; }
@@ -66,6 +74,7 @@ public class Player : Entity
 
     public Player_RollingLand rollingLandState { get; private set; }
     public Player_Dash dashState { get; private set; }
+    public Player_BackDodge backDodgeState { get; private set; }
     public Player_CombatActionState combatActionState { get; private set; }
     public bool CanDoubleJump => canDoubleJump;
     public bool CanDash => canDash;
@@ -135,6 +144,7 @@ public class Player : Entity
         climbUpState = new Player_ClimbUp(this, stateMachine, PlayerAnimationHash.ClimbUp, anim);
         rollingLandState = new Player_RollingLand(this, stateMachine, PlayerAnimationHash.RollingLand, anim);
         dashState = new Player_Dash(this, stateMachine, PlayerAnimationHash.Dash, anim);
+        backDodgeState = new Player_BackDodge(this, stateMachine, 0, anim);
         doubleJumpState = new Player_DoubleJump(this, stateMachine, 0, anim);
         combatActionState = new Player_CombatActionState(this, stateMachine, 0, anim);
 

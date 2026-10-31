@@ -4,8 +4,8 @@ using UnityEngine;
 public sealed class MotionActionDefinition : ActionDefinition
 {
     [SerializeField] private bool needCommand = true;
-    [SerializeField] private ActionStage stage = new();
+    [SerializeField] private ActionStage[] stages = System.Array.Empty<ActionStage>();
 
-    public override ActionStage Stage => stage;
+    public override ActionStage[] Stages => stages;
     public bool NeedCommand => needCommand;
 }

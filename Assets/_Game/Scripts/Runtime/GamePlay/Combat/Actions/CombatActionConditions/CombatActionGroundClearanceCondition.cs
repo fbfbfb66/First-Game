@@ -9,7 +9,6 @@ public sealed class CombatActionGroundClearanceCondition : ActionCondition
     [SerializeField] private LayerMask groundLayers;
 
     public float MinimumClearance => minimumClearance;
-    public LayerMask GroundLayers => groundLayers;
 
     public override bool IsMet(in ActionContext context)
     {

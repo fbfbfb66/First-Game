@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Action_DiveAttack_Land_Normal
   m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
   command: {fileID: 0}
-  stage:
-    animatorStateName: DiveAttack_Land_Normal
+  stages:
+  - animatorStateName: DiveAttack_Land_Normal
     entryVelocityRule:
       overrideHorizontal: 1
       localHorizontalVelocity: 0
@@ -27,6 +27,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
       - {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
     hitWindows: []
+    conditions: []
   transitions: []
   entryConditions:
   - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}

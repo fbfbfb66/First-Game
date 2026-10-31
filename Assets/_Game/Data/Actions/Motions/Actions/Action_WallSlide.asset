@@ -16,6 +16,7 @@ MonoBehaviour:
   entryConditions:
   - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}
   needCommand: 0
-  stage:
-    animatorStateName: WallSlide
+  stages:
+  - animatorStateName: WallSlide
     cancelWindows: []
+    conditions: []

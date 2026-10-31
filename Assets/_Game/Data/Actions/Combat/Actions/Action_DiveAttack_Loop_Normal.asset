@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Action_DiveAttack_Loop_Normal
   m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
   command: {fileID: 0}
-  stage:
-    animatorStateName: DiveAttack_Loop_Normal
+  stages:
+  - animatorStateName: DiveAttack_Loop_Normal
     entryVelocityRule:
       overrideHorizontal: 0
       localHorizontalVelocity: 0
@@ -33,6 +33,7 @@ MonoBehaviour:
       localOffset: {x: 0.24, y: 0.86}
       boxSize: {x: 4, y: 6.75}
       circleRadius: 0
+    conditions: []
   transitions:
   - conditions:
     - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}

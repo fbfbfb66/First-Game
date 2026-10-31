@@ -4,7 +4,6 @@ using UnityEngine;
 public sealed class ActionSkillUnlockedCondition : ActionCondition
 {
     [SerializeField] private SkillData skill;
-    public SkillData Skill => skill;
 
     public override bool IsMet(in ActionContext context)
     {

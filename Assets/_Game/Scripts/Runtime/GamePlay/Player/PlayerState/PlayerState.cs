@@ -24,7 +24,8 @@ public class PlayerState : EntityState
 
     public override void Enter()
     {
-        motionController.BeginState(stateName, MotionAction);
+        ActionContext context = CreateActionContext();
+        stateName = motionController.BeginState(stateName, MotionAction, in context);
         animationTrigger.ResetAnimation();
         base.Enter();
     }
@@ -45,7 +46,8 @@ public class PlayerState : EntityState
             groundSensor.transform.position,
             player.CanDash,
             player.CanDoubleJump,
-            player.Skills);
+            player.Skills,
+            commandInput.MoveInput);
     }
 
     protected void ChangeStateToMoveState()
@@ -69,6 +71,16 @@ public class PlayerState : EntityState
         {
             stateMachine.ChangeState(player.idleState);
         }
+    }
+
+    protected bool TryStartBackDodge()
+    {
+        if (player.BackDodgeCommand == null || motionController.BufferedRequest.Command != player.BackDodgeCommand)
+            return false;
+
+        ActionContext context = CreateActionContext();
+        if (!motionController.TryStartAction(player.BackDodgeAction, in context)) return false;
+        return stateMachine.TryChangeState(player.backDodgeState, StateTransitionKind.Natural);
     }
 
     protected bool isSameDirctionForWallandFacingDir(bool needToHandleKey = true)

@@ -30,7 +30,7 @@
 
 - 请求：Gameplay 的 Jump / Dash / Interact 提交到 PlayerMotionController，Attack / Launcher / Dive 提交到 PlayerCombatActionController；两者各自保存单槽 ActionRequest，后一次输入覆盖前一次。Move 使用 PlayerCommandInput 持续方向缓存；Dialogue 层交互键仍直接推进对话。
 - 许可：目标 Controller 持有请求，Player / 当前执行状态把目标 Command 交给源 Controller.AllowsCancel 查询。无活动 Action 允许尝试；有活动 Action 必须由当前 Data 的活动取消窗口接受该 Command。查询不复制、不消费请求，目标入口条件通过后由请求持有方消费。
-- 执行：FSM Exit / Enter 管理状态生命周期。Motion 的 BeginState / EndState 只登记当前动作、动画身份和清理窗口；Combat 保留攻击链、Hit Window、派生及结束运行时。普通状态速度继续读取 PlayerBaseConfig，只有 CombatActionStage 保存战斗速度覆盖和减速规则。
+- 执行：FSM Exit / Enter 管理状态生命周期。Motion 的 BeginState / EndState 登记当前动作、选中的 Stage、动画身份并清理窗口；Combat 保留攻击链、Hit Window、派生及结束运行时。普通状态速度继续读取 PlayerBaseConfig，只有 CombatActionStage 保存战斗速度覆盖和减速规则。
 - 条件：ActionDefinition 持有 ActionCondition 数组。技能 Condition 指定 SkillData，通过 Context 查询当前角色技能；Context 不保存二段跳解锁专用布尔值。Dash / 二段跳次数仍由 Player 跨状态持有，真正进入时标记使用，落地和墙滑时刷新。
 - 动画与清理：PlayerMotionAnimationTrigger 负责普通动画结束、起跳时机及 Motion 取消窗口；PlayerCombatAnimationTrigger 只负责战斗事件。命中效果在窗口关闭、动作取消/完成及阶段切换时同步结束，先恢复旧效果，再由新动作设置速度和重力。
 - 已验证的行为：左右转向 Dash 速率与位移一致；Dash→普通跳/二段跳/攻击、攻击→Dash；真实空中攻击命中暂停后取消 Dash、落地再跳跃；普通关窗和空中连段；站立/跑步拾取、NPC 对话启动与翻页、交互请求过期。临时测试对象和技能解锁仅存在于 Play Mode，未更改初始资源配置。
@@ -81,7 +81,7 @@
 
 当前补充资源：
 
-- `Assets/_Game/Animation/AnimationStates/Player/Player_BackDodge.anim` 使用后撤图集切片，已加入 `Player.controller` 的 `BackDodge` 状态；当前无状态转换、无动画事件，动画启用循环，尚未形成可操作的后撤行为。
+- BackDodge 动画资源为 `Assets/_Game/Animation/AnimationStates/Player/Player_BackDodge_Normal.anim` 与 `Player_BackDodge_Perfect.anim`，Animator 状态名为 `BackDodge_Normal` / `BackDodge_Perfect`。`Action_BackDodge.asset` 已配置 Command_BackDodge、Negative Y Input 与现有 Condition_RequireGrounded 入口条件，以及上述两个候选 Stage（Normal 在前）。两个 Stage 的选择条件为空，目前选择首个 Normal，Perfect 选择规则尚未添加；二者取消窗口 0 均仅接受 Dash。两段 Clip 已关闭循环，0 秒调用 StartAnimation / OpenMotionCancelWindow(0)，0.6857143 秒调用 CloseMotionCancelWindow(0) / EndAnimation。BackDodge 已接入地面系 FSM，执行与落地规则见 Player_BackDodge。
 - `Assets/_Game/Materials/NoFriction.physicsMaterial2D` 由 `New Physics Material 2D` 重命名，保留原 GUID；摩擦和弹性均为 0，既有引用保持有效。
 - 根目录 `Artifacts/` 保存五张背包与角色属性面板的界面截图，作为布局参考，通过 Git LFS 管理 PNG。
 
@@ -816,7 +816,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `ActionContext.cs`（Runtime/GamePlay）
 
-- 独立的 readonly struct，保存 IsGrounded、CanEnterGrounded、GroundProbePosition、CanDash、CanDoubleJump，通过构造函数的可选参数提供次数事实与当前角色的 PlayerSkills 查询来源；不引用 Player、不持有战斗运行时、不执行动作，由通用 TryStartAction 和入口条件判断使用。
+- 独立的 readonly struct，保存 IsGrounded、CanEnterGrounded、GroundProbePosition、CanDash、CanDoubleJump、MoveInput，通过构造函数的可选参数提供次数事实与当前角色的 PlayerSkills 查询来源；不引用 Player、不持有战斗运行时、不执行动作，由通用 TryStartAction、入口条件和 Stage 条件使用。末尾可选参数 Vector2 moveInput 默认零向量；PlayerState.CreateActionContext 从 CommandInput.MoveInput 传入当前输入快照。
 - 与 CombatActionContext 没有继承关系，两个 Context 各自独立；通用 Context 的新增不改变现有 Combat 的类型、构造和条件接口。
 
 #### `CombatActionContext.cs`
@@ -839,10 +839,14 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `ActionDefinition.cs` / `ActionStage.cs`（Runtime/GamePlay）
 
-- `ActionDefinition` 是抽象 ScriptableObject 父类，保存入口 Command、通用 `ActionCondition[] entryConditions`，通过 ActionEntryConditions 属性暴露条件，通过只读 ActionStage Stage 暴露阶段数据；不持有执行者与运行时状态。
+- `ActionDefinition` 是抽象 ScriptableObject 父类，保存入口 Command、通用 `ActionCondition[] entryConditions`，通过 ActionEntryConditions 属性暴露条件，通过只读 `ActionStage[] Stages` 暴露候选阶段；不持有执行者与运行时状态。
 - `bool AreEntryConditionsMet(in ActionContext context)` 与原 CombatActionContext 重载分别遍历同一份条件列表，依次判断条件，全部成立才返回 true；无条件时通过，空引用条件输出含资源名的警告并拒绝。只查询，不消费请求或切换状态。
-- `ActionStage` 只保存 Animator State 和 Cancel Window；速度覆盖规则与水平减速度由 CombatActionStage 独立保存。普通动作的速度继续使用 PlayerBaseConfig → State / PlayerMovement 链路，不在 Action Data 上配置。
+- `ActionStage` 保存 Animator State、Cancel Window 和复用现有 `ActionCondition` 类型的 `conditions` 数组；`AreConditionsMet(in ActionContext context)` 及 CombatActionContext 重载检查全部条件，无条件通过，缺失条件引用警告并拒绝该候选。速度覆盖规则与水平减速度由 CombatActionStage 独立保存。
+- `bool TrySelectStage(in ActionContext context, out ActionStage stage)` 及 CombatActionContext 重载只检查候选 Stage 条件，按数组顺序返回第一个满足的 Stage；跳过空 Stage，空数组或全部不满足时返回 false 且 stage 为 null。入口资格仍由 `AreEntryConditionsMet` 独立检查；选择不消费请求、不缓存运行时结果，也不验证动画配置。
+- 当前已接通 Stage 选择（2026-10-31）：Motion 启动和 Combat 入口/手动派生/自动派生通过 TrySelectStage 取得候选，Controller 保存本次选择；动画、取消窗口、命中窗口和战斗速度读取 CurrentStage / CurrentCombatStage，不在执行中重新选择。15 份现有动作资源已从单个 stage 迁移至单元素 stages 数组，保留原配置并添加空 conditions。二段跳已合成 Action_DoubleJump.asset，包含垂直/向前两个候选 Stage，分别配置无/有水平输入条件；Player 只引用这一份 Definition，ActionContext.MoveInput 提供选择依据。
 - ActionController 已从 Combat 提取，ActionContext 是独立 readonly struct；Dash 与 DoubleJump 通过 Request / TryStartAction 接入既有 FSM，Combat 保留自身生命周期。Move 已迁至 PlayerCommandInput，通用 Effect 尚未实现。
+
+- 本轮验证：Unity 编译及 Console 无错误；隔离检查通过首项匹配、兜底、无匹配保留请求、成功消费、跨源 Exit 和 Context 改变保留选择、战斗入口/手动派生/命中窗口/迟到结束信号/结束清理。15 份动作资源加载成功。GameScene Play Mode 中调用真实 Dash / Combat 状态 Enter、Exit，确认选中动画 Hash、Stage 登记/清理和 Dash 重力恢复；未做完整按键连招与碰撞回归。验证临时对象已删除，未保存运行时场景。
 
 #### `ActionDashAvailableCondition.cs`（Runtime/GamePlay）
 
@@ -850,32 +854,43 @@ Canvas_Inventory (Screen Space - Overlay)
 - 资源 Assets/_Game/Data/Actions/Motions/Conditions/Condition_DashAvailable.asset 已配置到 Action_Dash.asset.entryConditions；所有既有 Dash 入口共用它。没有次数时 TryStartAction 拒绝，不切换 FSM，不消耗请求；请求超时由统一校验处理。
 - Player_Dash.Enter 成功进入后调用 Player.MarkDashUsed 记录使用，落地/墙滑仍调用 RestoreAirborneResources → ResetDash 恢复。检查与记录分开，没有在状态入口重复调用 TryConsumeDash。
 
+#### `ActionHorizontalInputCondition.cs`（Runtime/GamePlay）
+
+- 复用 ActionCondition，保存 `[SerializeField] private bool requireHorizontalInput`，默认 true，仅供内部 IsMet 使用，不公开配置属性；创建菜单 `Game/Actions/Conditions/Horizontal Input`。
+- `bool IsMet(in ActionContext context)`：使用 Mathf.Approximately(context.MoveInput.x, 0f) 判断水平输入是否为零；勾选要求有水平输入，不勾选要求没有水平输入，不影响速度或次数。
+- `Assets/_Game/Data/Actions/Motions/Conditions/Condition_NoHorizontalInput.asset` 配置 false；`Condition_HasHorizontalInput.asset` 配置 true，分别引用到统一二段跳的两个 Stage。当前仅用于 Motion Context；CombatActionContext 尚不传递移动输入。
+- Play Mode 验证：场景 Player 引用统一资源，无水平输入选择垂直 Stage，左右输入均选择向前 Stage，状态动画 Hash 一致；速度分别为 (0,19)/(5,19)/(-5,19)，次数均正确消耗，用尽后拒绝且保留请求。未解锁入口拒绝也已验证。测试通过工具调用启动/状态 Enter、Exit，未做完整按键与落地回归；技能只在运行时解锁，停止后恢复。
+
+#### `ActionNegativeYInputCondition.cs`（Runtime/GamePlay）
+
+- `bool IsMet(in ActionContext context)` 仅判断 `context.MoveInput.y < 0f`，无公开配置属性；创建菜单为 `Game/Actions/Conditions/Negative Y Input`。资源 `Assets/_Game/Data/Actions/Motions/Conditions/Condition_NegativeYInput.asset` 用于 BackDodge Definition 的入口条件，不区分 Normal / Perfect，不消费请求。
+
 #### `ActionDoubleJumpAvailableCondition.cs`（Runtime/GamePlay）
 
 - `bool IsMet(in ActionContext context)` 只读判断：不接地且 CanDoubleJump；不消费请求或次数。
-- 两份 Action_DoubleJump Data 的 entryConditions 均引用 Condition_DoubleJumpAvailable.asset 和 Condition_DoubleJumpSkillUnlocked.asset，分别检查空中次数与技能；状态入口不重复判断。
+- 统一 Action_DoubleJump Data 的 entryConditions 引用 Condition_DoubleJumpAvailable.asset 和 Condition_DoubleJumpSkillUnlocked.asset，分别检查空中次数与技能；状态入口不重复判断。
 - Context 保留 CanDoubleJump，移除专用 IsDoubleJumpUnlocked；通过 IsSkillUnlocked(SkillData skill) 查询任意指定技能，不预先计算二段跳解锁结果。
 - Play Mode 验证：未解锁拒绝；JumpUp / Apex / WallJump 的垂直与前向入口、次数用尽拒绝、Dash 取消窗口、落地刷新通过。实际普通跳 → 二段跳 → 落地两轮通过，垂直速度 (0, 19)、前向 (7, 19)。郊狼跳优先、Fall 超过郊狼时间后的二段跳、按 Controller 配置的缓冲时间判过期、墙跳 / 攀爬与 Dash / Combat 请求消费回归均通过。解锁仅用于运行时测试，不改变场景的初始解锁状态。
 
 #### `ActionSkillUnlockedCondition.cs`（Runtime/GamePlay）
 
-- 通用入口条件，SerializeField SkillData skill（只读 Skill 属性）由资源配置；不在 Context 中保存某个具体技能的解锁布尔值。
+- 通用入口条件，私有序列化 SkillData skill 由资源配置，仅供内部 IsMet 使用；不在 Context 中保存某个具体技能的解锁布尔值。
 - `bool IsMet(in ActionContext context)` / `bool IsMet(in CombatActionContext context)` 分别调用 `context.IsSkillUnlocked(skill)`；两个 Context 仍独立，缺技能集合或指定 SkillData 时拒绝。
-- Condition_DoubleJumpSkillUnlocked.asset 指向 Skill_DoubleJump，已加入两个二段跳 Data 的入口条件数组；检查只读查询，不解锁技能、不消费次数或请求。
+- Condition_DoubleJumpSkillUnlocked.asset 指向 Skill_DoubleJump，已加入统一二段跳 Data 的入口条件数组；检查只读查询，不解锁技能、不消费次数或请求。
 - 创建菜单为 Game/Actions/Conditions/Skill Unlocked；其他动作可配置不同 SkillData 复用同一脚本。
-- Play Mode 已验证：普通与 Combat Context 对未解锁 / 已解锁的查询一致，缺集合 / 缺 SkillData 拒绝；同一 Context 能读取随后解锁的结果，其他角色和其他技能保持独立；两份二段跳 Data 仍检查空中次数，解锁后实际进入二段跳、消费请求与次数并保持速度 (0, 19)。本轮 Console 无 Error，解锁仅发生在运行时。
+- Play Mode 已验证：普通与 Combat Context 对未解锁 / 已解锁的查询一致，缺集合 / 缺 SkillData 拒绝；同一 Context 能读取随后解锁的结果，其他角色和其他技能保持独立；二段跳 Data 仍检查空中次数，解锁后实际进入二段跳、消费请求与次数并保持速度 (0, 19)。本轮 Console 无 Error，解锁仅发生在运行时。
 
 #### `MotionActionDefinition.cs`（Runtime/GamePlay）
 
-- 普通移动动作的具体 ScriptableObject，继承 ActionDefinition，保存 NeedCommand（默认 true）与 ActionStage。创建菜单：`Game/Actions/Movement Action`。
-- `Assets/_Game/Data/Actions/Motions/Commands/Command_DoubleJump.asset`：两个二段跳变体共用的指令，已绑定 InputRouter.jumpCommand 与 Player.JumpCommand；作为同一跳跃按键的请求键，地面、墙滑、悬挂状态分别消费后执行普通跳、墙跳、攀爬。
+- 普通移动动作的具体 ScriptableObject，继承 ActionDefinition，保存 NeedCommand（默认 true）与 `ActionStage[] stages`（默认空数组），通过 Stages 暴露。创建菜单：`Game/Actions/Movement Action`。
+- `Assets/_Game/Data/Actions/Motions/Commands/Command_DoubleJump.asset`：统一二段跳动作使用的指令，已绑定 InputRouter.jumpCommand 与 Player.JumpCommand；作为同一跳跃按键的请求键，地面、墙滑、悬挂状态分别消费后执行普通跳、墙跳、攀爬。
 - `Assets/_Game/Data/Actions/Motions/Actions/Action_Dash.asset`：引用既有 Command_Dash；动画 Dash，不保存速度配置；取消窗口 0 允许 Attack、LauncherAttack、DiveAttack、DoubleJump。
-- `Action_DoubleJump_Vertical.asset`：动画 DoubleVerticalJump；`Action_DoubleJump_Forward.asset`：动画 DoubleForwardJump。两者不保存速度配置，取消窗口为空；实际运动由 PlayerMovement.HandleDoubleJump 按 PlayerBaseConfig 执行。
-- Dash 与两份 DoubleJump Data 已由 Player 引用，入口条件经 TryStartAction 校验；二段跳 Enter 从所选 Data 读取 AnimatorStateHash。Dash 的动量加成、临墙反向、关闭/恢复重力，以及向前二段跳的水平加速仍由既有 FSM / PlayerMovement 执行，普通 Action Data 不再包含速度配置。Animator 两个二段跳 State 与 Clip 命名存在交叉绑定，本次沿用原 State 名称。
+- `Action_DoubleJump.asset`：保留原 Vertical 资源 GUID，原 Forward 资源及其 .meta 已移除。Stages[0] 使用 DoubleVerticalJump + Condition_NoHorizontalInput；Stages[1] 使用 DoubleForwardJump + Condition_HasHorizontalInput。两个 Stage 都不保存速度配置，取消窗口为空；实际运动仍由 PlayerMovement.HandleDoubleJump 按 PlayerBaseConfig 执行。GameScene Player.doubleJumpAction 指向统一资源；字段的 FormerlySerializedAs 保留旧 Vertical 引用的迁移能力。
+- Dash 与统一 DoubleJump Data 已由 Player 引用，入口条件及 Stage 选择经 TryStartAction 校验；二段跳 Enter 通过 PlayerState 读取 Controller 已选 Stage 的 AnimatorStateHash。Dash 的动量加成、临墙反向、关闭/恢复重力，以及向前二段跳的水平加速仍由既有 FSM / PlayerMovement 执行，普通 Action Data 不再包含速度配置。Animator 两个二段跳 State 与 Clip 命名存在交叉绑定，本次沿用原 State 名称。
 
 #### `CombatActionStage.cs`
 
-- 脚本职责：继承 ActionStage，保存战斗专用 entryVelocityRule / horizontalDeceleration / Hit Window；动画和取消窗口由父类保存。Player_CombatActionState 从 CurrentAction.CombatStage 读取速度和减速度；原字段名及 stage 序列化路径不变，保留既有攻击资源参数，不持有运行时窗口状态。
+- 脚本职责：继承 ActionStage，保存战斗专用 entryVelocityRule / horizontalDeceleration / Hit Window；动画、取消窗口及候选条件由父类保存。不持有运行时窗口状态。Player_CombatActionState 和命中检测器从 Controller.CurrentCombatStage 读取本次选中的战斗配置。
 
 #### `CombatHitWindowDefinition.cs`
 
@@ -886,8 +901,8 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `CombatActionDefinition.cs`
 
-- 脚本职责：继承 ActionDefinition，Command 由父类保存，自身保留原序列化 CombatActionStage stage、Transitions；入口条件 entryConditions 已移至父类，字段名及资源引用不变。Stage 以通用 ActionStage 暴露配置，CombatStage 为战斗速度、减速和命中检测提供战斗阶段。继承父类 AreEntryConditionsMet(in CombatActionContext context)，只检查同一份入口条件，不再保留第二组条件或判断函数。
-- 原脚本 GUID 和序列化字段名保留；既有攻击资源继续使用原引用，不需重建。
+- 脚本职责：继承 ActionDefinition，Command 与入口条件由父类保存，自身保存 `CombatActionStage[] stages`（默认空数组）和 Transitions。通过 Stages 暴露通用候选数组，通过 CombatStages 暴露战斗类型数组；继承父类入口检查与 Stage 选择函数。
+- 原脚本 GUID 保留；原单个 `stage` 字段已替换成 `stages` 数组，既有攻击资源配置已迁移至单元素数组，原动画、取消窗口、命中窗口及速度配置保留。
 - 当前资源：BaseAttack01 / 02 / 03、JumpAttack01 / 02、HeavyAttack、LauncherAttack 与 Dive Start / Loop / Land。LauncherAttack 和 Dive 使用独立 Command；有序 Transition 允许同一 Action 按条件选择不同目标。
 
 #### `CombatActionTransition.cs`
@@ -1884,6 +1899,8 @@ Canvas_Inventory (Screen Space - Overlay)
   - `RunBufferDuration`：跑步松手缓冲时间。
   - `ApexThreshold`：接近最高点时进入 Apex 的速度阈值。
   - `DefaultDashSpeed`、`DashFactor`、`WallDashSpeed`：Dash 基础速度、当前水平速率的加成比例，以及贴墙反向冲刺速度。
+  - `backDodgeVelocity` / `BackDodgeVelocity`：Back Dodge 分组中的二维初速度，当前 PlayerBaseConfig.asset 为 (8, 13.85)。X 按朝向取反，不叠加入场速度；Y 直接施加。速度完全由此配置决定，不修改 Animator 更新模式；滞空时间由配置的 Y 初速度、BackDodgeGravityScale 和实际碰撞决定，不与动画时长强制同步。
+  - `backDodgeGravityScale` / `BackDodgeGravityScale`：Back Dodge 分组中的独立重力倍率，Inspector 最小值为 0，默认及当前资源值为 4；由 BackDodge.Enter 应用，Exit 恢复进入前的倍率，不进行自动计算。
 - 关联：`PlayerMovement` 读取移动/跳跃参数；跑步和跳跃状态读取缓冲、滑行和 Apex 参数。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerMotionAnimationTrigger.cs`
@@ -1973,13 +1990,13 @@ Canvas_Inventory (Screen Space - Overlay)
 - `SkillData.cs`：技能静态配置，继承 `ScriptableObject`，只读属性 `DisplayName` 暴露显示名；创建菜单为 `Game/Skills/Skill`。
 - `PlayerSkills.cs`：通过运行时 `HashSet<SkillData>` 持有已解锁技能。`IsUnlocked(SkillData skill)` 检查资源是否已解锁；`TryUnlock(SkillData skill)` 尚未实现，调用会抛出 `NotImplementedException`。组件菜单 `Debug/Unlock Skill` 调用 `DebugUnlockSkill()`，将 Inspector 的 `debugSkill` 加入集合并输出显示名；当前未校验该引用，也未接入存档。
 - `Assets/_Game/Data/Skills/Skill_DoubleJump.asset`：二段跳技能资源，显示名“二段跳”；GameScene Player 已配置 PlayerSkills；技能资源由 Condition_DoubleJumpSkillUnlocked.asset 引用。解锁仍使用 PlayerSkills 的 Debug/Unlock Skill 调试入口，TryUnlock 尚未实现。
-- 当前调用链：InputRouter 提交 Jump Command → JumpUp / Apex / Fall / WallJump 或 Dash 取消入口选择 Player.DoubleJumpAction → TryStartAction 校验 Data 条件 → FSM 进入 Player_DoubleJump → MarkDoubleJumpUsed。落地 / 墙滑保留既有 ResetDoubleJump 刷新。
+- 当前调用链：InputRouter 提交 Jump Command → JumpUp / Apex / Fall / WallJump 或 Dash 取消入口读取统一 Player.DoubleJumpAction → TryStartAction 校验 Data 条件并按 Context.MoveInput 选择 Stage → FSM 进入 Player_DoubleJump → MarkDoubleJumpUsed。落地 / 墙滑保留既有 ResetDoubleJump 刷新。
 
 ### Runtime/GamePlay/Player/Combat
 
 #### `ActionController.cs`（Runtime/GamePlay）
 
-- 抽象父类共享请求缓冲与 Data 取消窗口；config 为 ActionSystemConfig。Motion / Combat 分别持有自己的请求缓存、具体类型 CurrentAction，通过 protected ActiveAction 提供通用 ActionDefinition 供窗口校验，不把战斗 Data 类型放进父类。
+- 抽象父类共享请求缓冲与 Data 取消窗口；config 为 ActionSystemConfig。Motion / Combat 分别持有自己的请求缓存、具体类型 CurrentAction，通过 protected ActiveAction 提供通用 ActionDefinition，并通过 CurrentStage 提供已选阶段供窗口校验，不把战斗 Data 类型放进父类。
 - RequestAction(ActionCommandKey command) 保存 Command / Time.time；TryGetValidBufferedRequest(out ActionRequest request) 为 public，只读返回快照，过期时清空。TryConsumeBufferedRequest(ActionCommandKey expectedCommand) 校验后消费本组件的请求。
 - AllowsCancel(ActionCommandKey command) 是 Motion / Combat 统一的只读许可查询：Command 为空时拒绝；没有当前 Action 时允许尝试；有当前 Action 时必须有活动窗口且窗口接受该 Command。不读取另一 Controller 的缓存、不消费请求。
 - NotifyCancelWindowOpened/Closed(int windowId, int sourceStateHash) 只接受当前 Data 的来源 Hash 和有效 Window ID；相同窗口重复打开幂等，错误来源/错误关闭 ID 忽略。无窗口时 ActiveCancelWindowId 为 -1。
@@ -1987,8 +2004,8 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `PlayerMotionController.cs` / `MotionSystemConfig.cs`
 
-- BeginState(int animatorStateHash, MotionActionDefinition action) / EndState(int animatorStateHash) 由 FSM Enter / Exit 通知，登记或清理当前动作与取消窗口；清理不丢弃待处理输入。FSM 仍管理状态生命周期，Controller 不逐帧驱动第二套状态机。
-- TryStartAction(MotionActionDefinition action, in ActionContext context) 检查动画配置、源动作的统一取消许可、Command 有效期与目标条件。仅 NeedCommand=true 的动作成功时消费请求；无 Command 自动动作保留缓存。函数不提前登记目标，目标真正 Enter 后才登记，避免源 Exit 清掉新窗口。
+- `int BeginState(int animatorStateHash, MotionActionDefinition action, in ActionContext context)` 由 PlayerState.Enter 调用，优先采用 TryStartAction 暂存的 Stage；直接进入且未准备的动作（如 Dash 自然结束后贴墙）仅在此选择一次。返回选中动画 Hash 供状态播放，无可用动画时警告并保留状态原动画。无 Action 状态不选择 Stage。EndState 清理当前动作、CurrentStage 和窗口，但保留准备给下一状态的 Stage，避免源 Exit 清掉目标选择。
+- TryStartAction(MotionActionDefinition action, in ActionContext context) 检查源动作取消许可、Command 有效期、Definition 入口条件，再调用 TrySelectStage 并验证选中动画。无匹配时不消费请求；成功时暂存目标 Action / Stage，只有 NeedCommand=true 才消费请求。目标真正 Enter 后登记为 CurrentStage，输入或条件随后改变不会重选。
 - Motion 与 Combat 采用同一取消规则，不再按状态名单判断。MotionSystemConfig 仅继承输入缓冲配置，已删除 combatEntryStates / AllowsCombatEntry 与专用 CanStartCombatAction；ActionStage 也不再提供 HasCancelWindows 例外。没有登记 Action 的状态允许尝试进入攻击；有 Action 却未配窗口时拒绝取消，包括二段跳、墙滑的空窗口 Data。自然结束、落地和离墙转换不受取消窗口限制。
 - 本轮 Play Mode 验证统一许可：无动作放行、空 Command 拒绝、关闭窗口拒绝、开放窗口按 Command 筛选；二段跳/墙滑空窗口拒绝且保留请求；攻击仅缓存到 Combat、Dash 仅缓存到 Motion，查询不复制或消费请求。实际动画链路 Dash→跳跃、Dash→攻击、攻击→Dash 与返回 Run 通过，Console 无 Error；输入缓冲仍为 Motion 0.1 / Combat 0.3 秒。
 - MotionSystemConfig 当前输入缓冲为 0.1 秒，Combat Config 保留独立设置；两个 Controller 的请求互不复制。MoveChanged 只更新 Player.CommandInput，不提交请求；Move Command 尚未接入。
@@ -2009,12 +2026,14 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：Player 战斗 Action 的运行时协调入口；保存单槽时间戳 Request、有序入口 Action、当前 Action、各类窗口、Pending Transition、Commit 请求、Stage 完成信号与整条连招的命中记录。
 - 继承父类 `RequestAction(ActionCommandKey command)`；后来的请求覆盖原单槽缓存，Combat 继续按原有有效期和条件消费。ActionRequest 仍保留可选 Value 数据，但当前输入只提交 Command。
-- `TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)`：按 Inspector 顺序执行“Command 匹配 → Stage 有效 → 所有入口 Condition 成立”，返回第一条合法入口；不消费仍可能等待 Motion Controller 许可的 Request。
+- `TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)`：按 Inspector 顺序执行“Command 匹配 → 所有入口 Condition 成立 → TrySelectStage 成功且战斗动画有效”，写入统一的 pendingAction / pendingStage 并返回第一条合法入口；不消费仍可能等待 Motion Controller 许可的 Request。
 - `TryConsumeBufferedRequest(ActionCommandKey expectedCommand)`：源 Controller 允许让出且 FSM 可切换后，校验并消费与候选 Action 对应的 Request。
 - `TryQueueTransition(in CombatActionContext context)`：仅在请求仍有效、派生窗口开放、Command 匹配、Transition Conditions 和目标 Action 入口 Conditions 都成立时消费 Request，并把目标 Action 保存为 Pending；不会在输入发生的帧立即切动画。
 - `TryQueueAutomaticTransition(in CombatActionContext context)`：自动转换窗口开放期间每帧按数组顺序检查无 Command 的 Transition；第一条同时满足自身 Conditions 与目标入口 Conditions 的分支会立即准备并提交。
 - `TryCommitTransition(out CombatActionDefinition targetAction)`：消费动画 Commit 信号；存在 Pending Transition 时输出目标 Action，否则不切换。
-- `BeginAction(CombatActionDefinition action)`：记录 `CurrentAction`，并重置上一 Action 的窗口、Pending、Commit 与 Stage 完成状态；只有从非 Action 状态开始一条新链时才清空 Chain Runtime，派生之间保留命中事实。
+- 入口与派生共用 pendingAction / pendingStage，不再重复保存 preparedAction 或 pendingTransitionAction。TryCommitTransition 只消费提交信号并返回目标，保留 pending 配对到 BeginAction 读取；取消或结束同时清空 pending。
+- 统一 pending 后的 Play Mode 隔离验证：首次入口、手动及自动派生排队、排队期间保持源 Action、提交后激活目标 Stage、同一提交信号不重复消费、取消清理均通过；测试使用临时 Controller 与克隆配置，不保存场景或资源。
+- `BeginAction(CombatActionDefinition action)`：要求该 Action 已通过入口或派生查询准备 Stage；将统一的 pendingAction / pendingStage 转为 CurrentAction / CurrentStage / CurrentCombatStage，清空 pending 并重置上一 Action 的窗口、Commit 与 Stage 完成状态。派生排队期间仍保留源 Stage，提交后才采用准备好的目标 Stage。只有从非 Action 状态开始一条新链时才清空 Chain Runtime；结束和取消同时清理 Stage。
 - `private void EndHitWindow()` 清除活动命中窗口并同步发出 `event Action HitWindowEnded`；新阶段进入之前、当前动作清理之前和有效窗口关闭时调用，确保命中检测器先结束旧效果，再由新状态应用速度和重力。
 - `NotifyHitConfirmed(GameObject targetOwner)`：把当前 Action 与 Hurtbox 声明的战斗 Owner 交给 Chain Runtime 去重记录。
 - `Notify...(..., int sourceStateHash)`：所有 Hit、Cancel、Transition 与 Stage 完成信号先通过 `IsSignalFromCurrentAction()` 比较来源 Animator State Hash；迟到的旧动画信号被忽略。
@@ -2050,10 +2069,11 @@ Canvas_Inventory (Screen Space - Overlay)
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerState.cs`
 
 - 缓存 Player、Movement、持续方向、Motion Controller、Ground/Wall Sensor 与 PlayerMotionAnimationTrigger。
-- Enter()：BeginState(stateName, MotionAction) 登记当前状态，重置普通动画标记，再播放动画；Exit()：EndState(stateName) 清理源动作及窗口。
-- protected virtual MotionActionDefinition MotionAction 默认 null；Dash / WallSlide 返回对应 Data，DoubleJump 在 Enter 时保存实际选择的变体，避免方向变化影响动作身份。
-- LogicalUpdate() 刷新传感器。CreateActionContext() 从传感器、Player.CanDash / CanDoubleJump 与 Player.Skills 构造条件查询上下文。
+- Enter()：创建 ActionContext，调用 BeginState(stateName, MotionAction, in context) 并保存返回的动画 Hash，登记当前状态，重置普通动画标记，再播放动画；Exit()：EndState(stateName) 清理源动作及窗口。
+- protected virtual MotionActionDefinition MotionAction 默认 null；Dash / BackDodge / WallSlide / DoubleJump 返回对应 Data，由 Controller 保存本次选中的 Stage。
+- LogicalUpdate() 刷新传感器。CreateActionContext() 从传感器、Player.CanDash / CanDoubleJump、Player.Skills 和 CommandInput.MoveInput 构造条件查询上下文。
 - ChangeStateToMoveState() / isSameDirctionForWallandFacingDir() 保留原移动选择与贴墙判断。
+- `protected bool TryStartBackDodge()` 由 PlayerGround / Player_RunTransition.LogicalUpdate 调用：Command 匹配后创建 Context，经 MotionController.TryStartAction 检查地面、向下输入与候选 Stage，再切入 player.backDodgeState；调用者在 true 时立即返回。Player.BackDodgeCommand 从 BackDodgeAction.Command 读取，避免重复配置 Command。
 - 已移除 State 窗口字段、AddCancelTransition、CanTransitionTo 重写和 Open/CloseCancelWindow；StateCancelTransitionRule 及其 meta 已移除。取消资格由 Controller 检查，FSM 只提交普通生命周期切换。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerGround.cs`
@@ -2062,7 +2082,7 @@ Canvas_Inventory (Screen Space - Overlay)
 - 函数：
   - `PlayerGround(...)`：调用玩家状态基类构造。
   - `Enter()`：进入地面状态时清除竖直速度，但保留可能仍有效的跳跃缓冲请求；Dash 由共享有效期判断管理；二段跳额度由实际落地事件统一恢复，不依赖具体地面状态继承关系。
-  - `LogicalUpdate()`：优先消费可用冲刺请求并进入 `Player_Dash`；否则在离地后的向下速度达到 `FallEnterVelocityThreshold` 时进入 Fall，再处理跳跃、世界交互和地面移动转换。
+  - `LogicalUpdate()`：先检查 BackDodge 请求并在成功后返回，再消费可用冲刺请求并进入 `Player_Dash`；否则在离地后的向下速度达到 `FallEnterVelocityThreshold` 时进入 Fall，再处理跳跃、世界交互和地面移动转换。
 - 关联：`Player_IdleState`、`Player_WalkState`、跑步相关状态继承或间接使用地面逻辑。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/PlayerAir.cs`
@@ -2114,6 +2134,8 @@ Canvas_Inventory (Screen Space - Overlay)
 ### Runtime/GamePlay/Player/PlayerState/Player_Run
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Run/Player_RunTransition.cs`
+
+- BackDodge 入口与 PlayerGround 共用 TryStartBackDodge()，在基类刷新传感器后、原跳跃/交互处理前检查，因此 Run / RunTurn / RunEnd 也使用同一地面条件。
 
 - 脚本职责：跑步相关过渡状态基类。
 - 函数：
@@ -2205,7 +2227,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 - 脚本职责：执行本轮滞空唯一一次二段跳，并根据进入状态时的水平输入选择向前或垂直动画。
 - 函数：
-  - `Enter()`：调用 MarkDoubleJumpUsed；按当前 MoveInput.x 选择 Player.DoubleJumpAction（Vertical / Forward），从 Data.Stage.AnimatorStateHash 读取动画，再调用 HandleDoubleJump(Vector2) 保留原运动规则。
+  - `Enter()`：调用 MarkDoubleJumpUsed；MotionAction 固定读取统一 Player.DoubleJumpAction，由 PlayerState.Enter 采用 Motion Controller 启动时已选中的 Stage 动画，再调用 HandleDoubleJump(Vector2) 保留原运动规则。
   - `LogicalUpdate()`：执行空中公共逻辑，二段跳动画结束后进入 `Player_Fall`。
 - 关联：JumpUp、Apex、Fall 消费有效输入和共享二段跳额度后进入；额度在 `PlayerAir` 确认成功落地后恢复，不依赖落地目标状态的继承关系。
 
@@ -2217,6 +2239,19 @@ Canvas_Inventory (Screen Space - Overlay)
   - `LogicalUpdate()`：动画结束且仍接地时回到待机、步行或跑步状态。
   - `PhysicalUpdate()`：持续写入翻滚水平速度。
 - 关联：`Player_Fall.TryHandleLanding()` 根据下落速度阈值选择进入。
+
+#### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_BackDodge.cs`
+
+- 脚本职责：执行地面起始的后撤小跳。继承 PlayerState，不继承 PlayerAir，避免空中移动覆盖后撤速度或落地时提前跳过动作结束判断。Player.Awake 创建 backDodgeState，GameScene Player.backDodgeAction 指向 Action_BackDodge.asset。
+- `public override void Enter()`：经基类登记 Action/Stage 并播放动画，读取 PlayerBaseConfig.BackDodgeVelocity；朝右时 X=-Abs(X)，朝左时 X=Abs(X)，Y 直接使用配置值，一次写入刚体速度，不翻转角色。保存进入前的刚体重力倍率，应用 PlayerBaseConfig.BackDodgeGravityScale；不自动计算重力，也不修改动画更新模式。
+- `public override void Exit()`：恢复进入前保存的原重力，再执行基类清理；自然结束与 Dash 打断均走同一恢复路径。
+- 可配置重力 Play Mode 验证：用临时克隆将 BackDodgeGravityScale 设为 7，入场正确使用 7，动画结束且接地后回 Idle 并恢复 4；Dash 打断时重力按 Dash 规则变为 0，Dash.Exit 后恢复原倍率 4，未继承后撤倍率 7。原配置资源未改为测试值，克隆已销毁，Console 无 Error/Warning。
+- `public override void LogicalUpdate()`：刷新传感器后，优先检查 Dash 请求；由 Motion Controller 依取消窗口与 Dash 自身条件决定能否打断。正常结束要求 IsAnimationFinished、Rigidbody2D.IsTouchingLayers(GroundSensor.GroundLayers) 与 CanEnterGrounded 同时成立，再 RestoreAirborneResources 并调用已有 ChangeStateToMoveState 返回 Idle / Walk / Run。先落地则等待动画结束，动画先结束则等待落地；动画时长不参与速度或重力计算。
+- 正常结束已改为动画结束与实际落地共同决定，不再仅凭接地提前返回，也不再要求 hasLeftGround 标记；未真正离地的配置同样可以在动画结束且接地后退出。此前自动重力版本的固定落地时刻不适用于当前配置驱动版本。
+- Play Mode 使用临时克隆配置验证两种完成顺序：Y=0 且接地时等待动画结束再返回 Idle；Y=13.85 的垂直跳中先触发动画结束，仍等待实际落地后才返回 Idle。两组均通过，Console 无 Error/Warning；原资源配置未修改，克隆配置已销毁并退出 Play。
+- 地面资格复用现有 CombatActionGroundedCondition（检查 CanEnterGrounded），与负 Y 输入一起放在 Definition.entryConditions，不新建重复地面条件。空中状态没有后撤入口；不足两个探针支持时入口也会拒绝。
+- 两个 Stage 的取消窗口 0 只接受 Dash，Clip 起点打开、终点关闭；State 退出沿用 PlayerState.Exit 清理窗口和当前 Stage，迟到动画事件被来源校验忽略。Perfect 目前仅配置动画和窗口，未加入特殊选择规则。
+- 验证范围：原有地面/负 Y 输入入口、非循环 Clip、Dash 取消窗口与实际地面接触检查保留。自动重力、动画固定更新和按动画时长同步的计算已撤销；不同配置的滞空时间应随真实物理变化，不保证与动画结束同帧。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Player/PlayerState/Player_Dash.cs`
 

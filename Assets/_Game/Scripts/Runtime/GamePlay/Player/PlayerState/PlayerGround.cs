@@ -15,6 +15,8 @@ public class PlayerGround : PlayerState
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+        if (stateMachine.currentState != this) return;
+        if (TryStartBackDodge()) return;
 
         ActionContext context = CreateActionContext();
         if (motionController.BufferedRequest.Command == player.DashCommand &&

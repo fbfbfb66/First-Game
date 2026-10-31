@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Action_BaseAttack_01_Normal
   m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
   command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
-  stage:
-    animatorStateName: BaseAttack_01_Normal
+  stages:
+  - animatorStateName: BaseAttack_01_Normal
     entryVelocityRule:
       overrideHorizontal: 1
       localHorizontalVelocity: 5
@@ -39,6 +39,7 @@ MonoBehaviour:
       localOffset: {x: 2.51, y: 0.16}
       boxSize: {x: 2.58, y: 1.38}
       circleRadius: 0
+    conditions: []
   transitions:
   - conditions: []
     command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}

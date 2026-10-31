@@ -10,12 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 076401455e8647578502d2b9a03b3b17, type: 3}
-  m_Name: Action_DoubleJump_Forward
-  m_EditorClassIdentifier: Assembly-CSharp::MovementActionDefinition
+  m_Name: Action_DoubleJump
+  m_EditorClassIdentifier: Assembly-CSharp::MotionActionDefinition
   command: {fileID: 11400000, guid: 8e7e3244f783e6b4f8907059f1d5f20d, type: 2}
   entryConditions:
   - {fileID: 11400000, guid: 247dce05ee7a45bf8b00dfd7aa174d28, type: 2}
   - {fileID: 11400000, guid: 420b04a801ae410f864aeac310d23538, type: 2}
-  stage:
-    animatorStateName: DoubleForwardJump
+  stages:
+  - animatorStateName: DoubleVerticalJump
     cancelWindows: []
+    conditions:
+    - {fileID: 11400000, guid: d8a5639408c94de086da5a4fd5d22af7, type: 2}
+  - animatorStateName: DoubleForwardJump
+    cancelWindows: []
+    conditions:
+    - {fileID: 11400000, guid: cf9ff1a532394a83a2723fc30caccfae, type: 2}

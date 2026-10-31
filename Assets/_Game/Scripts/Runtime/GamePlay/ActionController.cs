@@ -8,6 +8,7 @@ public abstract class ActionController : MonoBehaviour
     protected bool hasBufferedRequest;
 
     protected abstract ActionDefinition ActiveAction { get; }
+    public abstract ActionStage CurrentStage { get; }
     public bool IsActionRunning => ActiveAction != null;
     public CombatActionCancelWindowDefinition ActiveCancelWindow => activeCancelWindow;
     public int ActiveCancelWindowId => activeCancelWindow != null ? activeCancelWindow.WindowId : -1;
@@ -64,7 +65,7 @@ public abstract class ActionController : MonoBehaviour
     public void NotifyCancelWindowOpened(int windowId, int sourceStateHash)
     {
         if (!IsSignalFromCurrentAction(sourceStateHash)) return;
-        if (!ActiveAction.Stage.TryGetCancelWindow(windowId, out var window)) return;
+        if (!CurrentStage.TryGetCancelWindow(windowId, out var window)) return;
         if (activeCancelWindow != null && activeCancelWindow != window)
         {
             Debug.LogWarning($"[Action] {name}: cannot open window {windowId}; window {ActiveCancelWindowId} is still open.", this);
@@ -82,7 +83,7 @@ public abstract class ActionController : MonoBehaviour
 
     protected bool IsSignalFromCurrentAction(int sourceStateHash)
     {
-        return ActiveAction != null && ActiveAction.Stage != null &&
-            ActiveAction.Stage.AnimatorStateHash == sourceStateHash;
+        return ActiveAction != null && CurrentStage != null &&
+            CurrentStage.AnimatorStateHash == sourceStateHash;
     }
 }

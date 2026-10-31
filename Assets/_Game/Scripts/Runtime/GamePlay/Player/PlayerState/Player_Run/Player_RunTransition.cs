@@ -14,6 +14,8 @@ public class Player_RunTransition : PlayerState
     public override void LogicalUpdate()
     {
         base.LogicalUpdate();
+        if (stateMachine.currentState != this) return;
+        if (TryStartBackDodge()) return;
 
 
         if(groundSensor.IsGrounded == false &&

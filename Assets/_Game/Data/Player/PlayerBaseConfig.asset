@@ -28,6 +28,8 @@ MonoBehaviour:
   defaultDashSpeed: 15
   dashFactor: 0.4
   wallDashSpeed: 15
+  backDodgeVelocity: {x: 8, y: 13.85}
+  backDodgeGravityScale: 4
   gravityScale: 4
   wallSlideSlowSpeed: -3
   wallSlideFastSpeed: -8

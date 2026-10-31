@@ -9,7 +9,33 @@ public abstract class ActionDefinition : ScriptableObject
 
     public ActionCommandKey Command => command;
     public ActionCondition[] ActionEntryConditions => entryConditions;
-    public abstract ActionStage Stage { get; }
+    public abstract ActionStage[] Stages { get; }
+
+    public bool TrySelectStage(in ActionContext context, out ActionStage stage)
+    {
+        stage = null;
+        if (Stages == null) return false;
+        foreach (var candidate in Stages)
+        {
+            if (candidate == null || !candidate.AreConditionsMet(in context)) continue;
+            stage = candidate;
+            return true;
+        }
+        return false;
+    }
+
+    public bool TrySelectStage(in CombatActionContext context, out ActionStage stage)
+    {
+        stage = null;
+        if (Stages == null) return false;
+        foreach (var candidate in Stages)
+        {
+            if (candidate == null || !candidate.AreConditionsMet(in context)) continue;
+            stage = candidate;
+            return true;
+        }
+        return false;
+    }
 
     public bool AreEntryConditionsMet(in ActionContext context)
     {

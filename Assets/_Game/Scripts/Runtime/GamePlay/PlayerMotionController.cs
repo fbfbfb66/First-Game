@@ -5,16 +5,36 @@ public class PlayerMotionController : ActionController
     private MotionActionDefinition currentAction;
     private int currentAnimatorStateHash;
     private bool hasActiveState;
+    private ActionStage currentStage;
+    private MotionActionDefinition pendingAction;
+    private ActionStage pendingStage;
 
     protected override ActionDefinition ActiveAction => currentAction;
     public MotionActionDefinition CurrentAction => currentAction;
+    public override ActionStage CurrentStage => currentStage;
 
-    public void BeginState(int animatorStateHash, MotionActionDefinition action)
+    public int BeginState(int animatorStateHash, MotionActionDefinition action, in ActionContext context)
     {
+        currentStage = null;
+        if (action != null)
+        {
+            if (pendingAction == action)
+                currentStage = pendingStage;
+            else
+                action.TrySelectStage(in context, out currentStage);
+
+            if (currentStage != null && !string.IsNullOrWhiteSpace(currentStage.AnimatorStateName))
+                animatorStateHash = currentStage.AnimatorStateHash;
+            else
+                Debug.LogWarning($"[Motion] {name}: {action.name} has no valid stage on state entry; using the state's animation.", this);
+        }
+        pendingAction = null;
+        pendingStage = null;
         currentAnimatorStateHash = animatorStateHash;
         hasActiveState = true;
         currentAction = action;
         activeCancelWindow = null;
+        return animatorStateHash;
     }
 
     public void EndState(int animatorStateHash)
@@ -22,6 +42,7 @@ public class PlayerMotionController : ActionController
         if (!IsCurrentStateAnimation(animatorStateHash)) return;
         hasActiveState = false;
         currentAction = null;
+        currentStage = null;
         activeCancelWindow = null;
     }
 
@@ -32,7 +53,7 @@ public class PlayerMotionController : ActionController
 
     public bool TryStartAction(MotionActionDefinition action, in ActionContext context)
     {
-        if (action == null || action.Stage == null || string.IsNullOrWhiteSpace(action.Stage.AnimatorStateName))
+        if (action == null)
         {
             Debug.LogWarning($"[Motion] {name}: target action or animation is missing; request not consumed.", this);
             return false;
@@ -45,7 +66,15 @@ public class PlayerMotionController : ActionController
                 return false;
         }
         if (!action.AreEntryConditionsMet(in context)) return false;
+        if (!action.TrySelectStage(in context, out var stage)) return false;
+        if (string.IsNullOrWhiteSpace(stage.AnimatorStateName))
+        {
+            Debug.LogWarning($"[Motion] {name}: selected stage in {action.name} has no animation; request not consumed.", this);
+            return false;
+        }
 
+        pendingAction = action;
+        pendingStage = stage;
         if (action.NeedCommand)
         {
             hasBufferedRequest = false;

@@ -24,6 +24,10 @@ public  class PlayerBaseConfig : ScriptableObject
     [SerializeField, Range(0f, 1f)] private float dashFactor = .5f;
     [SerializeField] private float wallDashSpeed = 15f;
 
+    [Header("Back Dodge")]
+    [SerializeField] private Vector2 backDodgeVelocity = new(8f, 13.85f);
+    [SerializeField, Min(0f)] private float backDodgeGravityScale = 4f;
+
     [Header("Physics")]
     [SerializeField] private float gravityScale;
     [SerializeField] private float wallSlideSlowSpeed = -1f;
@@ -33,6 +37,8 @@ public  class PlayerBaseConfig : ScriptableObject
     public float DashFactor => dashFactor;
     public float DefaultDashSpeed => defaultDashSpeed;
     public float WallDashSpeed => wallDashSpeed;
+    public Vector2 BackDodgeVelocity => backDodgeVelocity;
+    public float BackDodgeGravityScale => backDodgeGravityScale;
     public float RollingLandDefaultVelocity => rollingLandDefaultVelocity;
     public float RollingLandThresholdVelocity => rollingLandThresholdVelocity;
     public Vector2 DoubleJumpForce => doubleJumpForce;

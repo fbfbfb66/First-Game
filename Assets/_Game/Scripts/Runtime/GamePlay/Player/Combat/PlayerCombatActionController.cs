@@ -4,6 +4,11 @@ using UnityEngine;
 public class PlayerCombatActionController : ActionController
 {
     private CombatActionDefinition currentAction;
+    private CombatActionStage currentStage;
+    private CombatActionDefinition pendingAction;
+    private CombatActionStage pendingStage;
+    public override ActionStage CurrentStage => currentStage;
+    public CombatActionStage CurrentCombatStage => currentStage;
     protected override ActionDefinition ActiveAction => currentAction;
     public CombatActionDefinition CurrentAction => currentAction;
     private bool isCurrentStageFinished;
@@ -13,7 +18,6 @@ public class PlayerCombatActionController : ActionController
     private bool isTransitionWindowOpen;
     private bool isAutomaticTransitionWindowOpen;
     private bool isTransitionCommitRequested;
-    private CombatActionDefinition pendingTransitionAction;
     private CombatHitWindowDefinition activeHitWindow;
     private readonly CombatActionChainRuntime chainRuntime = new();
     private readonly CombatActionUsageRuntime usageRuntime = new();
@@ -33,7 +37,7 @@ public class PlayerCombatActionController : ActionController
             isAutomaticTransitionWindowOpen = false;
             return false;
         }
-        if (pendingTransitionAction != null) return false;
+        if (pendingAction != null) return false;
         CombatActionTransition[] transitions = CurrentAction.Transitions;
         if(transitions == null || transitions.Length <= 0) return false;
         foreach (var transition in transitions)
@@ -49,14 +53,9 @@ public class PlayerCombatActionController : ActionController
                 Debug.LogWarning("Target action is null");
                 return false;
             }
-            if (transition.TargetAction.Stage == null || string.IsNullOrWhiteSpace(transition.TargetAction.Stage.AnimatorStateName))
-            {
-                Debug.LogWarning($"[CombatAction] Transition target {transition.TargetAction.name} has no valid stage.", transition.TargetAction);
-                return false;
-            }
             if (transition.AreConditionsMet(context) == false) continue;
             if (transition.TargetAction.AreEntryConditionsMet(context) == false) continue;
-            pendingTransitionAction = transition.TargetAction;
+            if (!TryPrepareStage(transition.TargetAction, in context)) continue;
             isTransitionCommitRequested = true;
             isAutomaticTransitionWindowOpen = false;
             return true;
@@ -70,9 +69,8 @@ public class PlayerCombatActionController : ActionController
         targetAction = null;
         if (isTransitionCommitRequested == false) return false;
         isTransitionCommitRequested = false;
-        if (pendingTransitionAction == null) return false;
-        targetAction = pendingTransitionAction;
-        pendingTransitionAction = null;
+        if (pendingAction == null) return false;
+        targetAction = pendingAction;
         return true;
     }
 
@@ -80,12 +78,14 @@ public class PlayerCombatActionController : ActionController
     {
         EndHitWindow();
         currentAction = null;
+        currentStage = null;
+        pendingAction = null;
+        pendingStage = null;
         isCurrentStageFinished = false;
         isTransitionWindowOpen = false;
         isAutomaticTransitionWindowOpen = false;
         hasBufferedRequest = false;
         isTransitionCommitRequested = false;
-        pendingTransitionAction = null;
         activeCancelWindow = null;
         bufferedRequest = default;
         chainRuntime.Clear();
@@ -94,7 +94,7 @@ public class PlayerCombatActionController : ActionController
     public bool TryQueueTransition(in CombatActionContext context)
     {
         if (currentAction == null) return false;
-        if (pendingTransitionAction != null) return false;
+        if (pendingAction != null) return false;
         if (TryGetValidBufferedRequest(out var request) == false) return false;
         if (isTransitionWindowOpen == false) return false;
         CombatActionTransition[] transitions = currentAction.Transitions;
@@ -112,15 +112,10 @@ public class PlayerCombatActionController : ActionController
                 Debug.LogWarning("Target action is null");
                 return false;
             }
-            if (transition.TargetAction.Stage == null || string.IsNullOrWhiteSpace(transition.TargetAction.Stage.AnimatorStateName))
-            {
-                Debug.LogWarning($"[CombatAction] Transition target {transition.TargetAction.name} has no valid stage.", transition.TargetAction);
-                return false;
-            }
             if (request.Command != transition.Command) continue;
             if (transition.AreConditionsMet(context) == false) continue;
             if (transition.TargetAction.AreEntryConditionsMet(context) == false) continue;
-            pendingTransitionAction = transition.TargetAction;
+            if (!TryPrepareStage(transition.TargetAction, in context)) continue;
             hasBufferedRequest = false;
             return true;
         }
@@ -162,16 +157,25 @@ public class PlayerCombatActionController : ActionController
                 continue;
             }
             if (entry.Command != request.Command) continue;
-            if (entry.Stage == null || string.IsNullOrWhiteSpace(entry.Stage.AnimatorStateName))
-            {
-                Debug.LogWarning($"[CombatAction] Entry action {entry.name} has no valid stage.", entry);
-                continue;
-            }
             if (entry.AreEntryConditionsMet(in context) == false) continue;
+            if (!TryPrepareStage(entry, in context)) continue;
             entryAction = entry;
             return true;
         }
         return false;
+    }
+
+    private bool TryPrepareStage(CombatActionDefinition action, in CombatActionContext context)
+    {
+        if (!action.TrySelectStage(in context, out var stage)) return false;
+        if (stage is not CombatActionStage combatStage || string.IsNullOrWhiteSpace(stage.AnimatorStateName))
+        {
+            Debug.LogWarning($"[CombatAction] {name}: selected stage in {action.name} has no valid combat animation; request not consumed.", this);
+            return false;
+        }
+        pendingAction = action;
+        pendingStage = combatStage;
+        return true;
     }
 
     public void ClearActionUsage()
@@ -200,6 +204,11 @@ public class PlayerCombatActionController : ActionController
             Debug.LogWarning("action is null");
             return;
         }
+        if (pendingAction != action || pendingStage == null)
+        {
+            Debug.LogWarning($"[CombatAction] {name}: {action.name} has no pending stage; action not started.", this);
+            return;
+        }
         EndHitWindow();
         if (currentAction == null)
         {
@@ -207,7 +216,9 @@ public class PlayerCombatActionController : ActionController
         }
         usageRuntime.Record(action);
         currentAction = action;
-        pendingTransitionAction = null;
+        currentStage = pendingStage;
+        pendingAction = null;
+        pendingStage = null;
         isCurrentStageFinished = false;
         isTransitionWindowOpen = false;
         isAutomaticTransitionWindowOpen = false;
@@ -243,9 +254,9 @@ public class PlayerCombatActionController : ActionController
             Debug.LogWarning("HitWindow already Exit");
             return;
         }
-        if (currentAction.CombatStage.TryGetHitWindow(windowId, out var hitWindow) == false)
+        if (CurrentCombatStage.TryGetHitWindow(windowId, out var hitWindow) == false)
         {
-            Debug.LogWarning($"Action : {CurrentAction.Stage.AnimatorStateName} didn`t find hitWindow compared whih {windowId}");
+            Debug.LogWarning($"Action : {CurrentStage.AnimatorStateName} didn`t find hitWindow compared whih {windowId}");
             return;
         }
 

@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class InputRouter : MonoBehaviour
 {
+    [SerializeField] private ActionCommandKey backDodgeCommand;
     [SerializeField] private ActionCommandKey jumpCommand;
     [SerializeField] private ActionCommandKey interactCommand;
     [SerializeField] private ActionCommandKey diveAttackCommand;
@@ -221,6 +222,12 @@ public class InputRouter : MonoBehaviour
         if (playerMotionController == null)
         {
             Debug.LogWarning($"InputRouter {name} has no ActionController; Jump request ignored.", this);
+            return;
+        }
+        Vector2 input = player.CommandInput.MoveInput;
+        if(input.y < 0)
+        {
+            playerMotionController.RequestAction(backDodgeCommand);
             return;
         }
         playerMotionController.RequestAction(jumpCommand);

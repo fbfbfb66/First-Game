@@ -11,6 +11,7 @@ public class GroundSensor : MonoBehaviour
 
     public bool IsGrounded {get;private set;} = true;
     public bool CanEnterGrounded { get; private set; }
+    public LayerMask GroundLayers => whatIsGround;
 
     public void UpdateGroundState()
     {

@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Action_JumpAttack_02_Normal
   m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
   command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
-  stage:
-    animatorStateName: JumpAttack_02_Normal
+  stages:
+  - animatorStateName: JumpAttack_02_Normal
     entryVelocityRule:
       overrideHorizontal: 0
       localHorizontalVelocity: 0
@@ -35,6 +35,7 @@ MonoBehaviour:
       localOffset: {x: 1.91, y: 0.68}
       boxSize: {x: 2.17, y: 2.95}
       circleRadius: 0
+    conditions: []
   transitions:
   - conditions:
     - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}

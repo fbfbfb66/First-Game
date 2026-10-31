@@ -15,8 +15,8 @@ MonoBehaviour:
   command: {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
   entryConditions:
   - {fileID: 11400000, guid: 5180fa2b07a14b24b6676d7c190a585a, type: 2}
-  stage:
-    animatorStateName: Dash
+  stages:
+  - animatorStateName: Dash
     cancelWindows:
     - windowId: 0
       allowedCommands:
@@ -24,3 +24,4 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 47fbdfd815453804ba67f0bf60d7e60d, type: 2}
       - {fileID: 11400000, guid: 243ce5f31d9a0ba49a877bb9b84946fa, type: 2}
       - {fileID: 11400000, guid: 8e7e3244f783e6b4f8907059f1d5f20d, type: 2}
+    conditions: []

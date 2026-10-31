@@ -2,12 +2,12 @@ using UnityEngine;
 [CreateAssetMenu(fileName ="Action_",menuName ="Game/Actions/Combat/Action Definition")]
 public sealed class CombatActionDefinition : ActionDefinition
 {
-    [SerializeField] private CombatActionStage stage;
+    [SerializeField] private CombatActionStage[] stages = System.Array.Empty<CombatActionStage>();
     [SerializeField] private CombatActionTransition[] transitions;
 
 
-    public override ActionStage Stage => stage;
-    public CombatActionStage CombatStage => stage;
+    public override ActionStage[] Stages => stages;
+    public CombatActionStage[] CombatStages => stages;
     public CombatActionTransition[] Transitions => transitions;
 
 

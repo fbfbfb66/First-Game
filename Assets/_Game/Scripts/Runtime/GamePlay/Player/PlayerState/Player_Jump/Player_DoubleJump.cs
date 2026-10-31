@@ -2,8 +2,7 @@ using UnityEngine;
 
 public class Player_DoubleJump : PlayerAir
 {
-    private MotionActionDefinition enteredAction;
-    protected override MotionActionDefinition MotionAction => enteredAction;
+    protected override MotionActionDefinition MotionAction => player.DoubleJumpAction;
     public Player_DoubleJump(Player player, StateMachine stateMachine, int stateName, Animator anim) : base(player, stateMachine, stateName, anim)
     {
     }
@@ -11,8 +10,6 @@ public class Player_DoubleJump : PlayerAir
     public override void Enter()
     {
         player.MarkDoubleJumpUsed();
-        enteredAction = player.DoubleJumpAction;
-        stateName = enteredAction.Stage.AnimatorStateHash;
         base.Enter();
         movement.HandleDoubleJump(commandInput.MoveInput);
     }
