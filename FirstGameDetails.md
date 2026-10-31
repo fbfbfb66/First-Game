@@ -37,6 +37,14 @@
 - 当前边界：普通跳、墙跳、攀爬仍是消费 Command 后切换既有状态，没有独立动作 Data；Move Command 资源保留但未接入提交/消费。二段跳和墙滑 Data 尚无取消窗口，执行期间拒绝输入取消；自然结束、落地和离墙不受此限制。通用动作 Effect 尚未实现，当前命中 Effect 属于 Combat。
 - 资源：Data/Actions 下分 Combat / Motions，目录与资源迁移保留原 GUID，ActionCommandKey 脚本 GUID 变化对应的 Command 脚本引用已修复；旧 PlayerInputReceiver、PlayerState 窗口名单和 StateCancelTransitionRule 已移除。
 
+### 世界时间与曲线恢复
+
+- 脚本目录：`Assets/_Game/Scripts/Runtime/Systems/WorldTime/`。`WorldTime` 保存自定义 `TimeScale`（限制在 0～1），提供乘以该倍率的 `deltaTime` / `fixedDeltaTime`；不修改 Unity 的 `Time.timeScale`。
+- `WorldTimeController` 挂在 GameScene 的 `GameScene` 对象上，持有单例和恢复计时。`RequestSlowMotion(float targetScale, float duration)` 立即设置倍率，保存实际起始倍率、总时长和剩余时长；`duration` 表示恢复过程的现实秒数，不包含独立保持阶段。恢复中再次请求会覆盖起始倍率和计时。
+- `Update()` 用 `Time.unscaledDeltaTime` 扣减剩余时间，以 `1 - remainingDuration / totalDuration` 得到 0～1 进度；序列化字段 `recoveryCurve`（默认 EaseInOut，从 `(0,0)` 到 `(1,1)`）通过 `Evaluate` 输出恢复程度，再用 `Mathf.Lerp(startScale, 1f, recoveryAmount)` 写入倍率。空曲线回退为线性恢复，插值程度限制在 0～1。到期或单例销毁时，`ResetWorldTime()` 清空计时并准确恢复倍率为 1。
+- `WorldTimeAnimator` 缓存 Animator 原始速度，每帧设置为原始速度乘世界倍率，禁用时恢复原始速度。其他移动、物理和战斗逻辑需要各自接入，自定义倍率不会自动作用于整个游戏。
+- Play Mode 测试入口：`WorldTimeController` 组件菜单 `Test Slow Motion`，请求倍率 `0.2`、恢复时长 `4` 秒。预期动画立即变慢，随后沿曲线逐渐恢复，到期输出一次恢复日志；该入口用于验证恢复链路。
+
 ## 2. Unity Git 提交规则
 
 需要提交：
