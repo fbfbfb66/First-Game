@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-10-30。
+最后更新时间：2026-10-31。
 
 ## 1. 项目概览
 
@@ -78,6 +78,12 @@
 - `Assets/_Game/Data/Skills/Skill_DoubleJump.asset` 的显示名为“二段跳”。
 
 ## 3. 根目录结构
+
+当前补充资源：
+
+- `Assets/_Game/Animation/AnimationStates/Player/Player_BackDodge.anim` 使用后撤图集切片，已加入 `Player.controller` 的 `BackDodge` 状态；当前无状态转换、无动画事件，动画启用循环，尚未形成可操作的后撤行为。
+- `Assets/_Game/Materials/NoFriction.physicsMaterial2D` 由 `New Physics Material 2D` 重命名，保留原 GUID；摩擦和弹性均为 0，既有引用保持有效。
+- 根目录 `Artifacts/` 保存五张背包与角色属性面板的界面截图，作为布局参考，通过 Git LFS 管理 PNG。
 
 ```text
 First Game/
