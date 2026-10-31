@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[RequireComponent(typeof(EnemyHealth))]
+[RequireComponent(typeof(EnemyHealth),typeof(CombatHurtbox),typeof(CombatEffectReceiver))]
 public class Enemy : MonoBehaviour
 {
     [SerializeField] private CharacterStatsData characterStatsData;
