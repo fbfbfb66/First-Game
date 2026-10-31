@@ -1267,10 +1267,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1528946684}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 11.1, y: 0}
+  m_SizeDelta: {x: 54, y: 48}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &208554759
 MonoBehaviour:
@@ -1358,7 +1358,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 0.11218262, y: 0, z: -0.33666992, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -18475,7 +18475,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 180}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 0, y: -0}
+  m_AnchoredPosition: {x: -0.9, y: -0}
   m_SizeDelta: {x: 54, y: 48}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1528946685
@@ -20685,6 +20685,7 @@ GameObject:
   - component: {fileID: 1828097395}
   - component: {fileID: 1828097397}
   - component: {fileID: 1828097396}
+  - component: {fileID: 1828097398}
   m_Layer: 0
   m_Name: CharacterStatsPanel
   m_TagString: Untagged
@@ -20760,6 +20761,25 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1828097394}
   m_CullTransparentMesh: 1
+--- !u!114 &1828097398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828097394}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c43679a24d982446a8efb281362a100, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI_CharacterStatsPanel
+  player: {fileID: 2075136171}
+  healthValueText: {fileID: 1104804110}
+  attackValueText: {fileID: 952854018}
+  defenseValueText: {fileID: 717379010}
+  criticalChanceValueText: {fileID: 623272711}
+  criticalDamageValueText: {fileID: 2073194922}
+  baseManaValueText: {fileID: 1106456753}
 --- !u!1 &1839251358
 GameObject:
   m_ObjectHideFlags: 0

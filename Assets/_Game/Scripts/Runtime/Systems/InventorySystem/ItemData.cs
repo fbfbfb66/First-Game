@@ -12,6 +12,8 @@ public class ItemData : ScriptableObject
     [Range(1, 8)] [SerializeField] private int height = 1;
     [SerializeField] private int maxStack = 1;
     [SerializeField] private bool canRotate;
+    [SerializeField] private bool canBeCrafted;
+    [SerializeField] private ItemData[] craftingMaterials = System.Array.Empty<ItemData>();
     [SerializeField] private ItemEffect effect;
 
     public string ItemId => itemId;
@@ -23,6 +25,8 @@ public class ItemData : ScriptableObject
     public int Height => height;
     public int MaxStack => maxStack;
     public bool CanRotate => canRotate;
+    public bool CanBeCrafted => canBeCrafted;
+    public ItemData[] CraftingMaterials => craftingMaterials;
     public bool CanBeConsumed => category == ItemCategory.Consumable;
     public ItemEffect Effect => effect;
 }

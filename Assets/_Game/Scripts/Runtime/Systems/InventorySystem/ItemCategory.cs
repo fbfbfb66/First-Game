@@ -8,5 +8,9 @@ public enum ItemCategory
     Armor,
     Quest,
     Tool,
-    Misc
+    Misc,
+    Gloves,
+    Necklace,
+    Ring,
+    Boots
 }

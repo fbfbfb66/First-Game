@@ -207,7 +207,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 要点：
 
-- 右侧 `CharacterStatsPanel` 使用双向拉伸，左偏移为 1354，右、上、下偏移均为 0，背景与边框贴满屏幕右边及上下边缘；使用 Alpha 0.8 的黑灰底板，含生命值、攻击力、防御、暴击率、暴击伤害和基础法力六行。目前仅完成布局，数值使用占位符，尚未绑定运行时数据。当前项目没有运行时当前法力或等级字段；不能把 HUD MP 图形比例当作角色法力数据。
+- 右侧 `CharacterStatsPanel` 使用双向拉伸，左偏移为 1354，右、上、下偏移均为 0，背景与边框贴满屏幕右边及上下边缘；使用 Alpha 0.8 的黑灰底板，含生命值、攻击力、防御、暴击率、暴击伤害和基础法力六行。`UI_CharacterStatsPanel` 已绑定 Player 与六行的 `Value` 文本：生命值显示 `Player.Health.CurrentHealth/Player.Stats.MaxHealth.Value`，其余读取运行时属性的 `Value`；暴击率及暴击伤害倍率乘 100 后显示百分号。打开时刷新，显示期间检查变化并仅重写变化的文字。当前项目没有运行时当前法力或等级字段；基础法力显示 `Stats.BaseMana.Value`，不能把 HUD MP 图形比例当作角色法力数据。
 - 背包 Canvas 使用 `Scale With Screen Size`，参考分辨率 1920×1080、宽高匹配 0.5。主体宽 1330，贴齐屏幕左边并通过垂直拉伸填满上下，右侧保留空白；左侧装备与背包区宽 800，右侧物品简介宽 514，中间留 16 间隔。黑灰底板配灰色细框、暗红选中框。
 - `EquipmentSlotsAndIcons.png` 已切成灰框、红色选中框与剑/胸甲/手套/项链/戒指/靴子六个图标。装备槽为 128×128，图标区域 80×84，左右各三个，行间距 16；装备区尺寸 800×416。装备槽目前仅作视觉展示，不包含装备逻辑；角色通过 334×400 的 `RawImage` 与 UV (0, 0, 0.1, 1) 显示现有待机图集第一帧。
 - 保留 4×8 共 32 个背包格；可视区域 660×492，显示 3 行，其余行通过滚轮浏览。`InventoryView` 的序列化 `cellSize=156`、`spacing=12` 与布局组件一致，预览偏移归零；交互脚本未因本次美术调整而修改。
@@ -475,7 +475,7 @@ Canvas_Inventory (Screen Space - Overlay)
   - `highlightTransform`：**专门用于缩放的中间层**。缩放绕自身 pivot 进行，而根物体的 pivot 必须留在 (0, 1) 以服务 `anchoredPosition` 的定位公式；把缩放交给一个居中 pivot 的子物体，可让两个需求互不干扰（根物体负责「在哪一格」，子物体负责「什么表现」）。
   - `highlightScale`：高亮时的缩放倍数，默认 1.1。
 - 函数：
-  - `SetAmount(int amount)`：刷新右下角的数量文字。
+  - `SetAmount(int amount)`：刷新右下角的数量文字；数量大于 1 时显示数字，数量为 1 或更少时清空文字。
   - `SetIcon(InventoryItem item, bool value = true)`：设置图标 sprite；`item`、其 `Data` 为空或 `value` 为 false 时禁用 `icon`，避免留下白色方块。
   - `SetBackgroundTransparent(bool)`：切换底板透明。
   - `SetHighlighted(bool)`：缩放 `highlightTransform`；高亮时调用 `SetAsLastSibling()` 让放大后的物品画在邻居之上。
@@ -491,6 +491,15 @@ Canvas_Inventory (Screen Space - Overlay)
   - `Awake()`：兜底获取 `layerStack`，并 `root.SetActive(false)`。背包 UI 在场景里保持**激活**状态以便编辑（否则在 Hierarchy 里选不中、也看不到布局），由本脚本在运行时关掉。这件事**只能由 `InventoryScreen` 做**——它本来就是这个 Canvas 的唯一负责人，让 `InventoryView` 之类的脚本再去 `transform.root.gameObject.SetActive(false)` 会造成两个所有者，而且 `transform.root` 会随层级调整悄悄指向别的对象。
   - `CurrentLayerChanged(previous, current)` → `root.SetActive(current == GameLayerType.Inventory)`。
 - 关联：**不能挂在 `Canvas_Inventory` 自己身上**——它被关闭后 `OnEnable` 不再执行，也就永远收不到「该打开了」的通知。负责开关某个对象的脚本必须待在那个对象之外的常驻物体上。
+
+#### `Assets/_Game/Scripts/Runtime/UI/UI_CharacterStatsPanel.cs`
+
+- 脚本职责：读取玩家运行时属性与当前生命值，显示在背包角色面板；不修改属性、不参与伤害计算，也不负责开关背包。
+- 场景配置：挂在 `GameScene/Canvas_Inventory` 下的 `CharacterStatsPanel`，引用 Player，以及 `HealthRow`、`AttackRow`、`DefenseRow`、`CriticalChanceRow`、`CriticalDamageRow`、`BaseManaRow` 各自的 `Value` TMP 文本。
+- `Awake()`：兜底查找 Player；Player 或任一文本引用缺失时，输出含对象名与缺失条件的警告并禁用组件。
+- `OnEnable()`：请求强制刷新并调用 `RefreshStats()`；若玩家尚未完成 Awake 初始化则等待后续帧。
+- `LateUpdate()` → `RefreshStats()`：仅在面板激活期间检查运行时数值，缓存上次显示值，变化时才格式化并重写文本；可覆盖受伤、属性加成和关闭后重开。使用逐帧读取而非新增属性事件，避免扩展当前 `Stat` API。
+- `RefreshValue(TMP_Text text, float value, ref float displayedValue, bool percentage = false)`：内部显示辅助函数，由 `RefreshStats()` 传入文本、当前属性值和上次显示值；百分比乘 100，数字最多保留两位小数，无返回值。
 
 #### `Assets/_Game/Scripts/Runtime/UI/InventoryPointerHandler.cs`
 
@@ -603,12 +612,14 @@ Canvas_Inventory (Screen Space - Overlay)
   - `width`、`height`、`Width`、`Height`：物品占用背包格尺寸，宽度限制 1 到 4，高度限制 1 到 8。
   - `maxStack`、`MaxStack`：最大堆叠数量。
   - `canRotate`、`CanRotate`：是否允许在背包格中旋转。
+  - `canBeCrafted`、`CanBeCrafted`：是否可以被合成，Inspector 中配置，默认 `false`；只读属性供合成逻辑查询，尚未接入合成流程。
+  - `craftingMaterials`、`CraftingMaterials`：合成该物品所需材料的 `ItemData[]`，默认空数组，在 Inspector 中引用材料资源；当前仅保存材料类型，不包含独立数量字段，尚未接入材料检查或消耗逻辑。
 - 关联：通过 `CreateAssetMenu` 暴露 `Game/Inventory/Item Data` 创建入口；被 `InventoryItem` 作为运行时物品实例的数据来源。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/ItemCategory.cs`
 
 - 脚本职责：定义背包物品分类枚举。
-- 枚举值：`Material`、`Consumable`、`Weapon`、`Armor`、`Quest`、`Tool`、`Misc`。
+- 枚举值：`Material`、`Consumable`、`Weapon`、`Armor`、`Quest`、`Tool`、`Misc`、`Gloves`（护手）、`Necklace`（项链）、`Ring`（戒指）、`Boots`（鞋子）。新增分类追加在末尾，保留已有序列化数值；分类本身不提供穿戴或属性加成行为。
 - 关联：由 `ItemData.category` 使用，用于后续筛选、排序、页签或物品规则判断。
 
 #### `Assets/_Game/Scripts/Runtime/Systems/InventorySystem/InventoryItem.cs`

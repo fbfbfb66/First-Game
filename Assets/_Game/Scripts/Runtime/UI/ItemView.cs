@@ -12,7 +12,7 @@ public class ItemView : MonoBehaviour
 
     public void SetAmount(int amount)
     {
-        amountLabel.text = amount.ToString();
+        amountLabel.text = amount > 1 ? amount.ToString() : string.Empty;
     }
 
     public void SetBackgroundTransparent(bool value) => background.color = value ? Color.clear : Color.white;
