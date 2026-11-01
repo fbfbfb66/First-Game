@@ -65,11 +65,11 @@ public class Player_Dash : PlayerState
 
     private bool TryCancelToJump()
     {
-        if (motionController.BufferedRequest.Command != player.JumpCommand) return false;
+        if (player.MotionController.BufferedRequest.Command != player.JumpCommand) return false;
         if (groundSensor.IsGrounded)
         {
             if (!motionController.AllowsCancel(player.JumpCommand)) return false;
-            if (!motionController.TryConsumeBufferedRequest(player.JumpCommand)) return false;
+            if (!player.MotionController.TryConsumeBufferedRequest(player.JumpCommand)) return false;
             stateMachine.ChangeState(player.jumpStartState);
         }
         else

@@ -5,11 +5,9 @@ public class PlayerState : EntityState
     protected Player player;
     protected PlayerMovement movement;
     protected PlayerCommandInput commandInput;
-    protected PlayerMotionController motionController;
     protected GroundSensor groundSensor;
     protected WallSensor wallSensor;
     protected PlayerMotionAnimationTrigger animationTrigger;
-    protected virtual MotionActionDefinition MotionAction => null;
 
     public PlayerState(Player player,StateMachine stateMachine, int stateName, Animator anim) : base(stateMachine, stateName, anim)
     {
@@ -75,7 +73,7 @@ public class PlayerState : EntityState
 
     protected bool TryStartBackDodge()
     {
-        if (player.BackDodgeCommand == null || motionController.BufferedRequest.Command != player.BackDodgeCommand)
+        if (player.BackDodgeCommand == null || player.MotionController.BufferedRequest.Command != player.BackDodgeCommand)
             return false;
 
         ActionContext context = CreateActionContext();

@@ -24,14 +24,14 @@ public class Player_Fall : PlayerAir
             lastVelocityY = movement.Rb.linearVelocity.y;
         }
 
-        if (groundSensor.WasGroundedWithin(player.playerBaseConfig.CoyoteTimeDuration) && motionController.TryConsumeBufferedRequest(player.JumpCommand))
+        if (groundSensor.WasGroundedWithin(player.playerBaseConfig.CoyoteTimeDuration) && player.MotionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;
         }
 
         ActionContext context = CreateActionContext();
-        if (motionController.BufferedRequest.Command == player.JumpCommand &&
+        if (player.MotionController.BufferedRequest.Command == player.JumpCommand &&
             motionController.TryStartAction(player.DoubleJumpAction, in context))
         {
             stateMachine.ChangeState(player.doubleJumpState);

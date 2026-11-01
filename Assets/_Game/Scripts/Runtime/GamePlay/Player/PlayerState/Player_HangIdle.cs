@@ -29,7 +29,7 @@ public class Player_HangIdle : PlayerState
             return;
         }
 
-        if (motionController.TryConsumeBufferedRequest(player.JumpCommand))
+        if (player.MotionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.climbUpState);
             return;

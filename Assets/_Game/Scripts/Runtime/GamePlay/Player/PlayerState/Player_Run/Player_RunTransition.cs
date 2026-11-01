@@ -25,12 +25,12 @@ public class Player_RunTransition : PlayerState
             return;
         }
 
-        if (motionController.TryConsumeBufferedRequest(player.JumpCommand))
+        if (player.MotionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;
         }
-        if (motionController.TryConsumeBufferedRequest(player.InteractCommand))
+        if (player.MotionController.TryConsumeBufferedRequest(player.InteractCommand))
         {
             player.interaction.TryInteract();
         }

@@ -12,7 +12,7 @@ public class Player_JumpUp : PlayerAir
         if (stateMachine.currentState != this) return;
 
         ActionContext context = CreateActionContext();
-        if (motionController.BufferedRequest.Command == player.JumpCommand &&
+        if (player.MotionController.BufferedRequest.Command == player.JumpCommand &&
             motionController.TryStartAction(player.DoubleJumpAction, in context))
         {
             stateMachine.ChangeState(player.doubleJumpState);

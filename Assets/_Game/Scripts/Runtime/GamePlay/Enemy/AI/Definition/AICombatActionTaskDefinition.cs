@@ -1,0 +1,16 @@
+using UnityEngine;
+[CreateAssetMenu(fileName = "AICombatTaskDefinition", menuName = "Game/AI/Tasks/Combat")]
+public class AICombatActionTaskDefinition : AITaskDefinition
+{
+    [SerializeField] private CombatActionDefinition action;
+    public override AITask CreateTask(in AIContext context)
+    {
+        if(action == null || context.combatExecutor == null)
+        {
+            Debug.LogWarning($"[EnemyCombat] {context.Owner.name}: action or combat executor is null; cannot create combat action task.", context.Owner);
+            return null;
+        }
+
+        return new AICombatActionTask(context, action);
+    }
+}

@@ -30,7 +30,7 @@ public class Player_WallSlide : PlayerAir
         }
 
         if (motionController.AllowsCancel(player.JumpCommand) &&
-            motionController.TryConsumeBufferedRequest(player.JumpCommand))
+            player.MotionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.wallJumpState);
             return;

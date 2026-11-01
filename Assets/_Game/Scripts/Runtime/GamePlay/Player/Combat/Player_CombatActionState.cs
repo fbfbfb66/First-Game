@@ -71,7 +71,7 @@ public sealed class Player_CombatActionState : PlayerState
 
     private bool TryHandleCancel()
     {
-        if (!motionController.TryGetValidBufferedRequest(out var request)) return false;
+        if (!player.MotionController.TryGetValidBufferedRequest(out var request)) return false;
         if (!actionController.AllowsCancel(request.Command)) return false;
         if (request.Command == player.DashCommand)
         {

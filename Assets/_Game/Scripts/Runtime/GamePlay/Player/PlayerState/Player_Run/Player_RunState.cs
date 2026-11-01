@@ -21,7 +21,7 @@ public class Player_RunState : Player_RunTransition
         if (stateMachine.currentState != this) return;
 
         ActionContext context = CreateActionContext();
-        if (motionController.BufferedRequest.Command == player.DashCommand &&
+        if (player.MotionController.BufferedRequest.Command == player.DashCommand &&
             motionController.TryStartAction(player.DashAction, in context))
         {
             stateMachine.ChangeState(player.dashState);

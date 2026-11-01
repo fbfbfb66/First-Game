@@ -8,7 +8,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
     [SerializeField] private Vector2 boxSize = new Vector2(1, 1);
     [SerializeField] private float circleRadius = 1;
     [Space]
-    [SerializeField] private PlayerCombatActionController actionController;
+    [SerializeField] private CombatActionController actionController;
     [SerializeField] private Transform hitboxRoot;
     [SerializeField] private LayerMask targetLayers;
 
@@ -26,7 +26,7 @@ public class PlayerCombatHitDetector : MonoBehaviour
         if (player == null)
             Debug.LogWarning($"{name} cannot deal damage: Player is missing. Hit detection disabled.", this);
         if (actionController == null)
-            actionController = GetComponent<PlayerCombatActionController>();
+            actionController = GetComponent<CombatActionController>();
         IsOnGamePlaye = true;
     }
 

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class PlayerMotionController : ActionController
+public abstract class MotionController : ActionController
 {
     private MotionActionDefinition currentAction;
     private int currentAnimatorStateHash;
@@ -51,35 +51,26 @@ public class PlayerMotionController : ActionController
         return hasActiveState && currentAnimatorStateHash == animatorStateHash;
     }
 
-    public bool TryStartAction(MotionActionDefinition action, in ActionContext context)
+    // Prepares the action; the FSM commits it through BeginState after switching states.
+    public virtual bool TryStartAction(MotionActionDefinition action, in ActionContext context)
     {
         if (action == null)
         {
-            Debug.LogWarning($"[Motion] {name}: target action or animation is missing; request not consumed.", this);
+            Debug.LogWarning($"[Motion] {name}: target action is missing; action not prepared.", this);
             return false;
         }
         if (action == currentAction) return false;
         if (IsActionRunning && !AllowsCancel(action.Command)) return false;
-        if (action.NeedCommand)
-        {
-            if (!TryGetValidBufferedRequest(out var request) || action.Command == null || request.Command != action.Command)
-                return false;
-        }
         if (!action.AreEntryConditionsMet(in context)) return false;
         if (!action.TrySelectStage(in context, out var stage)) return false;
         if (string.IsNullOrWhiteSpace(stage.AnimatorStateName))
         {
-            Debug.LogWarning($"[Motion] {name}: selected stage in {action.name} has no animation; request not consumed.", this);
+            Debug.LogWarning($"[Motion] {name}: selected stage in {action.name} has no animation; action not prepared.", this);
             return false;
         }
 
         pendingAction = action;
         pendingStage = stage;
-        if (action.NeedCommand)
-        {
-            hasBufferedRequest = false;
-            bufferedRequest = default;
-        }
         // The FSM Enter/Exit callbacks register the executed state after the transition commits.
         return true;
     }

@@ -3,9 +3,11 @@ using UnityEngine;
 public class EntityState 
 {
     protected StateMachine stateMachine;
+    protected MotionController motionController;
     protected Animator anim;
     protected int stateName;
     public int AnimatorStateHash => stateName;
+    protected virtual MotionActionDefinition MotionAction => null;
     public EntityState(StateMachine stateMachine,int stateName,Animator anim)
     {
         this.stateMachine = stateMachine;

@@ -32,7 +32,7 @@ public class Player_BackDodge : PlayerState
         base.LogicalUpdate();
         if (stateMachine.currentState != this) return;
 
-        if (motionController.BufferedRequest.Command == player.DashCommand)
+        if (player.MotionController.BufferedRequest.Command == player.DashCommand)
         {
             ActionContext context = CreateActionContext();
             if (motionController.TryStartAction(player.DashAction, in context))

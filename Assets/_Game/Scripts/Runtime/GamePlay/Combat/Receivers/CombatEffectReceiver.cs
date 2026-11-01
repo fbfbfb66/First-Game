@@ -7,6 +7,7 @@ public class CombatEffectReceiver : MonoBehaviour
     [SerializeField] private float deceleration = 50f;
     [SerializeField] private bool canBeLaunched = true;
 
+    public bool BlocksLocomotion => IsOnKnockback || isMotionPaused;
     private bool IsOnKnockback;
     private bool isMotionPaused;
     private Vector2 velocityBeforePause;

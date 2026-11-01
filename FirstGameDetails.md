@@ -2,7 +2,7 @@
 
 本文档用于记录当前 Unity 项目的结构、核心系统、资源变化、脚本职责、函数职责、脚本之间的关系和 Git 提交规则。项目结构、脚本职责、函数、输入绑定、场景、资源或 ScriptableObject 发生变化后，应同步更新本文档。
 
-最后更新时间：2026-10-31。
+最后更新时间：2026-11-01。
 
 ## 1. 项目概览
 
@@ -26,16 +26,17 @@
   - Falling Sand：已完成 CPU Grid 数据、逐 Tick 重力/斜滑模拟、动态 Texture 渲染，以及首次触底时按外圈/内部概率执行的一次性撞击破碎；当前高处沙块仍是临时测试入口。
   - 其他 UI：`UI_HPBarView`、`UI_MPBarView` 继承可配置的 `UI_ResourceBarView` 并重写比例更新入口；`UIPolygonMask` 借用 `PolygonCollider2D` 原生轮廓编辑工具生成 UI 遮罩。
 
-### 本阶段状态：动作系统重构已收尾（2026-10-30）
+### 本阶段状态：动作管理共用父类，玩家 / 敌人分支已拆分（2026-10-31）
 
-- 请求：Gameplay 的 Jump / Dash / Interact 提交到 PlayerMotionController，Attack / Launcher / Dive 提交到 PlayerCombatActionController；两者各自保存单槽 ActionRequest，后一次输入覆盖前一次。Move 使用 PlayerCommandInput 持续方向缓存；Dialogue 层交互键仍直接推进对话。
-- 许可：目标 Controller 持有请求，Player / 当前执行状态把目标 Command 交给源 Controller.AllowsCancel 查询。无活动 Action 允许尝试；有活动 Action 必须由当前 Data 的活动取消窗口接受该 Command。查询不复制、不消费请求，目标入口条件通过后由请求持有方消费。
+- 请求：Gameplay 的 Jump / Dash / Interact 提交到 PlayerMotionController，Attack / Launcher / Dive 提交到 PlayerCombatActionController；两个玩家子类分别持有独立的 PlayerActionRequestBuffer，后一次输入覆盖前一次。ActionController / MotionController / CombatActionController 不再持有输入缓存或缓冲配置。EnemyMotionController 接收 AI 直接指定的移动动作，EnemyCombatActionController.TryStartAction 接收直接指定的攻击，不经过请求有效期判断。Move 使用 PlayerCommandInput 持续方向缓存；Dialogue 层交互键仍直接推进对话。
+- 玩家许可：目标 Controller 持有请求，Player / 当前执行状态把目标 Command 交给源 Controller.AllowsCancel 查询。无活动 Action 允许尝试；有活动 Action 必须由当前 Data 的活动取消窗口接受该 Command。查询不复制、不消费请求，目标入口条件通过后由请求持有方消费。
 - 执行：FSM Exit / Enter 管理状态生命周期。Motion 的 BeginState / EndState 登记当前动作、选中的 Stage、动画身份并清理窗口；Combat 保留攻击链、Hit Window、派生及结束运行时。普通状态速度继续读取 PlayerBaseConfig，只有 CombatActionStage 保存战斗速度覆盖和减速规则。
 - 条件：ActionDefinition 持有 ActionCondition 数组。技能 Condition 指定 SkillData，通过 Context 查询当前角色技能；Context 不保存二段跳解锁专用布尔值。Dash / 二段跳次数仍由 Player 跨状态持有，真正进入时标记使用，落地和墙滑时刷新。
 - 动画与清理：PlayerMotionAnimationTrigger 负责普通动画结束、起跳时机及 Motion 取消窗口；PlayerCombatAnimationTrigger 只负责战斗事件。命中效果在窗口关闭、动作取消/完成及阶段切换时同步结束，先恢复旧效果，再由新动作设置速度和重力。
-- 已验证的行为：左右转向 Dash 速率与位移一致；Dash→普通跳/二段跳/攻击、攻击→Dash；真实空中攻击命中暂停后取消 Dash、落地再跳跃；普通关窗和空中连段；站立/跑步拾取、NPC 对话启动与翻页、交互请求过期。临时测试对象和技能解锁仅存在于 Play Mode，未更改初始资源配置。
+- 前一阶段已验证的行为（本次未全部重跑）：左右转向 Dash 速率与位移一致；Dash→普通跳/二段跳/攻击、攻击→Dash；真实空中攻击命中暂停后取消 Dash、落地再跳跃；普通关窗和空中连段；站立/跑步拾取、NPC 对话启动与翻页、交互请求过期。临时测试对象和技能解锁仅存在于 Play Mode，未更改初始资源配置。
 - 当前边界：普通跳、墙跳、攀爬仍是消费 Command 后切换既有状态，没有独立动作 Data；Move Command 资源保留但未接入提交/消费。二段跳和墙滑 Data 尚无取消窗口，执行期间拒绝输入取消；自然结束、落地和离墙不受此限制。通用动作 Effect 尚未实现，当前命中 Effect 属于 Combat。
 - 资源：Data/Actions 下分 Combat / Motions，目录与资源迁移保留原 GUID，ActionCommandKey 脚本 GUID 变化对应的 Command 脚本引用已修复；旧 PlayerInputReceiver、PlayerState 窗口名单和 StateCancelTransitionRule 已移除。
+- 本次分支拆分验证：Unity 编译通过，Play Mode 临时对象的 45 项检查通过，覆盖玩家缓存匹配 / 保留 / 消费、Motion 阶段准备与 FSM 登记、取消窗口、敌人无缓存启动、Combat 命中 / 手动与自动衔接 / 提交 / 完成及清理回调。另用场景玩家验证真实经过 11.04 游戏秒后 Dash 请求过期清空、攻击请求进入 BaseAttack_01_Normal 后自动完成；Dash 通过同帧提交请求并调用当前 Idle.LogicalUpdate 的受控检查，消费输入、进入 Dash，速度为 (15, 0)，结束后重力恢复为 4。场景检查 Missing Scripts 为 0，两个玩家子类保留 0.1 / 0.3 秒配置。未重复完整命中伤害、拾取 / 对话及所有空中连段回归；未实现敌人 AI 与命中检测接入。
 
 ### 世界时间与曲线恢复
 
@@ -820,7 +821,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `ActionRequest.cs`
 
-- 脚本职责：不可变的战斗输入快照，保存 `Command`、请求发生时的 `RequestedTime` 与 `Vector2 Value`；Value 是请求发生时携带的值，默认零向量。构造签名为 `ActionRequest(ActionCommandKey command, float requestedTime, Vector2 value = default)`，保留原两参数调用；请求表达玩家意图，不直接指定最终 Action。
+- 脚本职责：不可变的玩家一次性输入快照，只保存 `Command` 与请求发生时的 `RequestedTime`。构造签名为 `ActionRequest(ActionCommandKey command, float requestedTime)`；请求表达输入意图，不直接指定最终 Action。当前代码没有 Value 字段。
 
 #### `ActionContext.cs`（Runtime/GamePlay）
 
@@ -928,7 +929,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `CombatHitKnockbackEffect.cs`
 
-- 从 `context.WindowDefinition.Knockback` 读取击退速度，按双方 X 位置决定水平方向，仅翻转 X，保留 Y；调用目标 Owner 的 `CombatEffectReceiver.TryApplyKnockback(Vector2 knockback)`。所有配置共用 `Assets/_Game/Data/Actions/Combat/Effects/Effect_Hit_Knockback.asset`，无需逐招创建效果资源。
+- 从 `context.WindowDefinition.Knockback` 读取击退速度，按双方 X 位置决定水平方向，仅翻转 X，保留 Y；调用目标 Owner 的 `CombatEffectReceiver.TryApplyKnockback(Vector2 knockback)`。所有配置共用 `Assets/_Game/Data/Actions/Combat/Player/Effects/Effect_Hit_Knockback.asset`，无需逐招创建效果资源。
 - 当前地面三连击窗口 0 的速度分别为 `(4, 0)`、`(5, 0)`、`(7, 0)`；HeavyAttack 为 `(10, 0)`，DiveAttack_Loop 为 `(7, 0)`。LauncherAttack、JumpAttack02 不加击退以保留挑飞，JumpAttack01 保留原暂停效果；Dive Start / Land 未添加击退。
 - 不覆盖 `End()`：窗口关闭后，目标 Receiver 仍继续减速。GameScene 的 Enemy_TestCapsule 减速度为 32 世界单位/秒²。以固定步长 0.02 秒在 Play Mode 关闭碰撞干扰测得，速度 4 / 5 / 7 / 10 对应水平位移约 0.211 / 0.342 / 0.696 / 1.464，停止时间 0.14 / 0.16 / 0.22 / 0.32 秒；实际接触地面或障碍时还会受摩擦和碰撞影响。这是初始调参基线，尚未完整验证动画连段的手感。
 
@@ -1845,7 +1846,7 @@ Canvas_Inventory (Screen Space - Overlay)
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Enemy/Enemy.cs`
 
-- 当前敌人实体入口，MonoBehaviour，不添加 AI 或状态机行为。RequireComponent 声明 EnemyHealth 依赖；`Awake()` 从 characterStatsData 创建独立 CharacterStats，再把同一实例传给 EnemyHealth.Initialize。通过 Stats 和 Health 只读属性访问运行时数据。
+- 当前敌人实体入口，直接继承 MonoBehaviour，不依赖 Entity / FSM。RequireComponent 声明 EnemyHealth、CombatHurtbox 和 CombatEffectReceiver 依赖；`Awake()` 从 characterStatsData 创建独立 CharacterStats，再把同一实例传给 EnemyHealth.Initialize。通过 Stats 和 Health 只读属性访问运行时数据。
 - GameScene 当前测试敌人为根对象 `Enemy_TestCapsule`，位于玩家出生点右侧（3, -4.74, 0），使用 `Assets/_Game/Data/Character/EnemyStats.asset`，初始生命 100。外观使用 `Assets/_Game/Art/Enemy_TestCapsule.png` 的红色胶囊 Sprite，尺寸 1.6 × 2.5；配置 Enemy Layer、CapsuleCollider2D、动态 Rigidbody2D（冻结旋转）和 CombatEffectReceiver，支持受击、挑起与运动暂停，不包含 AI。Enemy 在 Awake 创建独立运行时属性。
 
 #### `Assets/_Game/Scripts/Runtime/GamePlay/Enemy/EnemyHealth.cs`
@@ -2000,25 +2001,65 @@ Canvas_Inventory (Screen Space - Overlay)
 - `Assets/_Game/Data/Skills/Skill_DoubleJump.asset`：二段跳技能资源，显示名“二段跳”；GameScene Player 已配置 PlayerSkills；技能资源由 Condition_DoubleJumpSkillUnlocked.asset 引用。解锁仍使用 PlayerSkills 的 Debug/Unlock Skill 调试入口，TryUnlock 尚未实现。
 - 当前调用链：InputRouter 提交 Jump Command → JumpUp / Apex / Fall / WallJump 或 Dash 取消入口读取统一 Player.DoubleJumpAction → TryStartAction 校验 Data 条件并按 Context.MoveInput 选择 Stage → FSM 进入 Player_DoubleJump → MarkDoubleJumpUsed。落地 / 墙滑保留既有 ResetDoubleJump 刷新。
 
+### Runtime/GamePlay/Enemy/AI
+
+- 提交前检查：Unity 编译完成，已保存编辑态资源及场景，Missing Scripts 为 0。使用隔离 PhysicsScene2D 重跑原斜向追击案例，加入 Approximately 后第 82 步成功，最终距离 1.00000012；未进行全项目自动测试或完整战斗伤害回归。
+
+- 播放动画任务验证：Unity 编译及 13 项隔离预览场景检查通过，使用现有 FlyEye Animator Controller 实际从 Attack01 切到 FlyIdle；覆盖即时成功、重复 Tick 不重播、开始前取消、构造参数、工厂多实例、Sequence 不等待循环片段及 Owner 销毁。临时场景与配置已清理，现有场景和资源未改动。
+- `AIPlayAnimationTask`（AI/Task）通过 AIContext.Owner 查找子级 Animator，在首次 OnTick 校验可用性及第 0 层的目标状态后 CrossFade，立即返回 Succeeded；成功表示已提交播放请求，不等待循环动画结束。终态保护由 AITask 提供，重复 Tick 不重复播放；不覆盖 OnEnd，也不负责停止动画。构造函数拒绝空 Owner 与空白状态名。`AIPlayAnimationTaskDefinition`（AI/Definition）保存 stateName，通过 StateName 只读暴露；菜单 Game/AI/Tasks/Play Animation，配置无效时警告并返回 null，每次创建独立实例。资源可配置 FlyIdle 等状态名，脚本不写死具体敌人动画；现有资源 Task_PlayFlyIdle 已用于攻击后的动画切换。
+- 敌人采用行为树任务与具体执行器协作，不要求并行维护角色 FSM。EnemyState 及未引用的空 FlyIdleState 已移除；Enemy 不再继承带 StateMachine 的 Entity。Core/FSM 的 Entity / EntityState / StateMachine 保留给正在使用它们的 Player。Animator 动画状态与 CombatExecutionStatus 执行结果仍然保留，不属于此次移除的敌人 FSM。
+- 已实现等待 / 消息 / 动画播放任务、顺序 / 选择组合、距离条件及独立运行实例，并接入飞行追击和真实攻击。攻击分支已配置距离条件 → 攻击日志 → AICombatActionTask → 播放 FlyIdle → 等待；Attack01 关闭循环并以动画事件报告结束。敌人命中与伤害检测尚未接入，动作资源 hitWindows 为空。
+- `AITaskStatus` 定义 Running / Succeeded / Failed；本次等待只返回前两种结果。
+- `AITask` 为纯逻辑抽象类，统一保存 hasStarted / hasEnded 及 public 只读 Status。非虚 Tick(float deltaTime) 首次调用 OnStart，仍 Running 时同次调用 OnTick(deltaTime)，成功 / 失败时调用一次 OnEnd(false)；结束后不再执行钩子。Abort() 将未结束任务置 Failed，只有开始过才调用 OnEnd(true)。结束标记先于回调设置，清理中的再次 Abort 幂等；OnStart / OnTick 内部取消后不再被其返回值覆盖。子类通过 protected virtual OnStart()、protected abstract OnTick(float deltaTime)、protected virtual OnEnd(bool interrupted) 实现行为，不各自维护终态。
+- `AITaskDefinition` 为抽象 ScriptableObject，声明 AITask CreateTask(in AIContext context)。工厂契约及资源配置不变；Sequence / Selector 向子项继续传递 Context，Wait / Log 不使用该参数。每轮仍创建新运行实例，没有 Reset / 对象池复用。
+- `AIContext` 为 readonly struct，保存 Owner / CandidateTarget、FlightMotor 及 combatExecutor 引用，由 EnemyAI 创建根任务时传入；任务执行时读取当前位置，Definition 不保存实例上下文。任务代码已按 AI/Task、Definition 按 AI/Definition 子目录整理。
+- `AIWaitTask` 继承 AITask，每个实例独立保存 duration 与 elapsed。构造函数拒绝非正时长；重写 OnTick(float deltaTime) 累计调用者传入的秒数，达到时长返回 Succeeded。终态及取消后的计时停止由基类保证。任务自身不读取 WorldTime、不访问角色组件、不保存共享配置。
+- `AIWaitTaskDefinition` 继承 AITaskDefinition，序列化 duration 并通过 Duration 暴露；菜单 Game/AI/Tasks/Wait。每次创建新的 AIWaitTask，不缓存执行实例。当前资源为 Assets/_Game/Data/AI/Task/Task_Wait_Decision.asset，时长 0.25 秒，攻击 / 待机分支共用其定义。非正时长警告并返回 null；当前警告只写“非法配置”，后续应补充资源名、失败条件及未创建任务的结果。
+- `AILogTask` 构造时校验并保存消息，OnTick 输出后返回 Succeeded；重复输出保护由基类提供，不再保存 hasLogged。创建任务没有日志副作用。`AILogTaskDefinition` 保存 logMessage，创建独立 AILogTask，空消息警告并返回 null；菜单 Game/AI/Tasks/Log，当前资源为 Task_LogAttack / Task_LogChase / Task_LogIdle。
+- `AISequenceTask` 持有子任务数组、currentIndex 和序列状态，每次 Tick 只推进当前子任务：Running 保持位置，Succeeded 推进索引，最后一个成功才结束，Failed 立即终止且不执行后续任务。终止状态保持，重复调用不重跑子任务。构造函数分别拒绝 null 数组、空数组和空子任务，并复制数组容器到 readonly 字段，避免调用者替换数组元素影响执行。`AISequenceTaskDefinition` 保存 AITaskDefinition[] children，每个位置分别创建运行实例。当前 Branch_Attack 由攻击距离条件 / 消息 / 攻击任务 / 播放待机 / 等待组成，Branch_Chase 已改为发现距离条件 / 消息 / 飞行追击，Branch_Idle 由消息 / 等待组成。
+- `AISequenceTaskDefinition.CreateTask(in AIContext context)` 用非序列化 isCreatingTask 标记当前同步创建过程；重复进入时警告循环引用并返回 null。标记设为 true 后的全部创建路径由 try/finally 包围，成功、提前返回和子工厂抛异常都会恢复为 false；重复进入的调用不清除外层标记。诊断包含资源名、失败条件及未创建序列的结果，子项错误包含索引。
+- 顺序组合验证：36 项临时 Play Mode 检查覆盖构造参数、数组隔离、顺序 / 终止状态、时间不重复累计、相同资源重复位置与多实例独立、共享嵌套定义、直接 / 间接循环及修复后重建、空配置与子工厂 null / 异常后的标记复位、两个临时 EnemyAI 的 OnEnable / Update、重新启用及成功 / 失败日志各输出一次。测试使用受控 Tick / Update 调用，未修改或保存现有场景资源；9 条警告为故意构造无效配置的预期诊断，并非真实资源新增错误。此轮未做实际按帧等待六秒的动画或移动测试。
+- `AISelectorTask` 保存独立子任务数组、索引与状态；仍有候选分支时返回 Running，全部失败才返回 Failed，Tick 开头已有终态保护。Definition 已具备非序列化创建标记和 try/finally，但诊断仍误写 Sequence。Assets/_Game/Data/AI/Tree/Tree_EnemyDecision.asset 依次引用 Branch_Attack / Branch_Chase / Branch_Idle，条件距离阈值为 2 / 8，待机为兜底。
+- `AITargetInRangeTask` 保存各实例的 Owner / 目标 Transform 与 maxRange，通过 Vector2.Distance 读取当前二维距离。Definition 校验 maxRange 为正；任务构造函数允许空 CandidateTarget，Tick 遇空目标返回 Failed，Owner 为空仍抛异常；构造本身尚未校验距离。Tick 已用 activeInHierarchy 识别父物体禁用。菜单 Game/AI/Tasks/TargetInRange。
+- `EnemyAI` 是共同 MonoBehaviour 执行入口，序列化 flightMotor / taskDefinition / candidateTarget / repeat，Awake 在未指定时获取同物体 Motor；OnEnable 调用 TryCreateTask() 创建 Context 与根任务。FixedUpdate 直接读取根任务 Status，仅对 Running 调用 Tick(WorldTime.fixedDeltaTime)，不再保存重复的 currentTaskStatus；终态按 repeat 决定下一轮重建或停止。TryCreateTask 在替换旧根之前调用 AbortCurrentTask，OnDisable 同样调用它：先清空持有引用，再 Abort 旧根，避免取消回调重复操作旧任务。开始日志每轮输出。
+- Sequence / Selector 已迁移到 OnTick，保留每步最多推进一个孩子的组合规则，不再自行保存终态。OnEnd(true) 仅向有效索引处的当前孩子传播 Abort，已完成孩子保持结果，未来孩子不被启动；嵌套组合沿当前分支传递取消。飞行追击与距离条件也已迁移到 OnTick，原有移动、条件和工厂行为不变。
+- 生命周期验证：Unity 编译通过，22 项受控检查覆盖首次启动、成功 / 失败终态、未开始即取消、运行中取消、重入取消、等待停止计时、嵌套组合传播、孩子之间取消、全失败索引安全、单步组合推进，以及 EnemyAI 禁用 / 重新启用 / 循环 / 活动根替换。测试使用临时预览场景和显式生命周期回调，未修改场景 / 资源；不等同于真实 Play Mode 动画与战斗整合测试。
+- `EnemyFlightMotor` 位于 Runtime/GamePlay/Enemy，Awake 获取 Rigidbody2D / CombatEffectReceiver，通过 public Position 暴露刚体位置。MoveTowards 按 min(speed × deltaTime, distance − stoppingDistance) 限制位移，再调用 MovePosition；受 BlocksLocomotion、组件启用及时间步长限制。visual 与 FacingRight / HandleFlip 管理朝向。Motor 不保存持续指令，不需要额外清零速度来停止 MovePosition。
+- `CombatEffectReceiver.BlocksLocomotion` 为只读属性，返回 IsOnKnockback 或 isMotionPaused，Motor 据此让出击退 / 命中停顿期间的主动移动。
+- `AIFlyToTargetTask` 保存 Context、速度和停止 / 放弃距离，终态由基类管理。空目标 / 自身目标 / 空 Motor 或距离超限时提前失败，到达时成功，其余情况调用 Motor。到达判断已采用 distance <= stoppingDistance || Mathf.Approximately(distance, stoppingDistance)，修复斜向移动停在 1.00000012 却一直 Running 的浮点边界；距离目前仍从 Owner.position 读取。构造数值异常类型、Owner / 目标激活及 Motor 激活校验仍可完善。Task_FlyToPlayer 当前速度 3、停止距离以资源实际配置为准、放弃距离 10。
+- 飞行追击检查：使用临时预览场景的独立 PhysicsScene2D 受控 Tick / Simulate，确认正常追击一步位移 0.06、已到达时成功且无位移、大步长限制到停止边界。复现放弃距离外仍移动 0.06、空目标 NullReferenceException、自身目标错误成功、禁用目标仍移动及禁用 Motor 时任务仍 Running。检查结束关闭预览场景，未修改现有场景 / 资源；尚未进行实际场景连续追击和受击整合验证。
+- GameScene 的 Enemy_FlyEye 已连接飞行 Motor、CombatController / Executor、带 Animator 物体上的 EnemyCombatAnimationTrigger；EnemyAI 指向 Player、决策树和同物体 Executor，repeat 开启。AI 资源按 Branch / Condition / Task / Tree 整理；玩家战斗配置已移动到 Data/Actions/Combat/Player，飞眼动作位于 Data/Actions/Combat/Enemies/FlyEye/Action_FlyEye_Attack01.asset，移动保留 GUID。
+- AI 等待与飞行步长均使用自定义 WorldTime.fixedDeltaTime；Time.time 日志仍记录 Unity 游戏时间。Motor 不再次乘 WorldTime 倍率；CombatEffectReceiver 的击退减速仍使用 Time.fixedDeltaTime，尚未统一其时间语义。
+
 ### Runtime/GamePlay/Player/Combat
 
 #### `ActionController.cs`（Runtime/GamePlay）
 
-- 抽象父类共享请求缓冲与 Data 取消窗口；config 为 ActionSystemConfig。Motion / Combat 分别持有自己的请求缓存、具体类型 CurrentAction，通过 protected ActiveAction 提供通用 ActionDefinition，并通过 CurrentStage 提供已选阶段供窗口校验，不把战斗 Data 类型放进父类。
-- RequestAction(ActionCommandKey command) 保存 Command / Time.time；TryGetValidBufferedRequest(out ActionRequest request) 为 public，只读返回快照，过期时清空。TryConsumeBufferedRequest(ActionCommandKey expectedCommand) 校验后消费本组件的请求。
-- AllowsCancel(ActionCommandKey command) 是 Motion / Combat 统一的只读许可查询：Command 为空时拒绝；没有当前 Action 时允许尝试；有当前 Action 时必须有活动窗口且窗口接受该 Command。不读取另一 Controller 的缓存、不消费请求。
-- NotifyCancelWindowOpened/Closed(int windowId, int sourceStateHash) 只接受当前 Data 的来源 Hash 和有效 Window ID；相同窗口重复打开幂等，错误来源/错误关闭 ID 忽略。无窗口时 ActiveCancelWindowId 为 -1。
-- Motion 与 Combat 的事件均经过这些窗口函数；PlayerState 不再维护取消窗口或转移名单。普通速度仍走 PlayerBaseConfig / PlayerMovement，战斗速度仍在 CombatActionStage。
+- 抽象父类只共享动作运行状态、Data 取消窗口及动画来源校验；不持有 ActionRequest、输入缓冲 Config、时间戳或请求消费 API。
+- 具体 Controller 通过 protected ActiveAction 提供通用 ActionDefinition，通过 CurrentStage 提供已选阶段；IsActionRunning、ActiveCancelWindowId 等只读属性由父类统一暴露。
+- AllowsCancel(ActionCommandKey command) 是双方共用的只读许可查询：Command 为空拒绝；没有当前 Action 时允许尝试；有当前 Action 时必须有活动窗口且窗口接受该 Command。不消费请求。
+- NotifyCancelWindowOpened/Closed(int windowId, int sourceStateHash) 只接受当前 Stage 的来源 Hash 和有效 Window ID；错误来源及错误关闭 ID 忽略，无窗口时 ActiveCancelWindowId 为 -1。共同校验函数不设 virtual，避免子类跳过窗口约束。
 
-#### `PlayerMotionController.cs` / `MotionSystemConfig.cs`
+#### `MotionController.cs`（Runtime/GamePlay）
 
-- `int BeginState(int animatorStateHash, MotionActionDefinition action, in ActionContext context)` 由 PlayerState.Enter 调用，优先采用 TryStartAction 暂存的 Stage；直接进入且未准备的动作（如 Dash 自然结束后贴墙）仅在此选择一次。返回选中动画 Hash 供状态播放，无可用动画时警告并保留状态原动画。无 Action 状态不选择 Stage。EndState 清理当前动作、CurrentStage 和窗口，但保留准备给下一状态的 Stage，避免源 Exit 清掉目标选择。
-- TryStartAction(MotionActionDefinition action, in ActionContext context) 检查源动作取消许可、Command 有效期、Definition 入口条件，再调用 TrySelectStage 并验证选中动画。无匹配时不消费请求；成功时暂存目标 Action / Stage，只有 NeedCommand=true 才消费请求。目标真正 Enter 后登记为 CurrentStage，输入或条件随后改变不会重选。
-- Motion 与 Combat 采用同一取消规则，不再按状态名单判断。MotionSystemConfig 仅继承输入缓冲配置，已删除 combatEntryStates / AllowsCombatEntry 与专用 CanStartCombatAction；ActionStage 也不再提供 HasCancelWindows 例外。没有登记 Action 的状态允许尝试进入攻击；有 Action 却未配窗口时拒绝取消，包括二段跳、墙滑的空窗口 Data。自然结束、落地和离墙转换不受取消窗口限制。
-- 本轮 Play Mode 验证统一许可：无动作放行、空 Command 拒绝、关闭窗口拒绝、开放窗口按 Command 筛选；二段跳/墙滑空窗口拒绝且保留请求；攻击仅缓存到 Combat、Dash 仅缓存到 Motion，查询不复制或消费请求。实际动画链路 Dash→跳跃、Dash→攻击、攻击→Dash 与返回 Run 通过，Console 无 Error；输入缓冲仍为 Motion 0.1 / Combat 0.3 秒。
-- MotionSystemConfig 当前输入缓冲为 0.1 秒，Combat Config 保留独立设置；两个 Controller 的请求互不复制。MoveChanged 只更新 Player.CommandInput，不提交请求；Move Command 尚未接入。
-- MotionActionDefinition.NeedCommand=false 支持 Fall 贴墙后自动进入 WallSlide；Data 条件检查技能，贴墙方向仍由 Fall 的传感器判断。自动进入不消费 Jump，使下一状态仍可响应有效墙跳请求。
-- Play Mode 已验证 Controller 窗口关闭/开启、错误来源与错误关闭 ID、条件失败保留请求、源退出清理、目标进入登记、自动墙滑保留请求、两个独立缓存之间的 Combat→Dash。实际动画事件验证 Dash→JumpStart→JumpUp→DoubleJump→落地、Run→Dash→Combat、Combat→Dash→Run，重力恢复为 4，Console 无 Error；技能只在运行时解锁用于测试。
+- 抽象移动动作父类，共享 currentAction / currentStage、pendingAction / pendingStage、动画身份与取消规则；不移动 Rigidbody、不读取输入、不决定 AI 行为。
+- `public virtual bool TryStartAction(MotionActionDefinition action, in ActionContext context)` 检查非空、重复动作、源动作取消许可、入口条件及 Stage 动画，成功时暂存目标 Action / Stage。返回 true 仅代表准备成功；实际进入仍由 FSM 完成。
+- `int BeginState(int animatorStateHash, MotionActionDefinition action, in ActionContext context)` 由状态 Enter 调用，优先使用已准备的 Stage；未经准备直接进入时选择一次。返回动画 Hash；无有效动画时警告并保留状态原动画。
+- `EndState(int animatorStateHash)` 只清理当前动作、Stage、动画身份和窗口，保留给下一状态的 pending Stage；`IsCurrentStateAnimation` 防止旧事件或旧 Exit 清理新动作。这些共同生命周期函数不设 virtual。
+
+#### `PlayerMotionController.cs` / `PlayerActionRequestBuffer.cs`（Runtime/GamePlay/Player）
+
+- PlayerMotionController 继承 MotionController，保存原名 config 字段以保留 Inspector 配置；独立持有一份纯逻辑 PlayerActionRequestBuffer。原 Motion 脚本 GUID 保留给玩家子类，GameScene 的组件 fileID 和引用不变。
+- 重写 TryStartAction：仅在 NeedCommand=true 时校验有效且匹配的输入，再调用 base 的共同准备逻辑；成功后消费请求，拒绝时保留有效请求。NeedCommand=false 的自动动作不检查、不消费缓存。
+- 保留玩家调用 API：RequestAction(ActionCommandKey command)、TryGetValidBufferedRequest(out ActionRequest request)、TryConsumeBufferedRequest(ActionCommandKey expectedCommand)，及 HasBufferedRequest / BufferedRequest / RequestBufferDuration。Player / InputRouter 显式使用玩家子类，Player 状态通过 player.MotionController 读取和消费缓存。
+- PlayerActionRequestBuffer 用 Time.time 保存请求时间，按调用方传入的 ActionSystemConfig.InputBufferDuration 检查有效期，过期清空；缺 Config 警告并拒绝验证。Motion / Combat 各持有自己的实例，缓冲时间仍为 0.1 / 0.3 秒。
+- MotionSystemConfig 继续继承 ActionSystemConfig；NeedCommand 表示玩家入口是否需要输入，不限制 AI 直接选择同一动作。普通运动速度、重力与次数消费仍由 PlayerBaseConfig / PlayerMovement / 玩家状态负责。
+
+#### `EnemyMotionController.cs`（Runtime/GamePlay/Enemy）
+
+- 继承 MotionController，当前直接复用父类 TryStartAction，不为相同逻辑增加 override。不暴露玩家请求缓存 API，也不需要输入缓冲 Config。
+- AI / 运动执行器传入 MotionActionDefinition 和当前 ActionContext；使用该动作管线时，执行器须调用 BeginState / EndState 登记生命周期，无须依赖 FSM。不要求输入请求，但仍检查动作入口条件、Stage 条件及取消窗口。
+- 当前只提供动作 Controller 分支；飞行位移已由独立 EnemyFlightMotor 和追击任务实现，尚未接入此 Motion 动作管线。
 
 #### 世界交互 Command
 
@@ -2028,29 +2069,37 @@ Canvas_Inventory (Screen Space - Overlay)
 - PlayerInputReceiver 脚本、meta、场景组件，以及 Player / PlayerState / InputRouter 引用已移除；输入路由保留 Inspector 指定的 Player，只有缺失时才查找。
 - Play Mode 已验证 Idle / Run 输入只进入 Motion 缓存、消费后实际拾取 WorldItem 到背包、一次按键不重复拾取；NPC 对话能由世界交互 Command 启动，对话层按键推进实际台词且不创建世界请求。场景 Receiver 已移除，Missing MonoBehaviours 为 0。
 
-#### `PlayerCombatActionController.cs`
+#### `CombatActionController.cs`（Runtime/GamePlay/Combat）
 
-- 继承 ActionController 的请求和通用取消窗口；自身保存 CombatActionDefinition currentAction、派生、Hit Window 与完成状态。通过 ActiveAction 把当前 Data 提供给父类，公开 CurrentAction 保留战斗类型。
+- 抽象战斗父类，共享当前 Action / Stage、pendingAction / pendingStage、命中 / 自动转换窗口、提交信号、完成状态、ChainRuntime / UsageRuntime；不持有玩家输入缓存、输入派生窗口、手动提交事件、缓冲 Config 或玩家入口动作列表。
+- `protected bool TryPrepareEntryAction(CombatActionDefinition action, in CombatActionContext context)` 仅在没有当前动作时检查目标与入口条件并准备阶段；`protected bool TryPrepareStage(...)` 复用 Stage 选择与战斗动画校验，不设 virtual。子类可以使用共同能力，但无需复制规则。
+- `TryQueueAutomaticTransition(in CombatActionContext context)` 只处理无 Command 的自动派生，跳过输入分支；自动窗口开放且 Transition / 入口条件与目标 Stage 通过后，准备目标并立即请求提交。`TryCommitTransition(out CombatActionDefinition targetAction)` 消费该信号并返回 pending 目标，保留准备好的 Stage 供 BeginAction 使用；自动派生不等待玩家输入或手动 Commit 动画事件。
+- `BeginAction(CombatActionDefinition action)` 要求已有配对 pendingAction / pendingStage；先结束旧命中效果，再激活目标并重置窗口 / 完成状态。新链清空命中记录，派生保留记录。窗口关闭时 ActiveHitWindowId 为 -1。
+- NotifyHitConfirmed、命中 / 取消 / 自动转换窗口及完成事件继续共用；输入派生窗口和手动 Commit 事件仅在玩家子类。信号必须匹配当前 Stage 动画 Hash。EndHitWindow 同步发出 HitWindowEnded，确保旧效果在新状态应用速度前恢复。
+- CancelCurrentAction / TryCompleteAction 使用私有 ClearCurrentActionRuntime 统一清理；清理完成后调用 `protected virtual void OnActionRuntimeCleared()`，玩家子类扩展输入派生窗口与缓存清理。BeginAction 完成共同初始化后调用 protected virtual OnActionStarted()，玩家用它重置输入派生窗口。生命周期与窗口检查本身不开放重写。
+- UsageRuntime 仍由角色流程决定何时清空；玩家落地 / 墙滑刷新保持原行为，未给敌人添加额外冷却或次数规则。
+- 输入派生归属修正验证：Unity 编译通过，Play Mode 50 项临时对象检查通过；覆盖玩家输入派生等待提交、敌人自动准备后无需手动事件即可提交、混合列表相互跳过、玩家自动派生、切阶段重置输入窗口，以及取消 / 完成清理。输入派生 API 已从父类移除。
 
-- 脚本职责：Player 战斗 Action 的运行时协调入口；保存单槽时间戳 Request、有序入口 Action、当前 Action、各类窗口、Pending Transition、Commit 请求、Stage 完成信号与整条连招的命中记录。
-- 继承父类 `RequestAction(ActionCommandKey command)`；后来的请求覆盖原单槽缓存，Combat 继续按原有有效期和条件消费。ActionRequest 仍保留可选 Value 数据，但当前输入只提交 Command。
-- `TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)`：按 Inspector 顺序执行“Command 匹配 → 所有入口 Condition 成立 → TrySelectStage 成功且战斗动画有效”，写入统一的 pendingAction / pendingStage 并返回第一条合法入口；不消费仍可能等待 Motion Controller 许可的 Request。
-- `TryConsumeBufferedRequest(ActionCommandKey expectedCommand)`：源 Controller 允许让出且 FSM 可切换后，校验并消费与候选 Action 对应的 Request。
-- `TryQueueTransition(in CombatActionContext context)`：仅在请求仍有效、派生窗口开放、Command 匹配、Transition Conditions 和目标 Action 入口 Conditions 都成立时消费 Request，并把目标 Action 保存为 Pending；不会在输入发生的帧立即切动画。
-- `TryQueueAutomaticTransition(in CombatActionContext context)`：自动转换窗口开放期间每帧按数组顺序检查无 Command 的 Transition；第一条同时满足自身 Conditions 与目标入口 Conditions 的分支会立即准备并提交。
-- `TryCommitTransition(out CombatActionDefinition targetAction)`：消费动画 Commit 信号；存在 Pending Transition 时输出目标 Action，否则不切换。
-- 入口与派生共用 pendingAction / pendingStage，不再重复保存 preparedAction 或 pendingTransitionAction。TryCommitTransition 只消费提交信号并返回目标，保留 pending 配对到 BeginAction 读取；取消或结束同时清空 pending。
-- 统一 pending 后的 Play Mode 隔离验证：首次入口、手动及自动派生排队、排队期间保持源 Action、提交后激活目标 Stage、同一提交信号不重复消费、取消清理均通过；测试使用临时 Controller 与克隆配置，不保存场景或资源。
-- `BeginAction(CombatActionDefinition action)`：要求该 Action 已通过入口或派生查询准备 Stage；将统一的 pendingAction / pendingStage 转为 CurrentAction / CurrentStage / CurrentCombatStage，清空 pending 并重置上一 Action 的窗口、Commit 与 Stage 完成状态。派生排队期间仍保留源 Stage，提交后才采用准备好的目标 Stage。只有从非 Action 状态开始一条新链时才清空 Chain Runtime；结束和取消同时清理 Stage。
-- `private void EndHitWindow()` 清除活动命中窗口并同步发出 `event Action HitWindowEnded`；新阶段进入之前、当前动作清理之前和有效窗口关闭时调用，确保命中检测器先结束旧效果，再由新状态应用速度和重力。
-- `NotifyHitConfirmed(GameObject targetOwner)`：把当前 Action 与 Hurtbox 声明的战斗 Owner 交给 Chain Runtime 去重记录。
-- `Notify...(..., int sourceStateHash)`：所有 Hit、Cancel、Transition 与 Stage 完成信号先通过 `IsSignalFromCurrentAction()` 比较来源 Animator State Hash；迟到的旧动画信号被忽略。
-- `NotifyTransitionWindowOpened(...)` / `NotifyTransitionWindowClosed(...)`：来源校验通过后修改派生输入窗口。
-- `NotifyTransitionCommitOpened(...)`：来源校验通过后接收固定衔接帧，关闭输入窗口并等待 Combat State 执行切换。
-- `NotifyAutomaticTransitionOpend(...)` / `NotifyAutomaticTransitionClosed(...)`：控制逐帧检查无输入 Transition 的自动转换窗口；开始新 Action 时窗口自动重置。
-- `NotifyHitWindowOpened(...)` / `NotifyHitWindowClosed(...)`：来源校验通过后验证当前 Stage 的 Window ID，并记录或清除当前活动命中窗口。
-- `NotifyStageFinished(...)`：只接受当前 Action Animator State 发出的 Stage 完成事实。
-- `TryCompleteAction()`：单 Stage Action 收到完成信号后清理当前 Action；当前规则会丢弃 Action 生命周期内未形成合法派生的剩余 Request，再让 Combat State 归还 FSM 控制权。
+#### `PlayerCombatActionController.cs`（Runtime/GamePlay/Player/Combat）
+
+- 继承 CombatActionController，独立持有 PlayerActionRequestBuffer，保存原名 config 与 entryActions 字段。保留原脚本 GUID，GameScene 四个入口攻击和 0.3 秒缓冲配置保持不变。
+- `TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)` 先验证请求，再按 entryActions 顺序匹配 Command，调用父类 TryPrepareEntryAction；只准备、不消费，等待 Player 检查 Motion 许可及 FSM 后调用 TryConsumeBufferedRequest / BeginAction。
+- `TryQueueTransition(in CombatActionContext context)` 仅存在于玩家子类：要求当前动作、无 pending、输入派生窗口开放、请求有效且 Command 匹配，跳过无 Command 的自动分支，检查 Transition / 入口条件并调用父类 TryPrepareStage。准备成功后消费输入，但仍等待手动提交信号。
+- IsTransitionWindowOpen、NotifyTransitionWindowOpened/Closed(int sourceStateHash)、NotifyTransitionCommitOpened(int sourceStateHash) 均归玩家子类。动画触发器 PlayerCombatAnimationTrigger 显式引用 PlayerCombatActionController，手动提交事件关闭输入窗口并调用父类 protected RequestTransitionCommit()。父类和敌人不再暴露这些玩家专属 API。
+- 重写 OnActionStarted 重置输入派生窗口；重写 OnActionRuntimeCleared，完成和取消时清空输入派生窗口与本组件的剩余请求；共同窗口和命中效果清理由父类保证。普通输入缓存 API 与 PlayerMotionController 一致，但实例互相独立。
+
+#### `EnemyCombatActionController.cs`（Runtime/GamePlay/Enemy）
+
+- 继承 CombatActionController，`public bool TryStartAction(CombatActionDefinition action, in CombatActionContext context)` 由 AI 提交直接选定的攻击，父类检查入口并准备后调用 BeginAction。没有输入请求、时间戳、缓冲 Config 或 entryActions 要求。
+- EnemyCombatExecutor 接收调用方的 CombatActionContext，调用控制器开始动作并播放 CurrentCombatStage；已有动作运行时拒绝直接重新开始，不要求敌人 FSM。
+- 父类仍提供无输入请求的自动派生流程；当前 Executor 只执行单个动作，不推进自动派生。正常完成由 TryCompleteAction 判定，取消由 CancelCurrentAction 清理。
+
+#### `EnemyCombatExecutor.cs`（Runtime/GamePlay/Enemy）
+
+- 负责单次攻击 Stage 播放及完成 / 取消结果，Status 为 CombatExecutionStatus（NotStarted / Running / Succeeded / Cancelled），NotStarted 明确表示尚未开始执行，不是角色待机动画。
+- public bool TryStartAction(CombatActionDefinition action, in CombatActionContext context) 校验执行器、控制器、Animator 及动作引用，委托控制器开始后由 TryPlayCurrentStage 验证 Animator 第 0 层状态并播放；public void Tick() 仅检查完成，不再接收未使用的 Context，也不推进尚未接入的自动派生，不自带 Update / FixedUpdate。
+- 开始时的 Context 由攻击任务提供：同敌人 Controller 的 ChainRuntime / UsageRuntime、可选 GroundSensor 的接地数据（无组件时为 false）及角色位置；Executor 不内置飞行假设，也不选择攻击后的动画。public CancelCurrentExecution 由执行器失效 / OnDisable 及任务 OnEnd 使用，仅清理战斗记录和窗口，不停止 Animator。
+- AIContext / EnemyAI 已接入 Executor。AICombatActionTask.OnStart 构造 CombatActionContext 并请求开始；OnTick 调用 Executor.Tick，将 Running / Succeeded / Cancelled 映射为任务 Running / Succeeded / Failed；OnEnd 在 Executor 仍 Running 时取消。EnemyCombatAnimationTrigger.FinishCombatStage 转交动画来源 shortNameHash，通知 Controller 阶段结束。地面检测目前读取现有值，任务未主动调用 GroundSensor.UpdateGroundState；角色感知更新与取消所有权还可进一步完善。敌人命中检测尚未实现。
 
 #### `Player_CombatActionState.cs`
 

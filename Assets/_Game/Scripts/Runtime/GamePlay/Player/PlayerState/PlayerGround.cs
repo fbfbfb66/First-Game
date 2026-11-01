@@ -19,7 +19,7 @@ public class PlayerGround : PlayerState
         if (TryStartBackDodge()) return;
 
         ActionContext context = CreateActionContext();
-        if (motionController.BufferedRequest.Command == player.DashCommand &&
+        if (player.MotionController.BufferedRequest.Command == player.DashCommand &&
             motionController.TryStartAction(player.DashAction, in context))
         {
             stateMachine.ChangeState(player.dashState);
@@ -33,13 +33,13 @@ public class PlayerGround : PlayerState
             return;
         }
 
-        if (motionController.TryConsumeBufferedRequest(player.JumpCommand))
+        if (player.MotionController.TryConsumeBufferedRequest(player.JumpCommand))
         {
             stateMachine.ChangeState(player.jumpStartState);
             return;
         }
 
-        if (motionController.TryConsumeBufferedRequest(player.InteractCommand))
+        if (player.MotionController.TryConsumeBufferedRequest(player.InteractCommand))
         {
             player.interaction.TryInteract();
         }

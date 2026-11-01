@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5492dc6cecdcbd343981c635436ff7c4, type: 3}
+  m_Name: Branch_Idle
+  m_EditorClassIdentifier: Assembly-CSharp::AISequenceTaskDefinition
+  children:
+  - {fileID: 11400000, guid: 2ea1f7e8bf68a8d498b49e5b061e23c5, type: 2}
+  - {fileID: 11400000, guid: 1e11e1c1b9938f94794cb05a72651c82, type: 2}
