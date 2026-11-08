@@ -1155,12 +1155,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e21c9bb9d8778e74bb1b7ac6df8de2b2, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyAI
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyAIBrain
   combatExecutor: {fileID: 171534282}
   flightMotor: {fileID: 171534281}
-  taskDefinition: {fileID: 11400000, guid: c7da277dad2f803468a4b8aaaa87e131, type: 2}
-  candidateTarget: {fileID: 2075136166}
+  intentTaskMap: {fileID: 11400000, guid: eb88f09cf8004a4091bcf379f4830618, type: 2}
+  target: {fileID: 2075136166}
   repeat: 1
+  utilityOptionSet: {fileID: 11400000, guid: 95c628358e514a789d5314ae1ddce6e5, type: 2}
 --- !u!114 &171534281
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16557,11 +16558,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e21c9bb9d8778e74bb1b7ac6df8de2b2, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyAI
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyAIBrain
   combatExecutor: {fileID: 0}
   flightMotor: {fileID: 0}
   taskDefinition: {fileID: 11400000, guid: ed195755869af6e4a8182bbd0aa7f051, type: 2}
-  candidateTarget: {fileID: 0}
+  target: {fileID: 0}
   repeat: 0
 --- !u!114 &1361024642
 MonoBehaviour:

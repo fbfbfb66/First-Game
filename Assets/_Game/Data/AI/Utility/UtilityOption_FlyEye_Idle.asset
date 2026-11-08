@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73a545606f5440799e876be046d8c7ad, type: 3}
+  m_Name: UtilityOption_FlyEye_Idle
+  m_EditorClassIdentifier: Assembly-CSharp::AIIdleUtilityOptionDefinition
+  intentKey: {fileID: 11400000, guid: ad3a152bee5743a0838f4e5425e9e468, type: 2}
+  utilityScore: 0
