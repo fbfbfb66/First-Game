@@ -14,7 +14,7 @@ public  class UI_HPBarView : UI_ResourceBarView
             return;
         }
 
-        playerHealth.Damaged += RefreshHealth;
+        playerHealth.Damaged += OnDamaged;
         RefreshHealth();
     }
 
@@ -26,9 +26,14 @@ public  class UI_HPBarView : UI_ResourceBarView
     protected virtual void OnDisable()
     {
         if (playerHealth != null)
-            playerHealth.Damaged -= RefreshHealth;
+            playerHealth.Damaged -= OnDamaged;
     }
 
+
+    private void OnDamaged(DamageContext context)
+    {
+        RefreshHealth();
+    }
 
     protected virtual void RefreshHealth()
     {

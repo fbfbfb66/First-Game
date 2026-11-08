@@ -2,13 +2,14 @@ using UnityEngine;
 
 public class PlayerMotionAnimationTrigger : MonoBehaviour
 {
-    [SerializeField] private MotionController motionController;
+    [SerializeField] private Player player;
+    private MotionController motionController => player != null ? player.MotionController : null;
     public bool IsAnimationFinished { get; private set; }
     public bool CanPerformAction { get; private set; }
 
     private void Awake()
     {
-        if (motionController == null) motionController = GetComponentInParent<MotionController>();
+        if (player == null) player = GetComponentInParent<Player>();
     }
 
     public void ResetAnimation()

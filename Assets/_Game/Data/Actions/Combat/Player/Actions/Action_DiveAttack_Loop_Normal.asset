@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e7b60ab41c273a4ebb39c40054bd21d, type: 3}
   m_Name: Action_DiveAttack_Loop_Normal
-  m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatActionDefinition
   command: {fileID: 0}
   stages:
   - animatorStateName: DiveAttack_Loop_Normal
@@ -26,7 +26,33 @@ MonoBehaviour:
     - effects:
       - {fileID: 11400000, guid: e9218ab5bee2b574b85a964c58c39120, type: 2}
       - {fileID: 11400000, guid: 14bbefc64ea82f243bac1e9c7fae23cc, type: 2}
-      knockback: {x: 0, y: -15}
+      knockback:
+        distance: {x: 0, y: -3}
+        duration: 0.15
+        progressCurve:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 0
+            inSlope: 2
+            outSlope: 2
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
       windowId: 0
       damageMultiplier: 1
       shape: 0

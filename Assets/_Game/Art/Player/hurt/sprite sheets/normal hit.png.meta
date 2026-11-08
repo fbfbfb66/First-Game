@@ -184,7 +184,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -206,7 +206,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -228,7 +228,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -250,7 +250,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -272,7 +272,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -294,7 +294,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -316,7 +316,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -338,7 +338,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -360,7 +360,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -382,7 +382,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -404,7 +404,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -426,7 +426,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -448,7 +448,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -470,7 +470,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -492,7 +492,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -514,7 +514,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -536,7 +536,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -558,7 +558,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -580,7 +580,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -602,7 +602,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -624,7 +624,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -646,7 +646,7 @@ TextureImporter:
         width: 70
         height: 60
       alignment: 9
-      pivot: {x: 0.5, y: 0.45}
+      pivot: {x: 0.6, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -673,7 +673,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries:
       - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":70.0,"y":60.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.44999998807907107},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":9,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":70.0,"y":60.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.6000000238418579,"y":0.44999998807907107},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":9,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
       normal hit_0: 7914953706476095084
       normal hit_1: 885728342189020705

@@ -10,8 +10,9 @@ public class Player_DoubleJump : PlayerAir
     public override void Enter()
     {
         player.MarkDoubleJumpUsed();
+        if (!Mathf.Approximately(commandInput.MoveInput.x, 0f))
+            movement.HandleFlip(commandInput.MoveInput);
         base.Enter();
-        movement.HandleDoubleJump(commandInput.MoveInput);
     }
 
     public override void LogicalUpdate()

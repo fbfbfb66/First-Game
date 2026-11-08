@@ -1,14 +1,11 @@
 using UnityEngine;
-[CreateAssetMenu(fileName ="Action_",menuName ="Game/Actions/Combat/Action Definition")]
-public sealed class CombatActionDefinition : ActionDefinition
+
+public abstract class CombatActionDefinition : ActionDefinition
 {
-    [SerializeField] private CombatActionStage[] stages = System.Array.Empty<CombatActionStage>();
     [SerializeField] private CombatActionTransition[] transitions;
-
-
-    public override ActionStage[] Stages => stages;
-    public CombatActionStage[] CombatStages => stages;
+    [SerializeField, Min(0f)] private float cooldownDuration;
+    public abstract CombatActionStage[] CombatStages { get; }
+    public override ActionStage[] Stages => CombatStages;
     public CombatActionTransition[] Transitions => transitions;
-
-
+    public float CooldownDuration => cooldownDuration;
 }

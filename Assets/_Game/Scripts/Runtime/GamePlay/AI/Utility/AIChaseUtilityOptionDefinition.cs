@@ -51,7 +51,8 @@ public class AIChaseUtilityOptionDefinition : AIUtilityOptionDefinition
         }
 
         AIIntent intent = new AIIntent(intentKey, target);
-        if (distance <= minRange || Mathf.Approximately(distance, minRange))
+        bool needsTurn = context.FlightMotor != null && !context.FlightMotor.IsFacingTarget(target.position);
+        if ((distance <= minRange || Mathf.Approximately(distance, minRange)) && !needsTurn)
         {
             evaluation = new AIUtilityEvaluation(intent, false, 0f,
                 $"Chase infeasible: already close enough (distance={distance:F4}, minRange={minRange:F4}); no new chase needed.");
@@ -75,7 +76,7 @@ public class AIChaseUtilityOptionDefinition : AIUtilityOptionDefinition
 
         float score = Mathf.Clamp01(curveScore);
         evaluation = new AIUtilityEvaluation(intent, true, score,
-            $"Chase range check passed: distance={distance:F4}, range=({minRange:F4}, {maxRange:F4}], normalizedDistance={normalizedDistance:F4}, curveScore={curveScore:F4}, finalScore={score:F4}. Path reachability is not evaluated yet.");
+            $"Chase/turn check passed: distance={distance:F4}, range=({minRange:F4}, {maxRange:F4}], normalizedDistance={normalizedDistance:F4}, curveScore={curveScore:F4}, finalScore={score:F4}. needsTurn={needsTurn}. Path reachability is not evaluated yet.");
         return true;
     }
 }

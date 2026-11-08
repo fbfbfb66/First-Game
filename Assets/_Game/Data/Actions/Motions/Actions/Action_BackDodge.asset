@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 076401455e8647578502d2b9a03b3b17, type: 3}
   m_Name: Action_BackDodge
-  m_EditorClassIdentifier: Assembly-CSharp::MotionActionDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMotionActionDefinition
   command: {fileID: 11400000, guid: f39fdcd9f84c751409065530089be756, type: 2}
   entryConditions:
   - {fileID: 11400000, guid: 06cceb5238324b16b4bdc4e0b3d16e40, type: 2}
@@ -19,12 +19,28 @@ MonoBehaviour:
   needCommand: 1
   stages:
   - animatorStateName: BackDodge_Normal
+    entryVelocityRule:
+      overrideHorizontal: 1
+      localHorizontalVelocity: -15
+      overrideVertical: 1
+      verticalVelocity: 5
+      inheritedHorizontalSpeedFactor: 0
+      useHorizontalInput: 0
+      alternateLocalHorizontalVelocity: 0
     conditions: []
     cancelWindows:
     - windowId: 0
       allowedCommands:
       - {fileID: 11400000, guid: 69eb0e900587f24469ebeec7582edfc7, type: 2}
   - animatorStateName: BackDodge_Perfect
+    entryVelocityRule:
+      overrideHorizontal: 1
+      localHorizontalVelocity: -15
+      overrideVertical: 1
+      verticalVelocity: 5
+      inheritedHorizontalSpeedFactor: 0
+      useHorizontalInput: 0
+      alternateLocalHorizontalVelocity: 0
     conditions: []
     cancelWindows:
     - windowId: 0

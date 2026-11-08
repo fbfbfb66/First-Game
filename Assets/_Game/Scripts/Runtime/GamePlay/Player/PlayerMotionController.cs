@@ -2,20 +2,25 @@ using UnityEngine;
 
 public class PlayerMotionController : MotionController
 {
-    [SerializeField] private ActionSystemConfig config;
+    public PlayerMotionController(Player owner, ActionSystemConfig config) : base(owner)
+    {
+        this.config = config;
+    }
+
+    private readonly ActionSystemConfig config;
     private readonly PlayerActionRequestBuffer requestBuffer = new();
 
     public bool HasBufferedRequest => requestBuffer.HasBufferedRequest;
     public ActionRequest BufferedRequest => requestBuffer.BufferedRequest;
     public float RequestBufferDuration => config != null ? config.InputBufferDuration : 0f;
 
-    public void RequestAction(ActionCommandKey command) => requestBuffer.RequestAction(command, this);
+    public void RequestAction(ActionCommandKey command) => requestBuffer.RequestAction(command, owner);
 
     public bool TryGetValidBufferedRequest(out ActionRequest request)
-        => requestBuffer.TryGetValidBufferedRequest(config, this, out request);
+        => requestBuffer.TryGetValidBufferedRequest(config, owner, out request);
 
     public bool TryConsumeBufferedRequest(ActionCommandKey expectedCommand)
-        => requestBuffer.TryConsumeBufferedRequest(expectedCommand, config, this);
+        => requestBuffer.TryConsumeBufferedRequest(expectedCommand, config, owner);
 
     public override bool TryStartAction(MotionActionDefinition action, in ActionContext context)
     {

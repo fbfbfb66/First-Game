@@ -18,5 +18,13 @@ MonoBehaviour:
   needCommand: 0
   stages:
   - animatorStateName: WallSlide
+    entryVelocityRule:
+      overrideHorizontal: 1
+      localHorizontalVelocity: 0
+      overrideVertical: 1
+      verticalVelocity: -3
+      inheritedHorizontalSpeedFactor: 0
+      useHorizontalInput: 0
+      alternateLocalHorizontalVelocity: 0
     cancelWindows: []
     conditions: []

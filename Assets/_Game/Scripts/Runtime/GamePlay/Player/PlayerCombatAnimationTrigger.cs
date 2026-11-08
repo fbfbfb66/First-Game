@@ -2,12 +2,12 @@ using UnityEngine;
 
 public class PlayerCombatAnimationTrigger : MonoBehaviour
 {
-    [SerializeField] private PlayerCombatActionController combatActionController;
+    [SerializeField] private Player player;
+    private PlayerCombatActionController combatActionController => player != null ? player.CombatActionController : null;
 
     private void Awake()
     {
-        if (combatActionController == null)
-            combatActionController = GetComponentInParent<PlayerCombatActionController>();
+        if (player == null) player = GetComponentInParent<Player>();
     }
 
     public void CommitAutomaticCombatTransitionOpened(AnimationEvent animationEvent)

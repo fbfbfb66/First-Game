@@ -20,12 +20,22 @@ public class PlayerState : EntityState
         wallSensor = player.wallSensor;
     }
 
+    protected virtual bool UseAlternateEntryVelocity => false;
+
     public override void Enter()
     {
         ActionContext context = CreateActionContext();
         stateName = motionController.BeginState(stateName, MotionAction, in context);
         animationTrigger.ResetAnimation();
         base.Enter();
+        ApplyEntryVelocity(motionController.CurrentStage?.EntryVelocityRule);
+    }
+
+    protected virtual void ApplyEntryVelocity(ActionEntryVelocityRule rule)
+    {
+        if (rule == null) return;
+        movement.SetRigibodyVelocity(rule.Resolve(movement.GetCurrentVelocity(), movement.facingRight,
+            commandInput.MoveInput.x, UseAlternateEntryVelocity));
     }
 
     public override void LogicalUpdate()
@@ -69,6 +79,28 @@ public class PlayerState : EntityState
         {
             stateMachine.ChangeState(player.idleState);
         }
+    }
+
+    public override bool CanTransitionTo(EntityState targetState, StateTransitionKind transitionKind)
+    {
+        if (transitionKind == StateTransitionKind.Cancel)
+            return targetState == player.dashState && player.DashCommand != null &&
+                motionController.CanInterrupt(player.DashCommand) &&
+                player.CombatActionController.CanInterrupt(player.DashCommand);
+        return base.CanTransitionTo(targetState, transitionKind);
+    }
+
+    protected bool TryCancelToDash()
+    {
+        if (player.DashCommand == null ||
+            !player.MotionController.TryGetValidBufferedRequest(out var request) ||
+            request.Command != player.DashCommand) return false;
+        if (!stateMachine.CanChangeState(player.dashState, StateTransitionKind.Cancel)) return false;
+        ActionContext context = CreateActionContext();
+        if (!motionController.TryStartAction(player.DashAction, in context)) return false;
+        if (!player.CombatActionController.TryInterrupt(player.DashCommand) ||
+            !motionController.TryInterrupt(player.DashCommand)) return false;
+        return stateMachine.TryChangeState(player.dashState, StateTransitionKind.Cancel);
     }
 
     protected bool TryStartBackDodge()

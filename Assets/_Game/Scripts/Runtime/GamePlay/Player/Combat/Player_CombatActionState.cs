@@ -23,7 +23,7 @@ public sealed class Player_CombatActionState : PlayerState
     {
         base.LogicalUpdate();
 
-        if (TryHandleCancel()) return;
+        if (TryCancelToDash()) return;
 
         CombatActionContext context = player.CreateCombatActionContext();
         actionController.TryQueueTransition(in context);
@@ -60,27 +60,6 @@ public sealed class Player_CombatActionState : PlayerState
         Vector2 velocity = movement.GetCurrentVelocity();
         velocity.x = Mathf.MoveTowards(velocity.x, 0,deceleration*Time.fixedDeltaTime);
         movement.SetRigibodyVelocity(velocity);
-    }
-
-    private void ApplyEntryVelocity(CombatActionEntryVelocityRule rule)
-    {
-        if (rule == null) return;
-        Vector2 entryVelocity = rule.Resolve(movement.GetCurrentVelocity(),movement.facingRight);
-        movement.SetRigibodyVelocity(entryVelocity);
-    }
-
-    private bool TryHandleCancel()
-    {
-        if (!player.MotionController.TryGetValidBufferedRequest(out var request)) return false;
-        if (!actionController.AllowsCancel(request.Command)) return false;
-        if (request.Command == player.DashCommand)
-        {
-            ActionContext context = CreateActionContext();
-            if (!motionController.TryStartAction(player.DashAction, in context)) return false;
-            stateMachine.ChangeState(player.dashState);
-            return true;
-        }
-        return false;
     }
 
     private void ReturnToLocomotionState()

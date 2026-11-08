@@ -1,9 +1,9 @@
 using UnityEngine;
 
-public class PlayerControlArbitration : MonoBehaviour
+public sealed class PlayerControlArbitration
 {
-    [SerializeField] private GameLayerStack layerStack;
-    [SerializeField] private GameLayerRuleDatabase gameLayerRuleDatabase;
+    private readonly GameLayerStack layerStack;
+    private readonly GameLayerRuleDatabase gameLayerRuleDatabase;
 
     public bool CanMove => CanDo(PlayerActionType.Move);
     public bool CanJump => CanDo(PlayerActionType.Jump);
@@ -12,9 +12,10 @@ public class PlayerControlArbitration : MonoBehaviour
     public bool CanWorldInteract => CanDo(PlayerActionType.WorldInteract);
     public bool CanUseItem => CanDo(PlayerActionType.UseItem);
 
-    private void Awake()
+    public PlayerControlArbitration(GameLayerStack layerStack, GameLayerRuleDatabase gameLayerRuleDatabase)
     {
-        layerStack = FindAnyObjectByType<GameLayerStack>();
+        this.layerStack = layerStack != null ? layerStack : throw new System.ArgumentNullException(nameof(layerStack));
+        this.gameLayerRuleDatabase = gameLayerRuleDatabase != null ? gameLayerRuleDatabase : throw new System.ArgumentNullException(nameof(gameLayerRuleDatabase));
     }
     private bool CanDo(PlayerActionType actionType)
     {
@@ -25,7 +26,7 @@ public class PlayerControlArbitration : MonoBehaviour
         }
         if(gameLayerRuleDatabase == null)
         {
-            Debug.LogWarning("GameLayerStack is missing. Player action locked");
+            Debug.LogWarning("GameLayerRuleDatabase is missing. Player action locked");
             return false;           
         }
         PlayerActionType lockedActions = GetAllPlayerActions();

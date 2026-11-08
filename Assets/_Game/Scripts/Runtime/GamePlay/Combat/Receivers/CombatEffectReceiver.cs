@@ -1,99 +1,14 @@
 using UnityEngine;
-[RequireComponent(typeof(Rigidbody2D))]
-public class CombatEffectReceiver : MonoBehaviour
+
+public abstract class CombatEffectReceiver : MonoBehaviour
 {
-    [SerializeField] private Rigidbody2D body;
-    [SerializeField] private bool canBeKnockedBack = true;
-    [SerializeField] private float deceleration = 50f;
-    [SerializeField] private bool canBeLaunched = true;
-
-    public bool BlocksLocomotion => IsOnKnockback || isMotionPaused;
-    private bool IsOnKnockback;
-    private bool isMotionPaused;
-    private Vector2 velocityBeforePause;
-    private float gravityScaleBeforePause;
-
-    private void Awake()
-    {
-        if (body == null)
-            body = GetComponent<Rigidbody2D>();
-    }
-
-    private void FixedUpdate()
-    {
-        if (isMotionPaused)
-        {
-            body.linearVelocity = Vector2.zero;
-        }
-
-        if(IsOnKnockback && !isMotionPaused)
-        {
-            TickKnockback(Time.fixedDeltaTime);
-        }
-    }
-
-    public bool TryApplyKnockback(Vector2 knockback)
-    {
-        if (body == null)
-        {
-            Debug.LogWarning("body is null");
-            return false;
-        }
-        if(canBeKnockedBack == false) return false;
-        body.linearVelocity = knockback;
-        IsOnKnockback = true;
-        return true;
-    }
-
-    public bool TryBeginMotionPause()
-    {
-        if (body == null)
-        {
-            Debug.LogWarning("body is null");
-            return false;
-        }
-
-        if (isMotionPaused) return false;
-        velocityBeforePause = body.linearVelocity;
-        gravityScaleBeforePause = body.gravityScale;
-        body.linearVelocity = Vector2.zero;
-        body.gravityScale = 0;
-        isMotionPaused = true;
-        return true;
-    }
-
-    public void EndMotionPause()
-    {
-        if (isMotionPaused == false) return;
-        isMotionPaused = false;
-        body.linearVelocity = velocityBeforePause;
-        body.gravityScale = gravityScaleBeforePause;
-    }
-
-    public bool TryLaunch(float verticalVelocity)
-    {
-        if (canBeLaunched == false) return false;
-        if (body == null)
-        {
-            Debug.LogWarning("body is null");
-            return false;
-        }
-
-        Vector2 temp = body.linearVelocity;
-        temp.y = verticalVelocity;
-        body.linearVelocity = temp;
-        return true;
-    }
-
-
-    private void TickKnockback(float deltaTime)
-    {
-        Vector2 v = body.linearVelocity;
-        v.x = Mathf.MoveTowards(v.x, 0, deceleration * deltaTime);
-        body.linearVelocity = v;
-        if(Mathf.Approximately(v.x, 0))
-        {
-            IsOnKnockback = false;
-        }
-    }
+    public abstract bool CanBeKnockedBack { get; }
+    public abstract void SetCanBeKnockedBack(bool value);
+    public abstract bool CanBeLaunched { get; }
+    public abstract void SetCanBeLaunched(bool value);
+    public abstract bool BlocksLocomotion { get; }
+    public abstract bool TryApplyKnockback(DisplacementRule rule, float horizontalDirection = 1f);
+    public abstract bool TryLaunch(float verticalVelocity, DisplacementRule aiDisplacement = null);
+    public abstract bool TryBeginMotionPause();
+    public abstract void EndMotionPause();
 }

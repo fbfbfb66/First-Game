@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e7b60ab41c273a4ebb39c40054bd21d, type: 3}
   m_Name: Action_DiveStart_Normal
-  m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatActionDefinition
   command: {fileID: 11400000, guid: 243ce5f31d9a0ba49a877bb9b84946fa, type: 2}
   stages:
   - animatorStateName: DiveAttack_Start_Normal

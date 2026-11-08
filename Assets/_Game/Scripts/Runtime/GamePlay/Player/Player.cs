@@ -7,8 +7,35 @@ public class Player : Entity
     private bool canDoubleJump = true;
     private bool canDash = true;
     
-    [SerializeField] private PlayerSkills  playerSkills;
-    public PlayerSkills Skills => playerSkills;
+    public PlayerSkills Skills { get; } = new();
+    [SerializeField] private SkillData debugSkill;
+    [SerializeField] private GameLayerStack layerStack;
+    [SerializeField] private GameLayerRuleDatabase gameLayerRuleDatabase;
+    [SerializeField] private ActionSystemConfig motionActionConfig;
+    [SerializeField] private ActionSystemConfig combatActionConfig;
+    [SerializeField] private CombatActionDefinition[] entryCombatActions;
+    private PlayerControlArbitration controlArbitration;
+    public PlayerControlArbitration ControlArbitration
+    {
+        get
+        {
+            if (controlArbitration != null) return controlArbitration;
+            if (layerStack == null) layerStack = FindAnyObjectByType<GameLayerStack>();
+            if (layerStack == null || gameLayerRuleDatabase == null) return null;
+            return controlArbitration = new PlayerControlArbitration(layerStack, gameLayerRuleDatabase);
+        }
+    }
+
+    [ContextMenu("Debug/Unlock Skill")]
+    private void DebugUnlockSkill()
+    {
+        if (!Application.isPlaying || debugSkill == null)
+        {
+            Debug.LogWarning($"{name}: skill debug requires Play Mode and a Debug Skill; nothing unlocked.", this);
+            return;
+        }
+        if (Skills.TryUnlock(debugSkill)) Debug.Log($"{name}: unlocked {debugSkill.DisplayName}.", this);
+    }
 
     [Header("Data")]
     public PlayerBaseConfig playerBaseConfig;
@@ -21,15 +48,17 @@ public class Player : Entity
     [SerializeField] private PlayerMotionAnimationTrigger motionAnimationTrigger;
     public PlayerMotionAnimationTrigger MotionAnimationTrigger => motionAnimationTrigger;
     public InteractionDetector interaction;
-    public TimeTool timeTool;
+    public TimeTool timeTool { get; } = new();
     public GroundSensor groundSensor;
     public WallSensor wallSensor;
-    [SerializeField] private PlayerMotionController motionController;
-    [SerializeField] private PlayerCombatActionController combatActionController;
-    public PlayerMotionController MotionController => motionController;
-    public PlayerCombatActionController CombatActionController => combatActionController;
+    private PlayerMotionController motionController;
+    private PlayerCombatActionController combatActionController;
+    public PlayerMotionController MotionController => motionController ??= new PlayerMotionController(this, motionActionConfig);
+    public PlayerCombatActionController CombatActionController => combatActionController ??= new PlayerCombatActionController(this, combatActionConfig, entryCombatActions);
     [Space]
     [Header("Actions Settings")]
+    [SerializeField] private MotionActionDefinition hurtAction;
+    public MotionActionDefinition HurtAction => hurtAction;
     [SerializeField] private MotionActionDefinition dashAction;
     [SerializeField] private MotionActionDefinition backDodgeAction;
     [SerializeField] private MotionActionDefinition wallSlideAction;
@@ -76,6 +105,7 @@ public class Player : Entity
     public Player_Dash dashState { get; private set; }
     public Player_BackDodge backDodgeState { get; private set; }
     public Player_CombatActionState combatActionState { get; private set; }
+    public Player_HurtState hurtState { get; private set; }
     public bool CanDoubleJump => canDoubleJump;
     public bool CanDash => canDash;
     #endregion
@@ -117,16 +147,12 @@ public class Player : Entity
             motionAnimationTrigger = GetComponentInChildren<PlayerMotionAnimationTrigger>();
         if (interaction == null)
             interaction = GetComponentInChildren<InteractionDetector>();
-        if (timeTool == null)
-            timeTool = GetComponent<TimeTool>();
         if (groundSensor == null)
             groundSensor = GetComponentInChildren<GroundSensor>();
         if (wallSensor == null)
             wallSensor = GetComponentInChildren<WallSensor>();
-        if (combatActionController == null)
-            combatActionController = GetComponent<PlayerCombatActionController>();
-        if(motionController == null)
-            motionController = GetComponent<PlayerMotionController>();
+        _ = MotionController;
+        _ = CombatActionController;
 
 
         idleState = new Player_IdleState(this, stateMachine, PlayerAnimationHash.Idle, anim);
@@ -147,6 +173,7 @@ public class Player : Entity
         backDodgeState = new Player_BackDodge(this, stateMachine, 0, anim);
         doubleJumpState = new Player_DoubleJump(this, stateMachine, 0, anim);
         combatActionState = new Player_CombatActionState(this, stateMachine, 0, anim);
+        hurtState = new Player_HurtState(this, stateMachine, anim);
 
 
 
@@ -168,8 +195,16 @@ public class Player : Entity
         stateMachine.PhysicalUpdate();
     }
 
+    private void OnEnable()
+    {
+        if (Health != null) Health.Damaged += OnDamaged;
+    }
+
     private void OnDisable()
     {
+        if (Health != null) Health.Damaged -= OnDamaged;
+        if (motionController?.CurrentStage != null)
+            motionController.EndState(motionController.CurrentStage.AnimatorStateHash);
         CommandInput.ClearMoveInput();
     }
 
@@ -181,21 +216,52 @@ public class Player : Entity
             groundSensor.transform.position,
             combatActionController.ChainRuntime,
             combatActionController.UsageRuntime,
-            playerSkills);
+            Skills);
         return context;
     }
 
     private void TryEnterCombatAction()
     {
-        if (stateMachine.currentState == combatActionState) return;
+        if (stateMachine.currentState == combatActionState || stateMachine.currentState == hurtState) return;
         CombatActionContext context = CreateCombatActionContext();
         if (combatActionController.TryGetEntryActionCandidate(context, out var action) == false) return;
-        if (!motionController.AllowsCancel(action.Command)) return;
         if (!stateMachine.CanChangeState(combatActionState, StateTransitionKind.Natural)) return;
+        if (!motionController.CanInterrupt(action.Command)) return;
         if (combatActionController.TryConsumeBufferedRequest(action.Command) == false) return;
+        if (!motionController.TryInterrupt(action.Command)) return;
 
         combatActionController.BeginAction(action);
         stateMachine.ChangeState(combatActionState);
+    }
+
+    private void OnDamaged(DamageContext context)
+    {
+        TryEnterHurtState(context);
+    }
+
+    public bool TryEnterHurtState(DamageContext damageContext)
+    {
+        if (!isActiveAndEnabled || Health == null || Health.IsDead || hurtState == null) return false;
+        if (damageContext.Attacker == null || damageContext.Target != gameObject) return false;
+        AttackType attackType = damageContext.AttackType;
+        if (!stateMachine.CanChangeState(hurtState, StateTransitionKind.Forced)) return false;
+        if (hurtAction == null || motionAnimationTrigger == null)
+        {
+            Debug.LogWarning($"{name}: Hurt Action or motion animation trigger is missing; hurt state not entered.", this);
+            return false;
+        }
+        if (!motionController.CanInterrupt() || !combatActionController.CanInterrupt()) return false;
+        var context = new ActionContext(groundSensor.IsGrounded, groundSensor.CanEnterGrounded,
+            groundSensor.transform.position, CanDash, CanDoubleJump, Skills, CommandInput.MoveInput, attackType);
+        if (!hurtAction.TrySelectStage(in context, out var stage) || !anim.HasState(0, stage.AnimatorStateHash))
+        {
+            Debug.LogWarning($"{name}: Hurt Action has no usable stage for {attackType}; hurt state not entered.", this);
+            return false;
+        }
+        if (!motionController.TryStartAction(hurtAction, in context)) return false;
+        if (!combatActionController.TryInterrupt() || !motionController.TryInterrupt()) return false;
+        hurtState.SetHitSourcePosition(damageContext.Attacker.transform.position);
+        return stateMachine.TryChangeState(hurtState, StateTransitionKind.Forced);
     }
 
     public void RestoreAirborneResources()

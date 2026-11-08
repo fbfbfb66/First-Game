@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e7b60ab41c273a4ebb39c40054bd21d, type: 3}
   m_Name: Action_JumpAttack_01_Normal
-  m_EditorClassIdentifier: Assembly-CSharp::CombatActionDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatActionDefinition
   command: {fileID: 11400000, guid: c10e564fc8e67cc4d81fa3b1388b6888, type: 2}
   stages:
   - animatorStateName: JumpAttack_01_Normal

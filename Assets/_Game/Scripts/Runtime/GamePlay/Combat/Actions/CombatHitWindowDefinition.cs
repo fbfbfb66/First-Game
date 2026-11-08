@@ -3,8 +3,9 @@ using UnityEngine;
 [Serializable]
 public sealed class CombatHitWindowDefinition
 {
+    [SerializeField] private AttackType attackType;
     [SerializeField] private CombatHitEffect[] effects;
-    [SerializeField] private Vector2 knockback;
+    [SerializeField] private DisplacementRule knockback = new();
     [SerializeField] private int windowId;
     [SerializeField, Min(0f)] private float damageMultiplier = 1f;
     [SerializeField] private CombatHitShape shape;
@@ -12,7 +13,8 @@ public sealed class CombatHitWindowDefinition
     [SerializeField] private Vector2 boxSize;
     [SerializeField] private float circleRadius;
 
-    public Vector2 Knockback => knockback;
+    public AttackType AttackType => attackType;
+    public DisplacementRule Knockback => knockback;
     public int WindowId => windowId;
     public float DamageMultiplier => damageMultiplier;
     public CombatHitShape Shape => shape;

@@ -17,6 +17,16 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5180fa2b07a14b24b6676d7c190a585a, type: 2}
   stages:
   - animatorStateName: Dash
+    effects:
+    - {fileID: 11400000, guid: 11e39d5f7e8a406abc3b4b58a12b4c21, type: 2}
+    entryVelocityRule:
+      overrideHorizontal: 1
+      localHorizontalVelocity: 15
+      overrideVertical: 1
+      verticalVelocity: 0
+      inheritedHorizontalSpeedFactor: 0.4
+      useHorizontalInput: 0
+      alternateLocalHorizontalVelocity: 15
     cancelWindows:
     - windowId: 0
       allowedCommands:

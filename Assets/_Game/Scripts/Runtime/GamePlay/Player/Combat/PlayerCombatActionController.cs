@@ -2,8 +2,14 @@ using UnityEngine;
 
 public class PlayerCombatActionController : CombatActionController
 {
-    [SerializeField] private ActionSystemConfig config;
-    [SerializeField] private CombatActionDefinition[] entryActions;
+    public PlayerCombatActionController(Player owner, ActionSystemConfig config, CombatActionDefinition[] entryActions) : base(owner)
+    {
+        this.config = config;
+        this.entryActions = entryActions;
+    }
+
+    private readonly ActionSystemConfig config;
+    private readonly CombatActionDefinition[] entryActions;
     private readonly PlayerActionRequestBuffer requestBuffer = new();
     private bool isTransitionWindowOpen;
 
@@ -12,13 +18,13 @@ public class PlayerCombatActionController : CombatActionController
     public ActionRequest BufferedRequest => requestBuffer.BufferedRequest;
     public float RequestBufferDuration => config != null ? config.InputBufferDuration : 0f;
 
-    public void RequestAction(ActionCommandKey command) => requestBuffer.RequestAction(command, this);
+    public void RequestAction(ActionCommandKey command) => requestBuffer.RequestAction(command, owner);
 
     public bool TryGetValidBufferedRequest(out ActionRequest request)
-        => requestBuffer.TryGetValidBufferedRequest(config, this, out request);
+        => requestBuffer.TryGetValidBufferedRequest(config, owner, out request);
 
     public bool TryConsumeBufferedRequest(ActionCommandKey expectedCommand)
-        => requestBuffer.TryConsumeBufferedRequest(expectedCommand, config, this);
+        => requestBuffer.TryConsumeBufferedRequest(expectedCommand, config, owner);
 
     public bool TryGetEntryActionCandidate(in CombatActionContext context, out CombatActionDefinition action)
     {
@@ -26,7 +32,7 @@ public class PlayerCombatActionController : CombatActionController
         if (IsActionRunning || !TryGetValidBufferedRequest(out var request)) return false;
         if (entryActions == null || entryActions.Length == 0)
         {
-            Debug.LogWarning($"[CombatAction] {name}: entry actions are missing; request not consumed.", this);
+            Debug.LogWarning($"[CombatAction] {OwnerName}: entry actions are missing; request not consumed.", owner);
             return false;
         }
 
@@ -34,7 +40,7 @@ public class PlayerCombatActionController : CombatActionController
         {
             if (entry == null || entry.Command == null)
             {
-                Debug.LogWarning($"[CombatAction] {name}: an entry action or its command is missing; entry skipped.", this);
+                Debug.LogWarning($"[CombatAction] {OwnerName}: an entry action or its command is missing; entry skipped.", owner);
                 continue;
             }
 
@@ -58,7 +64,7 @@ public class PlayerCombatActionController : CombatActionController
             if (transition == null || transition.Command == null || transition.Command != request.Command) continue;
             if (transition.TargetAction == null)
             {
-                Debug.LogWarning($"[CombatAction] {name}: an input transition in {CurrentAction.name} has no target; transition skipped.", this);
+                Debug.LogWarning($"[CombatAction] {OwnerName}: an input transition in {CurrentAction.name} has no target; transition skipped.", owner);
                 continue;
             }
             if (!transition.AreConditionsMet(in context)) continue;

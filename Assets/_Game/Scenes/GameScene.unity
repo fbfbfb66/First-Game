@@ -1002,16 +1002,18 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 171534272}
+  - component: {fileID: 171534276}
   - component: {fileID: 171534279}
   - component: {fileID: 171534278}
   - component: {fileID: 171534277}
-  - component: {fileID: 171534276}
-  - component: {fileID: 171534275}
-  - component: {fileID: 171534274}
   - component: {fileID: 171534280}
   - component: {fileID: 171534281}
   - component: {fileID: 171534282}
+  - component: {fileID: 171534283}
+  - component: {fileID: 171534285}
+  - component: {fileID: 171534286}
   - component: {fileID: 171534273}
+  - component: {fileID: 171534284}
   m_Layer: 11
   m_Name: Enemy_FlyEye
   m_TagString: Untagged
@@ -1062,30 +1064,6 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
---- !u!114 &171534274
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 171534271}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 10c682cb28874d9aacfb6f39a8022dc6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyMotionController
---- !u!114 &171534275
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 171534271}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1c572d1012ad42639017d2878a93a439, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyCombatActionController
 --- !u!114 &171534276
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1098,7 +1076,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f41c3124554246a284538b8d56229382, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
-  characterStatsData: {fileID: 0}
+  characterStatsData: {fileID: 11400000, guid: 420ea79095e0577469bc872531e88485, type: 2}
+  hurtAction: {fileID: 11400000, guid: 9baf854ffe6647e98121931a2d796189, type: 2}
 --- !u!114 &171534277
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1108,12 +1087,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 171534271}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
+  m_Script: {fileID: 11500000, guid: ec1a4e183a6a40c794e31bbedf808c84, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
-  body: {fileID: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::AICombatEffectReceiver
+  motor: {fileID: 171534286}
   canBeKnockedBack: 1
-  deceleration: 50
   canBeLaunched: 1
 --- !u!114 &171534278
 MonoBehaviour:
@@ -1189,8 +1167,89 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ccdc8892144412b4d8d6bc0904c1329b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCombatExecutor
-  combatActionController: {fileID: 171534275}
+  enemy: {fileID: 171534276}
   anim: {fileID: 1406518313}
+--- !u!114 &171534283
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 171534271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07917f6f1f494337804ab24f7c7bdbcf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyCombatHitDetector
+  previewAction: {fileID: 11400000, guid: 7381c2550d3abe34c9a49fdbd71e81c1, type: 2}
+  previewStageIndex: 0
+  previewHitWindowId: 0
+  hitboxRoot: {fileID: 1406518311}
+  targetLayers:
+    serializedVersion: 2
+    m_Bits: 64
+--- !u!58 &171534284
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 171534271}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_Radius: 0.75
+--- !u!114 &171534285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 171534271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67a93b6278cf46e182c07e2f85df9e89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyInterruptExecutor
+  anim: {fileID: 0}
+--- !u!114 &171534286
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 171534271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13c90380637f45b5b9162d011dbf4a83, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AIDisplacementMotor
+  facingRoot: {fileID: 1406518311}
 --- !u!1 &178392422
 GameObject:
   m_ObjectHideFlags: 0
@@ -1235,7 +1294,6 @@ MonoBehaviour:
   launcherAttackCommand: {fileID: 11400000, guid: 47fbdfd815453804ba67f0bf60d7e60d, type: 2}
   inputReader: {fileID: 0}
   gameLayerStack: {fileID: 0}
-  playerControlArbitration: {fileID: 0}
   inventoryView: {fileID: 0}
   dialogueManager: {fileID: 0}
   player: {fileID: 2075136171}
@@ -2567,10 +2625,9 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsCombatEffectReceiver
   body: {fileID: 312469628}
   canBeKnockedBack: 1
-  deceleration: 32
   canBeLaunched: 1
 --- !u!114 &312469624
 MonoBehaviour:
@@ -2598,6 +2655,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   characterStatsData: {fileID: 11400000, guid: 420ea79095e0577469bc872531e88485, type: 2}
+  hurtAction: {fileID: 0}
 --- !u!114 &312469626
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8576,7 +8634,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 426a663afd0947a4fb15bbf11b165426, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatAnimationTrigger
-  combatActionController: {fileID: 2075136175}
+  player: {fileID: 2075136171}
 --- !u!114 &764046017
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8589,7 +8647,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 732dc8776b33b1846a6294e331e6f005, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMotionAnimationTrigger
-  motionController: {fileID: 2075136181}
+  player: {fileID: 2075136171}
 --- !u!1 &779952426
 GameObject:
   m_ObjectHideFlags: 0
@@ -16509,7 +16567,6 @@ GameObject:
   - component: {fileID: 1361024646}
   - component: {fileID: 1361024645}
   - component: {fileID: 1361024644}
-  - component: {fileID: 1361024643}
   - component: {fileID: 1361024642}
   - component: {fileID: 1361024641}
   - component: {fileID: 1361024640}
@@ -16561,9 +16618,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAIBrain
   combatExecutor: {fileID: 0}
   flightMotor: {fileID: 0}
-  taskDefinition: {fileID: 11400000, guid: ed195755869af6e4a8182bbd0aa7f051, type: 2}
+  intentTaskMap: {fileID: 0}
   target: {fileID: 0}
   repeat: 0
+  utilityOptionSet: {fileID: 0}
 --- !u!114 &1361024642
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16576,18 +16634,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 10c682cb28874d9aacfb6f39a8022dc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMotionController
---- !u!114 &1361024643
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1361024639}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1c572d1012ad42639017d2878a93a439, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyCombatActionController
 --- !u!114 &1361024644
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16601,6 +16647,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   characterStatsData: {fileID: 0}
+  hurtAction: {fileID: 0}
 --- !u!114 &1361024645
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16612,10 +16659,9 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsCombatEffectReceiver
   body: {fileID: 0}
   canBeKnockedBack: 1
-  deceleration: 50
   canBeLaunched: 1
 --- !u!114 &1361024646
 MonoBehaviour:
@@ -17453,7 +17499,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00a1950e0e7b38546b4c44f523fec5d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCombatAnimationTrigger
-  controller: {fileID: 171534275}
+  enemy: {fileID: 171534276}
 --- !u!1 &1420759421
 GameObject:
   m_ObjectHideFlags: 0
@@ -24446,19 +24492,15 @@ GameObject:
   m_Component:
   - component: {fileID: 2075136166}
   - component: {fileID: 2075136171}
-  - component: {fileID: 2075136167}
   - component: {fileID: 2075136170}
-  - component: {fileID: 2075136173}
   - component: {fileID: 2075136174}
-  - component: {fileID: 2075136175}
-  - component: {fileID: 2075136181}
   - component: {fileID: 2075136176}
   - component: {fileID: 2075136177}
-  - component: {fileID: 2075136178}
   - component: {fileID: 2075136179}
   - component: {fileID: 2075136180}
   - component: {fileID: 2075136168}
   - component: {fileID: 2075136172}
+  - component: {fileID: 2075136181}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -24485,20 +24527,6 @@ Transform:
   - {fileID: 842708711}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2075136167
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2075136164}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c29380478bd26434c8a1e96cbaeb52a3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerControlArbitration
-  layerStack: {fileID: 0}
-  gameLayerRuleDatabase: {fileID: 11400000, guid: 378e26cb5bcab3e47826ebdea5d7ef1d, type: 2}
 --- !u!50 &2075136168
 Rigidbody2D:
   serializedVersion: 5
@@ -24554,17 +24582,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
   anim: {fileID: 0}
-  playerSkills: {fileID: 2075136178}
+  debugSkill: {fileID: 11400000, guid: 64d733c7cb9c73841a1558ca5ae9123c, type: 2}
+  layerStack: {fileID: 0}
+  gameLayerRuleDatabase: {fileID: 11400000, guid: 378e26cb5bcab3e47826ebdea5d7ef1d, type: 2}
+  motionActionConfig: {fileID: 11400000, guid: d4965682a333769479ca00caba4e5c6d, type: 2}
+  combatActionConfig: {fileID: 11400000, guid: d3f42bb2eaf94d147acadae16becfc61, type: 2}
+  entryCombatActions:
+  - {fileID: 11400000, guid: ad24428fd1949f240a62995379427803, type: 2}
+  - {fileID: 11400000, guid: 480a310550fc6c34e9ff99139735757d, type: 2}
+  - {fileID: 11400000, guid: 435b0d0846158594d871a615af8b6636, type: 2}
+  - {fileID: 11400000, guid: 621171206551c9b4d916c859e35107be, type: 2}
   playerBaseConfig: {fileID: 11400000, guid: b6bffea6f11b4484182ab1a1a8f98649, type: 2}
   characterStatsData: {fileID: 11400000, guid: ae3d13e6788f6b14abe288228dffc4a0, type: 2}
   playerMovement: {fileID: 0}
   motionAnimationTrigger: {fileID: 764046017}
   interaction: {fileID: 0}
-  timeTool: {fileID: 0}
   groundSensor: {fileID: 0}
   wallSensor: {fileID: 0}
-  motionController: {fileID: 2075136181}
-  combatActionController: {fileID: 2075136175}
+  hurtAction: {fileID: 11400000, guid: 44aeacecd3f54bdd85b3f5ff80c1e438, type: 2}
   dashAction: {fileID: 11400000, guid: c4fe5b82708ac004598101b9f536fad4, type: 2}
   backDodgeAction: {fileID: 11400000, guid: 943f897202e5058478262e870eb7702b, type: 2}
   wallSlideAction: {fileID: 11400000, guid: 802e288941b2a7b43abd6bfdfb7b9717, type: 2}
@@ -24609,18 +24644,6 @@ CapsuleCollider2D:
   m_Offset: {x: 0, y: 0}
   m_Size: {x: 1.6, y: 2.5}
   m_Direction: 0
---- !u!114 &2075136173
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2075136164}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a4357ef242484e84fb64b1db85acba4b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TimeTool
 --- !u!114 &2075136174
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24635,24 +24658,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: FirstGame.Inventory::PlayerInventory
   width: 4
   height: 8
---- !u!114 &2075136175
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2075136164}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8fa14346c62519848b9a297c5a0d7ca0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatActionController
-  config: {fileID: 11400000, guid: d3f42bb2eaf94d147acadae16becfc61, type: 2}
-  entryActions:
-  - {fileID: 11400000, guid: ad24428fd1949f240a62995379427803, type: 2}
-  - {fileID: 11400000, guid: 480a310550fc6c34e9ff99139735757d, type: 2}
-  - {fileID: 11400000, guid: 435b0d0846158594d871a615af8b6636, type: 2}
-  - {fileID: 11400000, guid: 621171206551c9b4d916c859e35107be, type: 2}
 --- !u!114 &2075136176
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24665,11 +24670,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0388fd0a26a8a4a4f9b10e6e8d46ee0c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatHitDetector
-  shape: 0
-  localOffset: {x: 0.24, y: 0.86}
-  boxSize: {x: 3.15, y: 6.75}
-  circleRadius: 2.57
-  actionController: {fileID: 2075136175}
+  previewAction: {fileID: 0}
+  previewStageIndex: 0
+  previewHitWindowId: 0
   hitboxRoot: {fileID: 366906409}
   targetLayers:
     serializedVersion: 2
@@ -24685,24 +24688,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 99d9970f967199f4d90cb3024c66ffb4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CombatEffectReceiver
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsCombatEffectReceiver
   body: {fileID: 2075136168}
   canBeKnockedBack: 1
-  deceleration: 50
   canBeLaunched: 1
---- !u!114 &2075136178
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2075136164}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51554b796b0b2b747a80fc2e0229e8c1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerSkills
-  debugSkill: {fileID: 11400000, guid: 64d733c7cb9c73841a1558ca5ae9123c, type: 2}
 --- !u!114 &2075136179
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24740,10 +24729,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 2075136164}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ec581591a3ffd5e488cc94684243de17, type: 3}
+  m_Script: {fileID: 11500000, guid: 7ce1b19aa97ea3b4c8557cd6d24945fe, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerMotionController
-  config: {fileID: 11400000, guid: d4965682a333769479ca00caba4e5c6d, type: 2}
+  m_EditorClassIdentifier: Assembly-CSharp::CombatHurtbox
+  owener: {fileID: 0}
 --- !u!1 &2076946868
 GameObject:
   m_ObjectHideFlags: 0

@@ -11,7 +11,7 @@ public class InputRouter : MonoBehaviour
     [SerializeField] private ActionCommandKey launcherAttackCommand;
     [SerializeField] private GameInputReader inputReader;
     [SerializeField] private GameLayerStack gameLayerStack;
-    [SerializeField] private PlayerControlArbitration playerControlArbitration;
+    private PlayerControlArbitration playerControlArbitration => player != null ? player.ControlArbitration : null;
     [SerializeField] private InventoryView inventoryView;
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private Player player;
@@ -31,10 +31,6 @@ public class InputRouter : MonoBehaviour
             gameLayerStack = FindAnyObjectByType<GameLayerStack>();
         }
 
-        if (playerControlArbitration == null)
-        {
-            playerControlArbitration = FindAnyObjectByType<PlayerControlArbitration>();
-        }
         if (player == null)
             player = FindAnyObjectByType<Player>();
         if (player == null)
@@ -143,7 +139,7 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (!playerControlArbitration.CanAttack)
+        if (playerControlArbitration == null || !playerControlArbitration.CanAttack)
         {
             return;
         }
@@ -163,7 +159,7 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (!playerControlArbitration.CanAttack)
+        if (playerControlArbitration == null || !playerControlArbitration.CanAttack)
         {
             return;
         }
@@ -214,7 +210,7 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (!playerControlArbitration.CanJump)
+        if (playerControlArbitration == null || !playerControlArbitration.CanJump)
         {
             return;
         }
@@ -246,7 +242,7 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (!playerControlArbitration.CanAttack)
+        if (playerControlArbitration == null || !playerControlArbitration.CanAttack)
         {
             return;
         }
@@ -261,7 +257,7 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (!playerControlArbitration.CanDash)
+        if (playerControlArbitration == null || !playerControlArbitration.CanDash)
         {
             return;
         }
@@ -311,7 +307,7 @@ public class InputRouter : MonoBehaviour
             return;
         }
 
-        if (!playerControlArbitration.CanUseItem)
+        if (playerControlArbitration == null || !playerControlArbitration.CanUseItem)
         {
             return;
         }

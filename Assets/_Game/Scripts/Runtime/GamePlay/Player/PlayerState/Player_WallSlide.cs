@@ -15,7 +15,6 @@ public class Player_WallSlide : PlayerAir
         player.RestoreAirborneResources();
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
-        movement.SetRigibodyVelocity(new Vector2(0,player.playerBaseConfig.WallSlideSlowSpeed));
     }
 
     public override void LogicalUpdate()
@@ -43,7 +42,9 @@ public class Player_WallSlide : PlayerAir
         }
         else
         {
-            movement.SetRigibodyVelocity(new Vector2(0,player.playerBaseConfig.WallSlideSlowSpeed));
+            var rule = motionController.CurrentStage?.EntryVelocityRule;
+            if (rule != null)
+                movement.SetRigibodyVelocity(rule.Resolve(movement.GetCurrentVelocity(), movement.facingRight));
         }
     }
 

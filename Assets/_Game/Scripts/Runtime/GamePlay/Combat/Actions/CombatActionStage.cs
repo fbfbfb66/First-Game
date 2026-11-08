@@ -1,14 +1,11 @@
 using UnityEngine;
 using System;
 [Serializable]
-public sealed class CombatActionStage : ActionStage
+public class CombatActionStage : ActionStage
 {
-    [SerializeField] private CombatActionEntryVelocityRule entryVelocityRule = new();
-    [SerializeField, Min(0f)] private float horizontalDeceleration;
     [SerializeField] private CombatHitWindowDefinition[] hitWindows;
 
-    public CombatActionEntryVelocityRule EntryVelocityRule => entryVelocityRule;
-    public float HorizontalDeceleration => horizontalDeceleration;
+    public virtual float HorizontalDeceleration => 0f;
 
     public bool TryGetHitWindow(int windowId, out CombatHitWindowDefinition hitWindow)
     {

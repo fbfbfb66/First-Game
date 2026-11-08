@@ -24,22 +24,6 @@ public class PlayerMovement : Movement
         }
     }
 
-    public void HandleDoubleJump(Vector2 moveInput)
-    {
-        if (Mathf.Approximately(moveInput.x, 0f))
-        {
-            rb.linearVelocity = new Vector2(0f, player.playerBaseConfig.DoubleJumpForce.y);
-            return;
-        }
-        HandleFlip(moveInput);
-
-        float jumpX = player.playerBaseConfig.DoubleJumpForce.x * moveInput.x;
-        jumpX = jumpX > 0f
-            ? Mathf.Abs(rb.linearVelocity.x) + jumpX
-            : jumpX - Mathf.Abs(rb.linearVelocity.x);
-        rb.linearVelocity = new Vector2(jumpX, player.playerBaseConfig.DoubleJumpForce.y);
-    }
-
     public void Teleport(Vector2 targetPosition)
     {
         rb.position = targetPosition;

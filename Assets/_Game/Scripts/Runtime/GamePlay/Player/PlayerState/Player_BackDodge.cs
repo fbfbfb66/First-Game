@@ -16,9 +16,7 @@ public class Player_BackDodge : PlayerState
         originalGravity = movement.Rb.gravityScale;
         base.Enter();
         movement.Rb.gravityScale = player.playerBaseConfig.BackDodgeGravityScale;
-        Vector2 velocity = player.playerBaseConfig.BackDodgeVelocity;
-        velocity.x = movement.facingRight ? -Mathf.Abs(velocity.x) : Mathf.Abs(velocity.x);
-        movement.SetRigibodyVelocity(velocity);
+
     }
 
     public override void Exit()
@@ -32,15 +30,7 @@ public class Player_BackDodge : PlayerState
         base.LogicalUpdate();
         if (stateMachine.currentState != this) return;
 
-        if (player.MotionController.BufferedRequest.Command == player.DashCommand)
-        {
-            ActionContext context = CreateActionContext();
-            if (motionController.TryStartAction(player.DashAction, in context))
-            {
-                stateMachine.ChangeState(player.dashState);
-                return;
-            }
-        }
+        if (TryCancelToDash()) return;
 
         bool touchingGround = movement.Rb.IsTouchingLayers(groundSensor.GroundLayers);
         if (animationTrigger.IsAnimationFinished && touchingGround && groundSensor.CanEnterGrounded)

@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class CombatActionController : ActionController
+public class CombatActionController : ActionController
 {
+    public CombatActionController(UnityEngine.Object owner) : base(owner) { }
+
     private CombatActionDefinition currentAction;
     private CombatActionStage currentStage;
     private CombatActionDefinition pendingAction;
@@ -19,6 +22,44 @@ public abstract class CombatActionController : ActionController
     private CombatHitWindowDefinition activeHitWindow;
     private readonly CombatActionChainRuntime chainRuntime = new();
     private readonly CombatActionUsageRuntime usageRuntime = new();
+    private readonly Dictionary<CombatActionDefinition, double> cooldownEndTimes = new();
+    private double cooldownTime;
+
+    public void TickCooldowns(float deltaTime)
+    {
+        if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime) || deltaTime < 0f)
+        {
+            Debug.LogWarning($"[CombatAction] {OwnerName}: invalid cooldown delta time {deltaTime}; timer not advanced.", owner);
+            return;
+        }
+
+        cooldownTime += deltaTime;
+    }
+
+    public float GetCooldownRemaining(CombatActionDefinition action)
+    {
+        if (action == null || !cooldownEndTimes.TryGetValue(action, out double endTime)) return 0f;
+        return (float)Math.Max(0d, endTime - cooldownTime);
+    }
+
+    public void StartCooldown(CombatActionDefinition action)
+    {
+        if (action == null || currentAction != action)
+        {
+            Debug.LogWarning($"[CombatAction] {OwnerName}: only the active action can begin cooldown; cooldown not recorded.", owner);
+            return;
+        }
+
+        float duration = action.CooldownDuration;
+        if (!(duration >= 0f) || float.IsInfinity(duration))
+        {
+            Debug.LogWarning($"[CombatAction] {OwnerName}: {action.name} has an invalid cooldown duration; cooldown not recorded.", owner);
+            return;
+        }
+
+        if (duration == 0f) cooldownEndTimes.Remove(action);
+        else cooldownEndTimes[action] = cooldownTime + duration;
+    }
 
     public CombatActionUsageRuntime UsageRuntime => usageRuntime;
     public CombatActionChainRuntime ChainRuntime => chainRuntime;
@@ -26,6 +67,13 @@ public abstract class CombatActionController : ActionController
     public int ActiveHitWindowId => activeHitWindow != null ? activeHitWindow.WindowId : -1;
     protected bool HasPendingAction => pendingAction != null;
     public event Action HitWindowEnded;
+
+    public bool TryStartAction(CombatActionDefinition action, in CombatActionContext context)
+    {
+        if (!TryPrepareEntryAction(action, in context)) return false;
+        BeginAction(action);
+        return true;
+    }
 
     public bool TryQueueAutomaticTransition(in CombatActionContext context)
     {
@@ -94,7 +142,7 @@ public abstract class CombatActionController : ActionController
         if (currentAction != null) return false;
         if (action == null)
         {
-            Debug.LogWarning($"[CombatAction] {name}: target action is missing; action not prepared.", this);
+            Debug.LogWarning($"[CombatAction] {OwnerName}: target action is missing; action not prepared.", owner);
             return false;
         }
         if (!action.AreEntryConditionsMet(in context)) return false;
@@ -103,10 +151,16 @@ public abstract class CombatActionController : ActionController
 
     protected bool TryPrepareStage(CombatActionDefinition action, in CombatActionContext context)
     {
+        if (!(action.CooldownDuration >= 0f) || float.IsInfinity(action.CooldownDuration))
+        {
+            Debug.LogWarning($"[CombatAction] {OwnerName}: {action.name} has an invalid cooldown duration; action not prepared.", owner);
+            return false;
+        }
+        if (GetCooldownRemaining(action) > 0f) return false;
         if (!action.TrySelectStage(in context, out var stage)) return false;
         if (stage is not CombatActionStage combatStage || string.IsNullOrWhiteSpace(stage.AnimatorStateName))
         {
-            Debug.LogWarning($"[CombatAction] {name}: selected stage in {action.name} has no valid combat animation; action not prepared.", this);
+            Debug.LogWarning($"[CombatAction] {OwnerName}: selected stage in {action.name} has no valid combat animation; action not prepared.", owner);
             return false;
         }
         pendingAction = action;
@@ -150,7 +204,7 @@ public abstract class CombatActionController : ActionController
         }
         if (pendingAction != action || pendingStage == null)
         {
-            Debug.LogWarning($"[CombatAction] {name}: {action.name} has no pending stage; action not started.", this);
+            Debug.LogWarning($"[CombatAction] {OwnerName}: {action.name} has no pending stage; action not started.", owner);
             return;
         }
         EndHitWindow();
@@ -239,6 +293,11 @@ public abstract class CombatActionController : ActionController
         isAutomaticTransitionWindowOpen = false;
     }
 
+
+    protected override void InterruptCurrentAction()
+    {
+        CancelCurrentAction();
+    }
 
     public void NotifyStageFinished(int sourceStateHash)
     {

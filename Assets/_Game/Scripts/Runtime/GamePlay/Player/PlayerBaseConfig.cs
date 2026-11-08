@@ -9,7 +9,6 @@ public  class PlayerBaseConfig : ScriptableObject
     [SerializeField] private float coyoteTimeDuration = 0.1f;
     [SerializeField] private Vector2 jumpForce;
     [SerializeField] private Vector2 wallJumpForce;
-    [SerializeField] private Vector2 doubleJumpForce;
     [SerializeField] private float fallGravity;
     [SerializeField] private float apexThreshold = 0.5f;
     [SerializeField] private float fallEnterVelocityThreshold = 5f;
@@ -19,34 +18,22 @@ public  class PlayerBaseConfig : ScriptableObject
     [Header("Run Conditions")]
     [SerializeField] private float canEndRunEarlyDuration = 3f;
     [SerializeField] private float runBufferDuration = 0.05f;
-    [Header("Dash")]
-    [SerializeField] private float defaultDashSpeed = 15f;
-    [SerializeField, Range(0f, 1f)] private float dashFactor = .5f;
-    [SerializeField] private float wallDashSpeed = 15f;
 
     [Header("Back Dodge")]
-    [SerializeField] private Vector2 backDodgeVelocity = new(8f, 13.85f);
     [SerializeField, Min(0f)] private float backDodgeGravityScale = 4f;
 
     [Header("Physics")]
     [SerializeField] private float gravityScale;
-    [SerializeField] private float wallSlideSlowSpeed = -1f;
     [SerializeField] private float wallSlideFastSpeed = -3f;
     [SerializeField] private float coastingDuration = 0.2f;
 
-    public float DashFactor => dashFactor;
-    public float DefaultDashSpeed => defaultDashSpeed;
-    public float WallDashSpeed => wallDashSpeed;
-    public Vector2 BackDodgeVelocity => backDodgeVelocity;
     public float BackDodgeGravityScale => backDodgeGravityScale;
     public float RollingLandDefaultVelocity => rollingLandDefaultVelocity;
     public float RollingLandThresholdVelocity => rollingLandThresholdVelocity;
-    public Vector2 DoubleJumpForce => doubleJumpForce;
     public float CoyoteTimeDuration => coyoteTimeDuration;
     public float FallGravity => fallGravity;
     public float FallEnterVelocityThreshold => fallEnterVelocityThreshold;
     public float WallSlideFastSpeed => wallSlideFastSpeed;
-    public float WallSlideSlowSpeed => wallSlideSlowSpeed;
     public float RunVelocity => runVelocity;
     public float WalkVelocity => walkVelocity;
     public Vector2 JumpForce => jumpForce;

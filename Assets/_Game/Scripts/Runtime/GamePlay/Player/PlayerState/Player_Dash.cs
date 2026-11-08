@@ -3,6 +3,8 @@ using UnityEngine;
 public class Player_Dash : PlayerState
 {
     private float originalGravity;
+    private bool enteredAgainstWall;
+    protected override bool UseAlternateEntryVelocity => enteredAgainstWall;
     protected override MotionActionDefinition MotionAction => player.DashAction;
     public Player_Dash(Player player, StateMachine stateMachine, int stateName, Animator anim) : base(player, stateMachine, stateName, anim)
     {
@@ -10,21 +12,13 @@ public class Player_Dash : PlayerState
 
     public override void Enter()
     {
+        enteredAgainstWall = isSameDirctionForWallandFacingDir();
+        if (enteredAgainstWall)
+            movement.HandleFlip(movement.facingRight ? Vector2.left : Vector2.right);
         base.Enter();
         player.MarkDashUsed();
         originalGravity = movement.Rb.gravityScale;
         movement.Rb.gravityScale = 0;
-        
-        float speed = player.playerBaseConfig.DefaultDashSpeed + Mathf.Abs(movement.Rb.linearVelocity.x) * player.playerBaseConfig.DashFactor;
-        float speedX = movement.facingRight ? speed : -speed;
-
-        if (isSameDirctionForWallandFacingDir())
-        {
-            Vector2 dir = movement.facingRight ? Vector2.left : Vector2.right;
-            speedX = dir.x * player.playerBaseConfig.WallDashSpeed;
-            movement.HandleFlip(dir);
-        } 
-        movement.SetRigibodyVelocity(new Vector2(speedX, 0));
     }
 
     public override void LogicalUpdate()
