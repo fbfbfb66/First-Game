@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e1ecee7f81847b59f50908043fd30dc, type: 3}
+  m_Name: Action_FlyEye_Attack02
+  m_EditorClassIdentifier: Assembly-CSharp::AICombatActionDefinition
+  command: {fileID: 0}
+  entryConditions: []
+  transitions: []
+  cooldownDuration: 3
+  stages:
+  - animatorStateName: Attack02
+    displacementDirection: 1
+    aiDisplacement:
+      distance: {x: 4, y: 0}
+      duration: 0.4
+      progressCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.25
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.85
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    conditions: []
+    cancelWindows:
+    - windowId: 0
+      allowedCommands: []
+    hitWindows:
+    - attackType: 1
+      effects:
+      - {fileID: 11400000, guid: 14bbefc64ea82f243bac1e9c7fae23cc, type: 2}
+      knockback:
+        distance: {x: 1.4, y: 0}
+        duration: 0.2
+        progressCurve:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 0
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+      windowId: 0
+      damageMultiplier: 1.5
+      shape: 1
+      localOffset: {x: 0.9, y: 0}
+      boxSize: {x: 1.8, y: 1.8}
+      circleRadius: 0.9

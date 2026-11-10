@@ -6,6 +6,20 @@ public class AISelectorTask : AITask
     private readonly AITask[] children;
     private int currentIndex;
 
+    public override bool CanBeReplanned => ChildCanbBePlanned();
+
+    private bool ChildCanbBePlanned()
+    {
+        foreach (AITask child in children)
+        {
+            if (child.CanBeReplanned)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public AISelectorTask(AITask[] children)
     {
         if (children == null)

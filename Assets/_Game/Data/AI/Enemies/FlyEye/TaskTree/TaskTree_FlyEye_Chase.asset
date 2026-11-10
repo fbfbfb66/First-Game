@@ -14,4 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AISequenceTaskDefinition
   children:
   - {fileID: 11400000, guid: 109041e8d0e753d4db1807f5e6e430e9, type: 2}
+  - {fileID: 11400000, guid: c9d0b5254c1e4ea4bb92de12cb62ef57, type: 2}
   - {fileID: 11400000, guid: eb7cfa7275e70874a93e105d7e19bc8a, type: 2}

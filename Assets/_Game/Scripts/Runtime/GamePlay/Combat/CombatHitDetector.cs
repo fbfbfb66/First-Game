@@ -114,7 +114,7 @@ public abstract class CombatHitDetector : MonoBehaviour
         switch (hitWindow.Shape)
         {
             case CombatHitShape.Box:
-                return Physics2D.OverlapBoxAll(center, hitWindow.BoxSize, 0f, targetLayers);
+                return Physics2D.OverlapBoxAll(center, hitWindow.BoxSize, hitboxRoot.eulerAngles.z, targetLayers);
             case CombatHitShape.Circle:
                 return Physics2D.OverlapCircleAll(center, hitWindow.CircleRadius, targetLayers);
         }
@@ -149,7 +149,10 @@ public abstract class CombatHitDetector : MonoBehaviour
         switch (hitWindow.Shape)
         {
             case CombatHitShape.Box:
-                Gizmos.DrawWireCube(center, hitWindow.BoxSize);
+                var previousMatrix = Gizmos.matrix;
+                Gizmos.matrix = Matrix4x4.TRS(center, hitboxRoot.rotation, Vector3.one);
+                Gizmos.DrawWireCube(Vector3.zero, hitWindow.BoxSize);
+                Gizmos.matrix = previousMatrix;
                 break;
             case CombatHitShape.Circle:
                 Gizmos.DrawWireSphere(center, hitWindow.CircleRadius);

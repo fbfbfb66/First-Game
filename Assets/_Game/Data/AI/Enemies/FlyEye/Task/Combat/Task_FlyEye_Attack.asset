@@ -10,6 +10,6 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: abec1ab7d442aa84db4976da1593d096, type: 3}
-  m_Name: Task_FlyEye_Attack01
+  m_Name: Task_FlyEye_Attack
   m_EditorClassIdentifier: Assembly-CSharp::AICombatActionTaskDefinition
   action: {fileID: 11400000, guid: 7381c2550d3abe34c9a49fdbd71e81c1, type: 2}

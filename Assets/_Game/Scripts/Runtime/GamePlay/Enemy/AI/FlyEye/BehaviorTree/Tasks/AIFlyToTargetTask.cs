@@ -8,6 +8,8 @@ public class AIFlyToTargetTask : AITask
     private float stoppingDistance;
     private float giveUpDistance;
 
+    override public bool CanBeReplanned => true;
+
     public AIFlyToTargetTask(in AIAgentContext context, float speed, float stoppingDistance, float giveUpDistance)
     {
 

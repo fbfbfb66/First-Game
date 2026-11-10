@@ -7,6 +7,9 @@ public class EnemyFlightMotor : MonoBehaviour
     [SerializeField] private CombatEffectReceiver effectReceiver;
     private AIDisplacementMotor displacementMotor;
     private bool facingRight = true;
+    private Object facingLockOwner;
+    private Quaternion rotationBeforeLock;
+    public bool IsFacingLocked => facingLockOwner != null;
     public Vector2 Position => body.position;
     public bool FacingRight => facingRight;
 
@@ -43,6 +46,7 @@ public class EnemyFlightMotor : MonoBehaviour
 
     public void HandleFlip(Vector2 dir)
     {
+        if (IsFacingLocked) return;
         if (dir.x > 0 && !facingRight)
         {
             Flip();
@@ -51,6 +55,31 @@ public class EnemyFlightMotor : MonoBehaviour
         {
             Flip();
         }
+    }
+
+    public bool TryLockFacing(Vector2 direction, Object source)
+    {
+        if (source == null || visual == null || IsFacingLocked || direction.sqrMagnitude <= Mathf.Epsilon ||
+            !float.IsFinite(direction.x) || !float.IsFinite(direction.y)) return false;
+        HandleFlip(direction);
+        rotationBeforeLock = visual.localRotation;
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        // Mirrored left-facing sprites already point along local -X.
+        visual.rotation = Quaternion.Euler(0f, 0f, angle - (facingRight ? 0f : 180f));
+        facingLockOwner = source;
+        return true;
+    }
+
+    public void ReleaseFacing(Object source)
+    {
+        if (facingLockOwner != source) return;
+        if (visual != null) visual.localRotation = rotationBeforeLock;
+        facingLockOwner = null;
+    }
+
+    private void OnDisable()
+    {
+        if (facingLockOwner != null) ReleaseFacing(facingLockOwner);
     }
 
     private void Flip()

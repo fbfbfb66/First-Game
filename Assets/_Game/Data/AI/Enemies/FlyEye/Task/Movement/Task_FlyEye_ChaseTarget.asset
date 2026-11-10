@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d87636090a46e4a42a7556250cbc713b, type: 3}
   m_Name: Task_FlyEye_ChaseTarget
   m_EditorClassIdentifier: Assembly-CSharp::AIFlyToTargetTaskDefinition
-  speed: 3
+  speed: 5
   stoppingDistance: 1
   giveUpDistance: 25

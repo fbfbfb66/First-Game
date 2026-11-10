@@ -12,10 +12,17 @@ public sealed class DisplacementProgress
 
     public bool TryStart(DisplacementRule definition, float horizontalDirection)
     {
+        if (!float.IsFinite(horizontalDirection)) return false;
+        return TryStart(definition, horizontalDirection < 0f ? Vector2.left : Vector2.right);
+    }
+
+    public bool TryStart(DisplacementRule definition, Vector2 direction)
+    {
         if (definition == null || !definition.IsValid || definition.Distance == Vector2.zero ||
-            !float.IsFinite(horizontalDirection)) return false;
+            !float.IsFinite(direction.x) || !float.IsFinite(direction.y) || direction.sqrMagnitude <= Mathf.Epsilon) return false;
         rule = definition;
-        offset = new Vector2(definition.Distance.x * (horizontalDirection < 0f ? -1f : 1f), definition.Distance.y);
+        // X is distance along the supplied direction; Y remains additional world vertical distance.
+        offset = direction.normalized * definition.Distance.x + Vector2.up * definition.Distance.y;
         elapsed = lastProgress = 0f;
         return true;
     }

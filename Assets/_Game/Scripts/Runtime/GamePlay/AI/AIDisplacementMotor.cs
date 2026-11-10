@@ -20,15 +20,21 @@ public sealed class AIDisplacementMotor : MonoBehaviour
 
     public bool TryStartDisplacement(DisplacementRule rule, float horizontalDirection, Object source, bool isHitReaction = false)
     {
+        if (!float.IsFinite(horizontalDirection)) return false;
+        return TryStartDisplacement(rule, horizontalDirection < 0f ? Vector2.left : Vector2.right, source, isHitReaction);
+    }
+
+    public bool TryStartDisplacement(DisplacementRule rule, Vector2 direction, Object source, bool isHitReaction = false)
+    {
         if (!isActiveAndEnabled || body == null || source == null || rule == null) return false;
-        if (!rule.IsValid || !float.IsFinite(horizontalDirection))
+        if (!rule.IsValid || !float.IsFinite(direction.x) || !float.IsFinite(direction.y))
         {
-            Debug.LogWarning($"[AIMovement] {name}: displacement needs finite distance, positive duration and a curve from 0 to 1; request ignored.", this);
+            Debug.LogWarning($"[AIMovement] {name}: displacement needs finite direction/distance, positive duration and a curve from 0 to 1; request ignored.", this);
             return false;
         }
         if (rule.Distance == Vector2.zero) return false;
         if (IsDisplacementActive && hitReaction && !isHitReaction) return false;
-        if (!displacement.TryStart(rule, horizontalDirection)) return false;
+        if (!displacement.TryStart(rule, direction)) return false;
         activeSource = source;
         hitReaction = isHitReaction;
         hasLocomotion = false;

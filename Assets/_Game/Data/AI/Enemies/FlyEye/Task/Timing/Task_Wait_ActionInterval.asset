@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9712e868c3b36d445ad40054da05061f, type: 3}
   m_Name: Task_Wait_ActionInterval
   m_EditorClassIdentifier: Assembly-CSharp::AIWaitTaskDefinition
-  duration: 1
+  duration: 0.5

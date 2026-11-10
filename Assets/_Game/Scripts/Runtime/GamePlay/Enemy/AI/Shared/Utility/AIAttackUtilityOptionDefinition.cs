@@ -5,6 +5,8 @@ public class AIAttackUtilityOptionDefinition : AIUtilityOptionDefinition
 {
     [SerializeField] private AIIntentKey intentKey;
     [SerializeField] private CombatActionDefinition action;
+    [SerializeField, Min(0f)] private float minRange;
+    public float MinRange => minRange;
     [SerializeField] private float maxRange = 2f;
     [SerializeField] private AnimationCurve distanceUtilityCurve = AnimationCurve.Linear(0f, 1f, 1f, 0f);
 
@@ -23,9 +25,9 @@ public class AIAttackUtilityOptionDefinition : AIUtilityOptionDefinition
             return false;
         }
 
-        if (!(maxRange > 0f) || float.IsInfinity(maxRange))
+        if (!(minRange >= 0f && maxRange > minRange) || float.IsInfinity(minRange) || float.IsInfinity(maxRange))
         {
-            Debug.LogWarning($"[AIUtility] {name} for {context.Owner.name}: maxRange={maxRange} must be finite and positive; attack evaluation failed.", this);
+            Debug.LogWarning($"[AIUtility] {name} for {context.Owner.name}: range=[{minRange},{maxRange}] must be finite with 0 <= min < max; attack evaluation failed.", this);
             return false;
         }
 
@@ -58,11 +60,12 @@ public class AIAttackUtilityOptionDefinition : AIUtilityOptionDefinition
         }
 
         float distance = Vector2.Distance(context.Owner.position, target.position);
-        AIIntent intent = new AIIntent(intentKey, target);
-        if (distance > maxRange && !Mathf.Approximately(distance, maxRange))
+        AIIntent intent = new AIIntent(intentKey, target,action);
+        if ((distance < minRange && !Mathf.Approximately(distance, minRange)) ||
+            (distance > maxRange && !Mathf.Approximately(distance, maxRange)))
         {
             evaluation = new AIUtilityEvaluation(intent, false, 0f,
-                $"Attack infeasible: distance={distance:F4} exceeds maxRange={maxRange:F4}.");
+                $"Attack infeasible: distance={distance:F4} is outside [{minRange:F4},{maxRange:F4}].");
             return true;
         }
 
@@ -73,7 +76,7 @@ public class AIAttackUtilityOptionDefinition : AIUtilityOptionDefinition
             return true;
         }
 
-        float normalizedDistance = Mathf.Clamp01(distance / maxRange);
+        float normalizedDistance = Mathf.Clamp01((distance - minRange) / (maxRange - minRange));
         float curveScore = distanceUtilityCurve.Evaluate(normalizedDistance);
         if (float.IsNaN(curveScore) || float.IsInfinity(curveScore))
         {

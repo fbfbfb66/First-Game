@@ -9,17 +9,20 @@ public class EnemyCombatExecutor : MonoBehaviour
     public CombatActionController CombatActionController => enemy != null ? enemy.CombatActionController : null;
 
     private AIDisplacementMotor displacementMotor;
+    private EnemyFlightMotor facingMotor;
+    public Vector2 LockedDirection { get; private set; }
 
     private void Awake()
     {
         displacementMotor = GetComponent<AIDisplacementMotor>();
+        facingMotor = GetComponent<EnemyFlightMotor>();
         if (enemy == null)
             enemy = GetComponent<Enemy>();
         if (anim == null)
             anim = GetComponentInChildren<Animator>();
     }
 
-    public bool TryStartAction(CombatActionDefinition action, in CombatActionContext context)
+    public bool TryStartAction(CombatActionDefinition action, in CombatActionContext context, Transform target = null)
     {
         if (!isActiveAndEnabled || Status == CombatExecutionStatus.Running) return false;
         if (action == null || enemy == null ||
@@ -32,7 +35,7 @@ public class EnemyCombatExecutor : MonoBehaviour
         if (!CombatActionController.TryStartAction(action, in context)) return false;
 
         Status = CombatExecutionStatus.Running;
-        if (!TryPlayCurrentStage())
+        if (!TryPlayCurrentStage(target))
         {
             CancelCurrentExecution();
             return false;
@@ -64,7 +67,7 @@ public class EnemyCombatExecutor : MonoBehaviour
 
         if (!CombatActionController.TryCompleteAction()) return;
 
-        displacementMotor?.StopDisplacement(this);
+        EndStageMovement();
         Status = CombatExecutionStatus.Succeeded;
         Debug.Log($"[EnemyCombat] {name}: attack completed successfully.", this);
     }
@@ -74,14 +77,14 @@ public class EnemyCombatExecutor : MonoBehaviour
     {
         if (Status != CombatExecutionStatus.Running) return;
 
-        displacementMotor?.StopDisplacement(this);
+        EndStageMovement();
         Status = CombatExecutionStatus.Cancelled;
         if (CombatActionController != null)
             CombatActionController.CancelCurrentAction();
         Debug.Log($"[EnemyCombat] {name}: attack cancelled.", this);
     }
 
-    private bool TryPlayCurrentStage()
+    private bool TryPlayCurrentStage(Transform target)
     {
         CombatActionStage stage = CombatActionController.CurrentCombatStage;
         if (stage == null || !anim.HasState(0, stage.AnimatorStateHash))
@@ -90,11 +93,31 @@ public class EnemyCombatExecutor : MonoBehaviour
             return false;
         }
 
-        displacementMotor?.StopDisplacement(this);
+        EndStageMovement();
+        Vector2 direction = displacementMotor != null && displacementMotor.FacingDirection < 0f ? Vector2.left : Vector2.right;
+        if (stage is AICombatActionStage aiStage && aiStage.DisplacementDirection == AICombatDisplacementDirection.TowardsTarget)
+        {
+            if (target == null || !target.gameObject.activeInHierarchy || facingMotor == null || displacementMotor == null)
+            {
+                Debug.LogWarning($"[EnemyCombat] {name}: target or directional motors missing; targeted attack not started.", this);
+                return false;
+            }
+            Vector2 delta = target.position - transform.position;
+            if (delta.sqrMagnitude > Mathf.Epsilon) direction = delta.normalized;
+            if (!facingMotor.TryLockFacing(direction, this)) return false;
+            LockedDirection = direction;
+        }
         if (displacementMotor != null)
-            displacementMotor.TryStartDisplacement(stage.AIDisplacement, displacementMotor.FacingDirection, this);
-        anim.CrossFade(stage.AnimatorStateHash, 0f, 0);
+            displacementMotor.TryStartDisplacement(stage.AIDisplacement, direction, this);
+        anim.CrossFade(stage.AnimatorStateHash, 0f, 0, 0f);
         return true;
+    }
+
+    private void EndStageMovement()
+    {
+        displacementMotor?.StopDisplacement(this);
+        facingMotor?.ReleaseFacing(this);
+        LockedDirection = Vector2.zero;
     }
 
     private bool CanUseAnimator()

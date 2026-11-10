@@ -5,6 +5,20 @@ public class AISequenceTask : AITask
     private readonly AITask[] children;
     private int currentIndex;
 
+    public override bool CanBeReplanned => ChildCanbBePlanned();
+
+    private bool ChildCanbBePlanned()
+    {
+        foreach (AITask child in children)
+        {
+            if (child.CanBeReplanned)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public AISequenceTask(AITask[] children)
     {
         if (children == null)

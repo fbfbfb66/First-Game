@@ -54,7 +54,7 @@ public class AICombatActionTask : AITask
             combatContext = new CombatActionContext(false, false, executor.transform.position, controller.ChainRuntime, controller.UsageRuntime);
         }
         else combatContext = new CombatActionContext(groundSensor.IsGrounded, groundSensor.CanEnterGrounded, executor.transform.position, controller.ChainRuntime, controller.UsageRuntime);
-        if (executor.TryStartAction(action, in combatContext))
+        if (executor.TryStartAction(action, in combatContext, context.Target))
         {
             return AITaskStatus.Running;
         }

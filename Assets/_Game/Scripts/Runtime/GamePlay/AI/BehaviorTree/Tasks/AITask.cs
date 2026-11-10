@@ -2,7 +2,7 @@ public abstract class AITask
 {
     private bool hasStarted;
     private bool hasEnded;
-
+    public virtual bool CanBeReplanned { get; }
     public AITaskStatus Status { get; private set; } = AITaskStatus.Running;
 
     public AITaskStatus Tick(float deltaTime)
