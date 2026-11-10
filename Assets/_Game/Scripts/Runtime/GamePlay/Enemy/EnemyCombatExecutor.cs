@@ -9,13 +9,13 @@ public class EnemyCombatExecutor : MonoBehaviour
     public CombatActionController CombatActionController => enemy != null ? enemy.CombatActionController : null;
 
     private AIDisplacementMotor displacementMotor;
-    private EnemyFlightMotor facingMotor;
+    private AIMotor facingMotor;
     public Vector2 LockedDirection { get; private set; }
 
     private void Awake()
     {
         displacementMotor = GetComponent<AIDisplacementMotor>();
-        facingMotor = GetComponent<EnemyFlightMotor>();
+        facingMotor = GetComponent<AIMotor>();
         if (enemy == null)
             enemy = GetComponent<Enemy>();
         if (anim == null)

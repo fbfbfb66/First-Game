@@ -19,3 +19,5 @@ MonoBehaviour:
     taskDefinition: {fileID: 11400000, guid: 651329de7db19d44ab4b3721dd27db28, type: 2}
   - intentKey: {fileID: 11400000, guid: ad3a152bee5743a0838f4e5425e9e468, type: 2}
     taskDefinition: {fileID: 11400000, guid: f18577d90442b88478eff84021b85977, type: 2}
+  - intentKey: {fileID: 11400000, guid: fc4df05b2b8c4d8f9d6b4841410a5fc9, type: 2}
+    taskDefinition: {fileID: 11400000, guid: 1da2e2f44354c9849b893307e5ad245e, type: 2}

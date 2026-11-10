@@ -9,6 +9,12 @@ public class AIIdleUtilityOptionDefinition : AIUtilityOptionDefinition
     public AIIntentKey IntentKey => intentKey;
     public float UtilityScore => utilityScore;
 
+    public override bool IsFeasible(in AIAgentContext context)
+    {
+        // Idle can return the owner to its idle position even outside the active area.
+        return context.Owner != null && intentKey != null;
+    }
+
     public override bool TryEvaluate(in AIAgentContext context, out AIUtilityEvaluation evaluation)
     {
         evaluation = default;
@@ -24,7 +30,7 @@ public class AIIdleUtilityOptionDefinition : AIUtilityOptionDefinition
             return false;
         }
 
-        evaluation = new AIUtilityEvaluation(new AIIntent(intentKey, null), true, utilityScore,
+        evaluation = new AIUtilityEvaluation(new AIIntent(intentKey, null), IsFeasible(in context), utilityScore,
             "Idle is available as a fallback; score uses the configured baseline.");
         return true;
     }

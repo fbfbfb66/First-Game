@@ -10,13 +10,13 @@ public sealed class AIFlyToIdlePointTaskDefinition : AITaskDefinition
 
     public override AITask CreateTask(in AIAgentContext context)
     {
-        if (context.FlightMotor == null || !context.IdlePosition.HasValue ||
+        if (context.Motor == null || context.Perception == null || !context.IdlePosition.HasValue ||
             !float.IsFinite(speed) || speed <= 0f || !float.IsFinite(stoppingDistance) || stoppingDistance < 0f ||
             !float.IsFinite(context.IdlePosition.Value.x) || !float.IsFinite(context.IdlePosition.Value.y))
         {
-            Debug.LogWarning($"[AIIdle] {name}: motor, idle position or movement settings are invalid; return task not created.", this);
+            Debug.LogWarning($"[AIReturn] {name}: motor, perception, idle position or movement settings are invalid; return task not created.", this);
             return null;
         }
-        return new AIFlyToIdlePointTask(context.FlightMotor, context.IdlePosition.Value, speed, stoppingDistance);
+        return new AIFlyToIdlePointTask(context.Motor, context.IdlePosition.Value, speed, stoppingDistance, context.Perception);
     }
 }

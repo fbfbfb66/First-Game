@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88e9592850a736f40a011dfb79519bd8, type: 3}
+  m_Name: UtilityOption_Return
+  m_EditorClassIdentifier: Assembly-CSharp::AIReturnUtilityOptionDefinition
+  intentKey: {fileID: 11400000, guid: fc4df05b2b8c4d8f9d6b4841410a5fc9, type: 2}
+  returnTask: {fileID: 11400000, guid: 3261827ac0b84ca8923950787e7e1aac, type: 2}

@@ -8,7 +8,7 @@ public class AIFlyToTargetTaskDefinition : AITaskDefinition
 
     public override AITask CreateTask(in AIAgentContext context)
     {
-        if(context.FlightMotor == null)
+        if(context.Motor == null)
         {
             Debug.LogWarning("非法数值");
             return null;

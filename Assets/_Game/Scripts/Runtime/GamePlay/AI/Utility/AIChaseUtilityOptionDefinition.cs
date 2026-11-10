@@ -5,13 +5,29 @@ public class AIChaseUtilityOptionDefinition : AIUtilityOptionDefinition
 {
     [SerializeField] private AIIntentKey intentKey;
     [SerializeField] private float minRange = 2f;
-    [SerializeField] private float maxRange = 20f;
     [SerializeField] private AnimationCurve distanceUtilityCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
     public AIIntentKey IntentKey => intentKey;
     public float MinRange => minRange;
-    public float MaxRange => maxRange;
     public AnimationCurve DistanceUtilityCurve => distanceUtilityCurve;
+
+    public override bool IsFeasible(in AIAgentContext context)
+    {
+        if (!base.IsFeasible(in context) || intentKey == null || context.Motor == null) return false;
+
+        Transform target = context.Target;
+        if (target == null || target == context.Owner || !target.gameObject.activeInHierarchy) return false;
+
+        float maxRange = context.Area.DiagonalLength;
+        if (!(minRange >= 0f && maxRange > minRange) ||
+            float.IsInfinity(minRange) || float.IsInfinity(maxRange)) return false;
+
+        float distance = Vector2.Distance(context.Owner.position, target.position);
+        if (float.IsNaN(distance) || float.IsInfinity(distance)) return false;
+
+        if (distance <= minRange || Mathf.Approximately(distance, minRange)) return false;
+        return distance <= maxRange || Mathf.Approximately(distance, maxRange);
+    }
 
     public override bool TryEvaluate(in AIAgentContext context, out AIUtilityEvaluation evaluation)
     {
@@ -22,10 +38,11 @@ public class AIChaseUtilityOptionDefinition : AIUtilityOptionDefinition
             return false;
         }
 
-        if (!(minRange >= 0f && maxRange > minRange) ||
-            float.IsInfinity(minRange) || float.IsInfinity(maxRange))
+        float maxRange = context.Area != null ? context.Area.DiagonalLength : 0f;
+        if (!(minRange >= 0f) || float.IsInfinity(minRange) ||
+            (context.Area != null && (!(maxRange > minRange) || float.IsInfinity(maxRange))))
         {
-            Debug.LogWarning($"[AIUtility] {name} for {context.Owner.name}: invalid chase range ({minRange}, {maxRange}); expected finite 0 <= minRange < maxRange; evaluation failed.", this);
+            Debug.LogWarning($"[AIUtility] {name} for {context.Owner.name}: invalid chase range ({minRange}, {maxRange}); expected finite 0 <= minRange < active area diagonal; evaluation failed.", this);
             return false;
         }
 
@@ -36,14 +53,7 @@ public class AIChaseUtilityOptionDefinition : AIUtilityOptionDefinition
         }
 
         Transform target = context.Target;
-        if (target == null || target == context.Owner || !target.gameObject.activeInHierarchy)
-        {
-            evaluation = new AIUtilityEvaluation(new AIIntent(intentKey, null), false, 0f,
-                "Chase infeasible: target is missing, inactive or the owner itself.");
-            return true;
-        }
-
-        float distance = Vector2.Distance(context.Owner.position, target.position);
+        float distance = target != null ? Vector2.Distance(context.Owner.position, target.position) : 0f;
         if (float.IsNaN(distance) || float.IsInfinity(distance))
         {
             Debug.LogWarning($"[AIUtility] {name} for {context.Owner.name}: target distance is non-finite; chase evaluation failed.", this);
@@ -51,18 +61,10 @@ public class AIChaseUtilityOptionDefinition : AIUtilityOptionDefinition
         }
 
         AIIntent intent = new AIIntent(intentKey, target);
-        bool needsTurn = context.FlightMotor != null && !context.FlightMotor.IsFacingTarget(target.position);
-        if ((distance <= minRange || Mathf.Approximately(distance, minRange)) && !needsTurn)
+        if (!IsFeasible(in context))
         {
             evaluation = new AIUtilityEvaluation(intent, false, 0f,
-                $"Chase infeasible: already close enough (distance={distance:F4}, minRange={minRange:F4}); no new chase needed.");
-            return true;
-        }
-
-        if (distance > maxRange && !Mathf.Approximately(distance, maxRange))
-        {
-            evaluation = new AIUtilityEvaluation(intent, false, 0f,
-                $"Chase infeasible: distance={distance:F4} exceeds maxRange={maxRange:F4}.");
+                "Chase infeasible: no detected target, owner or target is outside the active area, area/target/flight motor is missing, target is invalid, or distance conditions are not met.");
             return true;
         }
 
@@ -76,7 +78,7 @@ public class AIChaseUtilityOptionDefinition : AIUtilityOptionDefinition
 
         float score = Mathf.Clamp01(curveScore);
         evaluation = new AIUtilityEvaluation(intent, true, score,
-            $"Chase/turn check passed: distance={distance:F4}, range=({minRange:F4}, {maxRange:F4}], normalizedDistance={normalizedDistance:F4}, curveScore={curveScore:F4}, finalScore={score:F4}. needsTurn={needsTurn}. Path reachability is not evaluated yet.");
+            $"Chase range checks passed: distance={distance:F4}, range=({minRange:F4}, {maxRange:F4}], maxRange uses active area diagonal, normalizedDistance={normalizedDistance:F4}, curveScore={curveScore:F4}, finalScore={score:F4}. Path reachability is not evaluated yet.");
         return true;
     }
 }

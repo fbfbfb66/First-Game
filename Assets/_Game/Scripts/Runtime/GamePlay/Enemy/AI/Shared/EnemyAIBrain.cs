@@ -3,13 +3,13 @@ using UnityEngine.Serialization;
 
 public class EnemyAIBrain : MonoBehaviour
 {
+    [SerializeField] private AITargetPerception perception;
+    [SerializeField] private ActiveArea activeArea;
     [SerializeField] private EnemyCombatExecutor combatExecutor;
-    [SerializeField] private EnemyFlightMotor flightMotor;
+    [FormerlySerializedAs("flightMotor")]
+    [SerializeField] private AIMotor motor;
     [FormerlySerializedAs("behaviorMapping")]
     [SerializeField] private AIIntentTaskMapDefinition intentTaskMap;
-    [FormerlySerializedAs("candidateTarget")]
-    [SerializeField] private Transform target;
-    [SerializeField] private Transform idlePoint;
     public Vector2 IdlePosition { get; private set; }
     [SerializeField] private bool repeat;
     [SerializeField] private AIUtilityOptionSetDefinition utilityOptionSet;
@@ -29,17 +29,20 @@ public class EnemyAIBrain : MonoBehaviour
     {
         evaluation = default;
         if (option == null) return false;
-        AIAgentContext context = new AIAgentContext(transform, target, flightMotor, combatExecutor, idlePosition: IdlePosition);
+        AIAgentContext context = new AIAgentContext(transform, perception, motor, combatExecutor, activeArea,idlePosition: IdlePosition);
         return option.TryEvaluate(in context, out evaluation);
     }
 
     private void Awake()
     {
-        IdlePosition = idlePoint != null ? (Vector2)idlePoint.position : (Vector2)transform.position;
-        if (flightMotor == null)
-            flightMotor = GetComponent<EnemyFlightMotor>();
+        if (perception == null) perception = GetComponent<AITargetPerception>();
+        IdlePosition = transform.position;
+        if (motor == null)
+            motor = GetComponent<AIMotor>();
         if (combatExecutor == null)
             combatExecutor = GetComponent<EnemyCombatExecutor>();
+        if (activeArea == null)
+            activeArea = transform.root.GetComponent<ActiveArea>();
     }
 
     private void FixedUpdate()
@@ -47,6 +50,7 @@ public class EnemyAIBrain : MonoBehaviour
         if (IsSuspended || currentTask == null) return;
 
         TryReplanCurrentTask();
+        if (IsSuspended || currentTask == null) return;
 
         if (currentTask.Status != AITaskStatus.Running)
         {
@@ -73,7 +77,7 @@ public class EnemyAIBrain : MonoBehaviour
         }
         if (IsSuspended || currentTask == null || !currentTask.CanBeReplanned || currentTask.Status != AITaskStatus.Running) return false;
 
-        AIAgentContext context = new AIAgentContext(transform, target, flightMotor, combatExecutor, idlePosition: IdlePosition);
+        AIAgentContext context = new AIAgentContext(transform, perception, motor, combatExecutor, activeArea,idlePosition: IdlePosition);
 
         if (!utilityDecisionMaker.TrySelect(in context, utilityOptionSet.Options, out AIUtilityEvaluation selectedEvaluation))
         {
@@ -82,23 +86,26 @@ public class EnemyAIBrain : MonoBehaviour
         }
 
         AIIntent intent = selectedEvaluation.Intent;
+        if (currentIntent.Key == intent.Key && currentIntent.Action == intent.Action && currentIntent.Target == intent.Target) return false;
+
         if (!intentTaskMap.TryGetTask(intent.Key, out AITaskDefinition selectedDefinition)) return false;
-        AIAgentContext executionContext = new AIAgentContext(transform, intent.Target, flightMotor, combatExecutor, intent.Action, IdlePosition);
+        AIAgentContext executionContext = new AIAgentContext(transform, perception, motor, combatExecutor,
+            activeArea, selectedAction: intent.Action, idlePosition: IdlePosition);
 
         AITask candidateTask = selectedDefinition.CreateTask(in executionContext);
-
-        if (currentIntent.Key == intent.Key && currentIntent.Action == intent.Action && currentIntent.Target == intent.Target) return false;
+        if (candidateTask == null)
+        {
+            Debug.LogWarning($"[EnemyAIBrain] {name}: selected definition '{selectedDefinition.name}' could not create a task; current task retained.", this);
+            return false;
+        }
 
         AbortCurrentTask();
 
         currentTask = candidateTask;
         currentIntent = intent;
 
-        if (currentTask != null)
-        {
-            CurrentEvaluation = selectedEvaluation;
-            CurrentTaskDefinition = selectedDefinition;
-        }
+        CurrentEvaluation = selectedEvaluation;
+        CurrentTaskDefinition = selectedDefinition;
 
         return true;
     }
@@ -112,7 +119,7 @@ public class EnemyAIBrain : MonoBehaviour
             return false;
         }
 
-        AIAgentContext context = new AIAgentContext(transform, target, flightMotor, combatExecutor, idlePosition: IdlePosition);
+        AIAgentContext context = new AIAgentContext(transform, perception, motor, combatExecutor, activeArea,idlePosition: IdlePosition);
         if (!utilityDecisionMaker.TrySelect(in context, utilityOptionSet.Options, out AIUtilityEvaluation selectedEvaluation))
         {
             Debug.LogWarning($"[EnemyAIBrain] {name}: no valid feasible candidate was found; task not created.", this);
@@ -121,17 +128,19 @@ public class EnemyAIBrain : MonoBehaviour
 
         AIIntent intent = selectedEvaluation.Intent;
         if (!intentTaskMap.TryGetTask(intent.Key, out AITaskDefinition selectedDefinition)) return false;
-        AIAgentContext executionContext = new AIAgentContext(transform, intent.Target, flightMotor, combatExecutor,intent.Action, IdlePosition);
+        AIAgentContext executionContext = new AIAgentContext(transform, perception, motor, combatExecutor,
+            activeArea, selectedAction: intent.Action, idlePosition: IdlePosition);
 
-        AbortCurrentTask();
-        currentTask = selectedDefinition.CreateTask(in executionContext);
-        currentIntent = intent;
-        if (currentTask == null)
+        AITask candidateTask = selectedDefinition.CreateTask(in executionContext);
+        if (candidateTask == null)
         {
             Debug.LogWarning($"[EnemyAIBrain] {name}: selected definition '{selectedDefinition.name}' could not create a task.", this);
             return false;
         }
 
+        AbortCurrentTask();
+        currentTask = candidateTask;
+        currentIntent = intent;
         CurrentEvaluation = selectedEvaluation;
         CurrentTaskDefinition = selectedDefinition;
         string targetName = intent.Target != null ? intent.Target.name : "none";

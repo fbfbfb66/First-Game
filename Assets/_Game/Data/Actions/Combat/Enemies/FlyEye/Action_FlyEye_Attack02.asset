@@ -15,12 +15,53 @@ MonoBehaviour:
   command: {fileID: 0}
   entryConditions: []
   transitions: []
-  cooldownDuration: 3
+  cooldownDuration: 10
   stages:
   - animatorStateName: Attack02
+    conditions: []
+    cancelWindows:
+    - windowId: 0
+      allowedCommands: []
+    hitWindows:
+    - attackType: 1
+      effects:
+      - {fileID: 11400000, guid: 14bbefc64ea82f243bac1e9c7fae23cc, type: 2}
+      knockback:
+        distance: {x: 1.4, y: 0}
+        duration: 0.2
+        progressCurve:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 0
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+      windowId: 0
+      damageMultiplier: 1.5
+      shape: 1
+      localOffset: {x: 0.9, y: 0}
+      boxSize: {x: 1.8, y: 1.8}
+      circleRadius: 0.9
     displacementDirection: 1
     aiDisplacement:
-      distance: {x: 4, y: 0}
+      distance: {x: 5, y: 0}
       duration: 0.4
       progressCurve:
         serializedVersion: 2
@@ -64,44 +105,3 @@ MonoBehaviour:
         m_PreInfinity: 2
         m_PostInfinity: 2
         m_RotationOrder: 4
-    conditions: []
-    cancelWindows:
-    - windowId: 0
-      allowedCommands: []
-    hitWindows:
-    - attackType: 1
-      effects:
-      - {fileID: 11400000, guid: 14bbefc64ea82f243bac1e9c7fae23cc, type: 2}
-      knockback:
-        distance: {x: 1.4, y: 0}
-        duration: 0.2
-        progressCurve:
-          serializedVersion: 2
-          m_Curve:
-          - serializedVersion: 3
-            time: 0
-            value: 0
-            inSlope: 0
-            outSlope: 0
-            tangentMode: 0
-            weightedMode: 0
-            inWeight: 0
-            outWeight: 0
-          - serializedVersion: 3
-            time: 1
-            value: 1
-            inSlope: 0
-            outSlope: 0
-            tangentMode: 0
-            weightedMode: 0
-            inWeight: 0
-            outWeight: 0
-          m_PreInfinity: 2
-          m_PostInfinity: 2
-          m_RotationOrder: 4
-      windowId: 0
-      damageMultiplier: 1.5
-      shape: 1
-      localOffset: {x: 0.9, y: 0}
-      boxSize: {x: 1.8, y: 1.8}
-      circleRadius: 0.9

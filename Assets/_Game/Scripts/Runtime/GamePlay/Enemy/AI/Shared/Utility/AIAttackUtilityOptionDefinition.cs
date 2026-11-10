@@ -15,11 +15,30 @@ public class AIAttackUtilityOptionDefinition : AIUtilityOptionDefinition
     public float MaxRange => maxRange;
     public AnimationCurve DistanceUtilityCurve => distanceUtilityCurve;
 
+    public override bool IsFeasible(in AIAgentContext context)
+    {
+        if (!base.IsFeasible(in context) || intentKey == null || action == null ||
+            context.CombatExecutor == null || context.CombatExecutor.CombatActionController == null ||
+            context.Motor == null) return false;
+
+        if (context.CombatExecutor.CombatActionController.GetCooldownRemaining(action) > 0f) return false;
+
+        Transform target = context.Target;
+        if (target == null || target == context.Owner || !target.gameObject.activeInHierarchy) return false;
+
+        float distance = Vector2.Distance(context.Owner.position, target.position);
+        if (float.IsNaN(distance) || float.IsInfinity(distance)) return false;
+        if ((distance < minRange && !Mathf.Approximately(distance, minRange)) ||
+            (distance > maxRange && !Mathf.Approximately(distance, maxRange))) return false;
+
+        return context.Motor.IsFacingTarget(target.position);
+    }
+
     public override bool TryEvaluate(in AIAgentContext context, out AIUtilityEvaluation evaluation)
     {
         evaluation = default;
         if (context.Owner == null || intentKey == null || action == null ||
-            context.CombatExecutor == null || context.CombatExecutor.CombatActionController == null || context.FlightMotor == null)
+            context.CombatExecutor == null || context.CombatExecutor.CombatActionController == null || context.Motor == null)
         {
             Debug.LogWarning($"[AIUtility] {name}: owner, intent key, action, Combat controller or facing motor is missing; attack evaluation failed.", this);
             return false;
@@ -43,39 +62,15 @@ public class AIAttackUtilityOptionDefinition : AIUtilityOptionDefinition
             return false;
         }
 
-        float remaining = context.CombatExecutor.CombatActionController.GetCooldownRemaining(action);
-        if (remaining > 0f)
-        {
-            evaluation = new AIUtilityEvaluation(new AIIntent(intentKey, context.Target), false, 0f,
-                $"Attack infeasible: action '{action.name}' has {remaining:F3}s of cooldown remaining.");
-            return true;
-        }
-
-        Transform target = context.Target;
-        if (target == null || target == context.Owner || !target.gameObject.activeInHierarchy)
-        {
-            evaluation = new AIUtilityEvaluation(new AIIntent(intentKey, null), false, 0f,
-                "Attack infeasible: target is missing, inactive or the owner itself.");
-            return true;
-        }
-
-        float distance = Vector2.Distance(context.Owner.position, target.position);
-        AIIntent intent = new AIIntent(intentKey, target,action);
-        if ((distance < minRange && !Mathf.Approximately(distance, minRange)) ||
-            (distance > maxRange && !Mathf.Approximately(distance, maxRange)))
+        AIIntent intent = new AIIntent(intentKey, context.Target, action);
+        if (!IsFeasible(in context))
         {
             evaluation = new AIUtilityEvaluation(intent, false, 0f,
-                $"Attack infeasible: distance={distance:F4} is outside [{minRange:F4},{maxRange:F4}].");
+                "Attack infeasible: no detected target, owner or target is outside the active area, area is missing, or target is invalid, action is cooling down, or range/facing conditions are not met.");
             return true;
         }
 
-        if (!context.FlightMotor.IsFacingTarget(target.position))
-        {
-            evaluation = new AIUtilityEvaluation(intent, false, 0f,
-                "Attack infeasible: owner is facing away from target.");
-            return true;
-        }
-
+        float distance = Vector2.Distance(context.Owner.position, context.Target.position);
         float normalizedDistance = Mathf.Clamp01((distance - minRange) / (maxRange - minRange));
         float curveScore = distanceUtilityCurve.Evaluate(normalizedDistance);
         if (float.IsNaN(curveScore) || float.IsInfinity(curveScore))

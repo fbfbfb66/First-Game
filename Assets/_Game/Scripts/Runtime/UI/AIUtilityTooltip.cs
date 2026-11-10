@@ -74,6 +74,7 @@ public sealed class AIUtilityTooltip : MonoBehaviour
         if (name.EndsWith("Attack02", StringComparison.Ordinal)) return "突进";
         if (name.EndsWith("Attack03", StringComparison.Ordinal)) return "远程";
         if (name.EndsWith("Chase", StringComparison.Ordinal)) return "追击";
+        if (name.EndsWith("Return", StringComparison.Ordinal)) return "返回";
         if (name.EndsWith("Idle", StringComparison.Ordinal)) return "待机";
         if (name.EndsWith("Attack", StringComparison.Ordinal)) return "攻击";
         return name;

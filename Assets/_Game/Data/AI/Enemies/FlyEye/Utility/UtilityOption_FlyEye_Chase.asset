@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AIChaseUtilityOptionDefinition
   intentKey: {fileID: 11400000, guid: 8f4a365cb53049d3ba4c5916ec132e81, type: 2}
   minRange: 2
-  maxRange: 20
   distanceUtilityCurve:
     serializedVersion: 2
     m_Curve:

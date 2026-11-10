@@ -13,7 +13,7 @@ public class AIFlyToTargetTask : AITask
     public AIFlyToTargetTask(in AIAgentContext context, float speed, float stoppingDistance, float giveUpDistance)
     {
 
-        if (speed <= 0 || stoppingDistance < 0 || giveUpDistance <= stoppingDistance || context.FlightMotor == null)
+        if (speed <= 0 || stoppingDistance < 0 || giveUpDistance <= stoppingDistance || context.Motor == null)
         {
             throw new ArgumentNullException("非法数值");
         }
@@ -26,7 +26,7 @@ public class AIFlyToTargetTask : AITask
     protected override AITaskStatus OnTick(float deltaTime)
     {
         if (context.Target == null || context.Target == context.Owner ||
-            !context.Target.gameObject.activeInHierarchy || context.FlightMotor == null)
+            !context.Target.gameObject.activeInHierarchy || context.Motor == null)
         {
             return AITaskStatus.Failed;
         }
@@ -35,13 +35,13 @@ public class AIFlyToTargetTask : AITask
         {
             return AITaskStatus.Failed;
         }
-        if (!context.FlightMotor.IsFacingTarget(context.Target.position))
-            context.FlightMotor.HandleFlip(context.Target.position - context.Owner.position);
+        if (!context.Motor.IsFacingTarget(context.Target.position))
+            context.Motor.HandleFlip(context.Target.position - context.Owner.position);
         if (distance <= stoppingDistance || Mathf.Approximately(distance, stoppingDistance))
         {
             return AITaskStatus.Succeeded;
         }
-        context.FlightMotor.MoveTowards(context.Target.position, speed, stoppingDistance, deltaTime);
+        context.Motor.MoveTowards(context.Target.position, speed, stoppingDistance, deltaTime);
         return AITaskStatus.Running;
     }
 }

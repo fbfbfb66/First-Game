@@ -40,13 +40,13 @@ public class AICombatActionTask : AITask
             Debug.LogWarning($"[EnemyCombat] {context.Owner.name}: combat action controller is missing; attack not started.", context.Owner);
             return AITaskStatus.Failed;
         }
-        if (context.FlightMotor == null)
+        if (context.Motor == null)
         {
             Debug.LogWarning($"[EnemyCombat] {context.Owner.name}: facing motor is missing; attack not started.", context.Owner);
             return AITaskStatus.Failed;
         }
-        if (!context.FlightMotor.IsFacingTarget(context.Target.position))
-            context.FlightMotor.HandleFlip(context.Target.position - context.Owner.position);
+        if (!context.Motor.IsFacingTarget(context.Target.position))
+            context.Motor.HandleFlip(context.Target.position - context.Owner.position);
 
         CombatActionContext combatContext;
         if(groundSensor == null)
