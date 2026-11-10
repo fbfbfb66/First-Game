@@ -13,21 +13,25 @@ MonoBehaviour:
   m_Name: Action_DiveAttack_Loop_Normal
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatActionDefinition
   command: {fileID: 0}
+  entryConditions:
+  - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}
+  transitions:
+  - conditions:
+    - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}
+    command: {fileID: 0}
+    targetAction: {fileID: 11400000, guid: 7a36f4b6c05ca3f40b4c7442d24f2eb3, type: 2}
+  cooldownDuration: 0
   stages:
   - animatorStateName: DiveAttack_Loop_Normal
-    entryVelocityRule:
-      overrideHorizontal: 0
-      localHorizontalVelocity: 0
-      overrideVertical: 1
-      verticalVelocity: -30
-    horizontalDeceleration: 0
+    conditions: []
     cancelWindows: []
     hitWindows:
-    - effects:
+    - attackType: 0
+      effects:
       - {fileID: 11400000, guid: e9218ab5bee2b574b85a964c58c39120, type: 2}
       - {fileID: 11400000, guid: 14bbefc64ea82f243bac1e9c7fae23cc, type: 2}
       knockback:
-        distance: {x: 0, y: -3}
+        distance: {x: 0, y: -1}
         duration: 0.15
         progressCurve:
           serializedVersion: 2
@@ -59,11 +63,12 @@ MonoBehaviour:
       localOffset: {x: 0.24, y: 0.86}
       boxSize: {x: 4, y: 6.75}
       circleRadius: 0
-    conditions: []
-  transitions:
-  - conditions:
-    - {fileID: 11400000, guid: d75d9167063d4c74ebc032e5f112e5da, type: 2}
-    command: {fileID: 0}
-    targetAction: {fileID: 11400000, guid: 7a36f4b6c05ca3f40b4c7442d24f2eb3, type: 2}
-  entryConditions:
-  - {fileID: 11400000, guid: 601ac415950301b4fa402a5e6c1da7b8, type: 2}
+    entryVelocityRule:
+      overrideHorizontal: 0
+      localHorizontalVelocity: 0
+      overrideVertical: 1
+      verticalVelocity: -30
+      inheritedHorizontalSpeedFactor: 0
+      useHorizontalInput: 0
+      alternateLocalHorizontalVelocity: 0
+    horizontalDeceleration: 0

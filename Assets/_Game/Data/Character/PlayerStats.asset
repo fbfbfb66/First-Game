@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 09db5579bc8f45fe9f903d6d06532f79, type: 3}
   m_Name: PlayerStats
   m_EditorClassIdentifier: Assembly-CSharp::CharacterStatsData
-  maxHealth: 100
+  maxHealth: 500
   baseAttack: 10
   criticalChance: 0.05
   criticalDamageMultiplier: 1.5
